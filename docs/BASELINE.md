@@ -5,6 +5,7 @@
 - Adventure Station GitHub connector confirmed administrator/push access. Local GitHub CLI credentials were not established for this account; connector access is separate.
 - The production homepage returned HTTP 200 at `https://adventurestationfl.com/`. Its downloaded HTML is preserved locally in the ignored baseline folder. Cloudflare rewrites email links, so it differs from the source bytes. It is not a source-file hash match.
 - Original source hashes and the four payment URLs are in `baseline/files.json`. `npm run baseline:check` verifies that `index.html`, `adventure_station_website.html` and `CNAME` remain byte-for-byte unchanged.
+- Both exact Windows checkout (CRLF) and original Git blob (LF) hashes are frozen in that record, so Linux CI validates the original source bytes without treating checkout line endings as a source change. No other content variants are accepted.
 - Both original embedded JPEG images were extracted and inspected. The new layout retains their artwork; WebP derivatives improve delivery. The preserved HTML retains the original JPEG bytes.
 - Cloudflare zone active; nameservers `adaline.ns.cloudflare.com`, `sid.ns.cloudflare.com`.
 - Apex A records: `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`, all proxied. `www` CNAME: `adventurestationfl.github.io`, proxied. The domain-connect CNAME and DMARC TXT were also present and untouched.
