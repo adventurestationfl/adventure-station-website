@@ -1,5 +1,7 @@
 ---
-const { workshop: w } = Astro.props;
+import { money, dateLabel } from '../lib/data';
+const { workshop: w, sessions = [] } = Astro.props;
+const next = sessions[0];
 ---
 
 <a class="workshop-card" href={`/workshops/${w.slug}`}>
@@ -16,10 +18,25 @@ const { workshop: w } = Astro.props;
     <span class="tag">{w.category}</span>
     <h3>{w.name}</h3>
     <p>{w.summary}</p>
+    <div class="card-facts">
+      <p>
+        Ages {w.age_min}–{w.age_max}. {w.duration} minutes.
+      </p>
+      {next ? (
+        <>
+          <p>{dateLabel(next.starts_at, next.timezone)}</p>
+          <p>{next.venue_name}</p>
+          <p>
+            <strong>{money(next.price)} per child</strong> ·{' '}
+            {Math.max(0, next.capacity - next.occupied)} places available
+          </p>
+        </>
+      ) : (
+        <p>New dates will appear here when ready.</p>
+      )}
+    </div>
     <div class="card-foot">
-      <span>
-        Ages {w.age_min}–{w.age_max} · {w.duration} minutes
-      </span>
+      <span>View workshop</span>
       <span aria-hidden="true">↗</span>
     </div>
   </div>

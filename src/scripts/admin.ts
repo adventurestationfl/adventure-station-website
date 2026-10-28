@@ -148,7 +148,7 @@ async function renderWorkshops() {
   await lookups();
   workspace.innerHTML =
     heading(
-      'Your workshops',
+      'Workshops',
       'The ideas you can come back to, again and again.',
       button('+ Create workshop', 'new-workshop', '', ''),
     ) +
@@ -325,26 +325,21 @@ async function roster(id: string) {
   );
 }
 function setupSummary(s: any) {
-  return `<details class="panel setup-summary" ${s.minimized ? '' : 'open'}><summary>Get Adventure Station ready · ${s.completed} of ${s.total} owner tasks complete</summary><p>You can edit your website and prepare workshops now. Registration and launch have separate checks.</p><progress value="${s.completed}" max="${s.total}" aria-label="Owner setup progress"></progress><div class="setup-tasks">${s.tasks
-    .filter((t: any) => !t.complete)
-    .slice(0, 3)
-    .map(
-      (t: any) =>
-        `<article><strong>${h(t.title)}</strong><p>${h(t.help)}</p><a class="text-link" href="${h(t.href)}">Review this task ↗</a></article>`,
-    )
-    .join(
-      '',
-    )}</div><a class="btn small" href="/admin/setup">Open setup checklist ↗</a><p class="muted">${s.integrations.filter((i: any) => !i.complete).length} external checks still need developer help. Live registration stays disabled in this release.</p></details>`;
+  const next = s.tasks.find((t: any) => !t.complete);
+  return `<details class="setup-summary" ${s.minimized ? '' : 'open'}><summary>Business setup: ${s.completed} of ${s.total} owner tasks complete</summary><div class="setup-next"><div><strong>${h(next?.title ?? 'Owner setup is complete')}</strong><p>${h(next?.help ?? 'External verification and launch approval remain separate.')}</p></div><a class="btn small" href="${h(next?.href ?? '/admin/setup')}">Continue setup</a></div><a class="text-link" href="/admin/setup">View all setup tasks</a></details>`;
 }
+let setupRevealCleanup: (() => void) | undefined;
 async function renderSetup() {
+  setupRevealCleanup?.();
   const s = await api('setup'),
     d = s.decisions;
+  const nextTask = s.tasks.find((t: any) => !t.complete);
   workspace.innerHTML =
     heading(
       'Get Adventure Station ready',
       'Finish a little at a time. Your saved decisions will be here when you return.',
     ) +
-    `<div class="panel"><h2>${s.completed} of ${s.total} owner tasks complete</h2><progress value="${s.completed}" max="${s.total}" aria-label="Owner setup progress"></progress><p>Website editing is available. Class dates are validated individually. Registration: ${s.registrationAllowed ? 'test setup complete' : 'setup still needed'}. Production launch requires separate review and authorization.</p></div><div class="setup-tasks">${s.tasks.map((t: any) => `<article class="panel"><h2>${h(t.title)}</h2>${status(t.status)}<p>${h(t.help)}</p><a href="${h(t.href)}" class="text-link">Review this task ↗</a></article>`).join('')}</div><form id="setup-form"><section class="panel" id="business"><h2>Business information</h2>${field('Legal business name', 'legalName', d.legalName)}${field('Business mailing contact', 'mailingContact', d.mailingContact, 'textarea', 'Use an appropriate business contact. Do not enter a private home address unnecessarily.')}<p><a href="/admin/content">Review public email, phone, locality and timezone ↗</a></p>${check('I have checked these business details.', 'confirm-business', false)}</section><section class="panel" id="supervision"><h2>How children participate</h2>${select(
+    `<div class="setup-overview"><div><h2>${s.completed} of ${s.total} owner tasks complete</h2><progress value="${s.completed}" max="${s.total}" aria-label="Owner setup progress"></progress><p>${nextTask ? 'Next: ' + h(nextTask.title) : 'Owner tasks complete. External checks remain separate.'}</p>${nextTask ? `<a class="btn" href="${h(nextTask.href)}">Continue setup</a>` : ''}</div><dl class="setup-readiness"><div><dt>Website editing</dt><dd>Available now</dd></div><div><dt>Registration</dt><dd>${s.registrationAllowed ? 'Test setup complete' : 'Setup still needed'}</dd></div><div><dt>Production launch</dt><dd>Separate review required</dd></div></dl></div><ul class="setup-list">${s.tasks.map((t: any) => `<li class="setup-task ${t.complete ? 'complete' : ''}"><div><h2>${h(t.title)}</h2><span class="task-state">${t.complete ? '✓ ' : ''}${h(t.status)}</span><p>${h(t.help)}</p></div><a href="${h(t.href)}">${t.complete ? 'Review' : 'Open task'}</a></li>`).join('')}</ul><h2 class="section-title">Your business decisions</h2><form id="setup-form"><details class="setup-form-section" id="business" open><summary>Business information</summary><div class="setup-form-body">${field('Legal business name', 'legalName', d.legalName)}${field('Business mailing contact', 'mailingContact', d.mailingContact, 'textarea', 'Use an appropriate business contact. Do not enter a private home address unnecessarily.')}<p><a href="/admin/content">Review public email, phone, locality and timezone ↗</a></p>${check('I have checked these business details.', 'confirm-business', false)}</div></details><details class="setup-form-section" id="supervision"><summary>How children participate</summary><div class="setup-form-body">${select(
       'Supervision arrangement',
       'supervision',
       d.supervision,
@@ -353,7 +348,7 @@ async function renderSetup() {
         { id: 'parent_present', name: 'A responsible adult stays throughout' },
         { id: 'drop_off', name: 'Children attend without their adult' },
       ],
-    )}${field('Supervision, ages, arrival and emergency arrangements', 'safetyNotes', d.safetyNotes, 'textarea', 'Record the arrangements you can actually provide. Changing supervision reopens policy and operating reviews.')}<p class="notice">Drop-off needs additional regulatory evidence, safety arrangements and newly reviewed policies. Choosing it does not authorize a drop-off service.</p>${check('I have confirmed these participation arrangements.', 'confirm-supervision', false)}</section><section class="panel" id="licensing"><h2>Operating and licensing review</h2><p>Consider the actual Florida requirements with the appropriate authority or adviser. This records your report; it is not independent certification or a finding of exemption.</p>${select(
+    )}${field('Supervision, ages, arrival and emergency arrangements', 'safetyNotes', d.safetyNotes, 'textarea', 'Record the arrangements you can actually provide. Changing supervision reopens policy and operating reviews.')}<p class="notice">Drop-off needs additional regulatory evidence, safety arrangements and newly reviewed policies. Choosing it does not authorize a drop-off service.</p>${check('I have confirmed these participation arrangements.', 'confirm-supervision', false)}</div></details><details class="setup-form-section" id="licensing"><summary>Operating and licensing review</summary><div class="setup-form-body"><p>Consider the actual Florida requirements with the appropriate authority or adviser. This records your report; it is not independent certification or a finding of exemption.</p>${select(
       'Current review position',
       'licensingOutcome',
       d.licensingOutcome,
@@ -370,7 +365,19 @@ async function renderSetup() {
           name: 'I report a determination that this program does not require it',
         },
       ],
-    )}${field('Determination and supporting notes', 'licensingNotes', d.licensingNotes, 'textarea')}${field('Supporting reference (optional https link)', 'licensingReference', d.licensingReference, 'url')}${check('I have recorded my current determination accurately.', 'confirm-licensing', false)}</section><section class="panel" id="privacy"><h2>Privacy and optional permissions</h2><p>For this release, use artwork, crafts, materials, venues and non-identifying photos. Identifiable child photos and their consent workflow are deferred.</p>${field('Data, retention and privacy-request arrangements', 'privacyNotes', d.privacyNotes, 'textarea', 'Record who handles requests and the review/deletion schedule, including backups. Describe optional marketing and its opt-out process, or record that it is not used.')}<p><a href="/admin/privacy">Review historical records ↗</a> · <a href="/admin/content">Review privacy policy and review period ↗</a></p>${check('I have confirmed these privacy arrangements.', 'confirm-privacy', false)}</section><section class="panel"><h2>Website personalization</h2>${field('Website review notes', 'editorialNotes', d.editorialNotes, 'textarea', 'Review the homepage, About, FAQ, permitted images and contact details. This task can wait while you prepare drafts.')}${check('I have reviewed the website content.', 'confirm-editorial', false)}${check('Keep the dashboard setup section minimized.', 'minimized', s.minimized)}</section>${saveBar('Save setup progress')}</form><section class="panel" id="integrations"><h2>Help from your developer</h2><p>These checks need real external tests. You do not need to enter passwords, keys or technical settings here.</p>${s.integrations.map((i: any) => `<article class="setup-item"><h3>${h(i.title)}</h3>${status(i.status)}<p>${h(i.help)}</p></article>`).join('')}<p>Owner-reported operating review: ${h(d.licensingOutcome.replaceAll('_', ' '))}. Independent regulatory evidence: ${s.external.find((e: any) => e.kind === 'regulatory')?.verified ? 'Recorded for the current arrangements' : 'Not recorded'}.</p></section>`;
+    )}${field('Determination and supporting notes', 'licensingNotes', d.licensingNotes, 'textarea')}${field('Supporting reference (optional https link)', 'licensingReference', d.licensingReference, 'url')}${check('I have recorded my current determination accurately.', 'confirm-licensing', false)}</div></details><details class="setup-form-section" id="privacy"><summary>Privacy and optional permissions</summary><div class="setup-form-body"><p>For this release, use artwork, crafts, materials, venues and non-identifying photos. Identifiable child photos and their consent workflow are deferred.</p>${field('Data, retention and privacy-request arrangements', 'privacyNotes', d.privacyNotes, 'textarea', 'Record who handles requests and the review/deletion schedule, including backups. Describe optional marketing and its opt-out process, or record that it is not used.')}<p><a href="/admin/privacy">Review historical records ↗</a> · <a href="/admin/content">Review privacy policy and review period ↗</a></p>${check('I have confirmed these privacy arrangements.', 'confirm-privacy', false)}</div></details><details class="setup-form-section" id="editorial"><summary>Website personalization</summary><div class="setup-form-body">${field('Website review notes', 'editorialNotes', d.editorialNotes, 'textarea', 'Review the homepage, About, FAQ, permitted images and contact details. This task can wait while you prepare drafts.')}${check('I have reviewed the website content.', 'confirm-editorial', false)}${check('Keep the dashboard setup section minimized.', 'minimized', s.minimized)}</div></details>${saveBar('Save setup progress')}</form><details class="setup-form-section" id="integrations"><summary>External checks: help from your developer</summary><div class="setup-form-body"><p>These checks need real external tests. You do not need to enter passwords, keys or technical settings here.</p>${s.integrations.map((i: any) => `<article class="setup-item"><h3>${h(i.title)}</h3>${status(i.status)}<p>${h(i.help)}</p></article>`).join('')}<p>Owner-reported operating review: ${h(d.licensingOutcome.replaceAll('_', ' '))}. Independent regulatory evidence: ${s.external.find((e: any) => e.kind === 'regulatory')?.verified ? 'Recorded for the current arrangements' : 'Not recorded'}.</p></div></details>`;
+  const reveal = () => {
+    const id = location.hash.slice(1),
+      target = document.getElementById(id);
+    if (target instanceof HTMLDetailsElement) {
+      target.open = true;
+      target.scrollIntoView({ block: 'start' });
+      target.querySelector('summary')?.focus();
+    }
+  };
+  window.addEventListener('hashchange', reveal);
+  setupRevealCleanup = () => window.removeEventListener('hashchange', reveal);
+  if (location.hash) reveal();
   const form = document.querySelector<HTMLFormElement>('#setup-form')!;
   onSave(form, async () => {
     const value: any = formValues(form);
@@ -394,7 +401,7 @@ async function renderNotifications() {
     ) +
     `<div class="notice">Development release: customer sending is disabled. Configured tests go only to the email provider’s test addresses. Accepted means accepted by the provider; it does not mean delivered.</div>` +
     (rows.length
-      ? `<div class="grid">${rows.map((n: any) => `<article class="panel"><h2>${h(n.subject)}</h2>${status(n.state)}<p>Reference: ${h(n.registration_id)}</p><p>${h(n.last_error)}</p><p>${n.attempts} attempt(s). ${h(new Date(n.updated_at * 1000).toLocaleString())}</p>${n.state === 'queued' ? button('Retry safely', 'retry-notice', n.id) : ''}${['review', 'bounced', 'failed', 'suppressed'].includes(n.state) ? '<p>Check the outcome and contact the guardian another way. Do not send a duplicate blindly.</p>' : ''}</article>`).join('')}</div>`
+      ? `<div class="message-list">${rows.map((n: any) => `<article class="panel"><h2>${h(n.subject)}</h2>${status(n.state)}<p>Reference: ${h(n.registration_id)}</p><p>${h(n.last_error)}</p><p>${n.attempts} attempt(s). ${h(new Date(n.updated_at * 1000).toLocaleString())}</p>${n.state === 'queued' ? button('Retry safely', 'retry-notice', n.id) : ''}${['review', 'bounced', 'failed', 'suppressed'].includes(n.state) ? '<p>Check the outcome and contact the guardian another way. Do not send a duplicate blindly.</p>' : ''}</article>`).join('')}</div>`
       : empty(
           'No booking messages yet.',
           'Verified confirmations, cancellations and refund updates will appear here.',
@@ -520,7 +527,7 @@ async function renderDashboard() {
   const to = new Date();
   workspace.innerHTML =
     heading(
-      'A little overview.',
+      'Overview',
       'Your workshops, your families, your next adventure.',
       `<a class="btn small" href="/admin/workshops">Manage workshops ↗</a>`,
     ) +
@@ -534,7 +541,7 @@ async function renderDashboard() {
     );
     const confirmed = d.registrations.find((r: any) => r.status === 'confirmed');
     document.querySelector('#dashboard-data')!.innerHTML =
-      `<p class="muted">Payment and registration activity in the chosen date range (UTC calendar dates).</p><div class="stats"><div class="stat"><small>GROSS VERIFIED SALES</small><span class="value money">${cash(d.financial.gross)}</span><small>${d.financial.payments} verified payment${d.financial.payments === 1 ? '' : 's'} · Before refunds and fees</small></div><div class="stat"><small>REFUNDS VERIFIED</small><span class="value money">${cash(d.financial.refunds)}</span><small>Refunds on payments made in this period</small></div><div class="stat"><small>CONFIRMED CHILDREN</small><span class="value">${confirmed?.children ?? 0}</span><small>${confirmed?.orders ?? 0} confirmed registrations created in this period</small></div></div><div class="panel"><h2>Your next class dates</h2>${d.upcoming.length ? d.upcoming.map((s: any) => `<div class="session-row"><div><strong>${h(s.name)}</strong><p>${h(date(s.starts_at, s.timezone))}</p></div><span>${s.confirmed} confirmed · ${s.capacity - s.confirmed} remaining before holds</span><a class="text-link" href="/admin/sessions">Open dates ↗</a></div>`).join('') : '<p class="muted">No upcoming class dates. Start with Workshops → Add date.</p>'}</div><div class="panel"><h2>Needs a little attention</h2><p>${d.notifications?.attention ?? 0} messages need follow-up · ${d.notifications?.pending ?? 0} waiting to send. <a href="/admin/notifications">Review messages ↗</a></p>${d.attention.length ? `<ul class="attention-list">${d.attention.map((r: any) => `<li>${h(r.workshop_name)} · ${status(r.status)} · <a href="/admin/registrations">Review registration</a></li>`).join('')}</ul>` : '<p class="muted">No registrations flagged for payment follow-up.</p>'}</div><div class="panel"><h2>Workshop popularity</h2>${d.popular.length ? d.popular.map((p: any) => `<p>${h(p.workshop_name)} — ${p.children} confirmed children</p>`).join('') : '<p class="muted">Confirmed registrations will build this picture over time.</p>'}</div>${role === 'owner' ? `<div class="panel"><h2>Privacy review</h2><p>${d.privacy?.count ?? 0} historical registrations are due for a personal-data review. Open Registrations to remove personal details when appropriate.</p></div>` : ''}<div class="panel"><h2>Registration states</h2>${d.registrations.length ? d.registrations.map((r: any) => `<p>${status(r.status)} ${r.orders} registrations · ${r.children} children</p>`).join('') : '<p class="muted">No registrations in this date range.</p>'}</div>`;
+      `<div class="dashboard-layout"><div class="panel"><h2>Your next class dates</h2>${d.upcoming.length ? d.upcoming.map((s: any) => `<div class="session-row"><div><strong>${h(s.name)}</strong><p>${h(date(s.starts_at, s.timezone))}</p></div><span>${s.confirmed} confirmed · ${s.capacity - s.confirmed} remaining before holds</span><a class="text-link" href="/admin/sessions">Review dates ↗</a></div>`).join('') : '<p class="muted">No upcoming class dates. Create a workshop, then add its first date.</p>'}</div><div class="panel"><h2>Needs attention</h2><p>${d.notifications?.attention ?? 0} messages need follow-up · ${d.notifications?.pending ?? 0} waiting to send. <a href="/admin/notifications">Review messages ↗</a></p>${d.attention.length ? `<ul class="attention-list">${d.attention.map((r: any) => `<li>${h(r.workshop_name)} · ${status(r.status)} · <a href="/admin/registrations">Review registration</a></li>`).join('')}</ul>` : '<p class="muted">No registrations flagged for payment follow-up.</p>'}</div></div><h2 class="section-title">Activity in your selected period</h2><p class="muted">Payment and registration activity in the chosen date range (UTC calendar dates).</p><div class="stats"><div class="stat"><small>Gross verified sales</small><span class="value money">${cash(d.financial.gross)}</span><small>${d.financial.payments} verified payment${d.financial.payments === 1 ? '' : 's'} · Before refunds and fees</small></div><div class="stat"><small>Refunds verified</small><span class="value money">${cash(d.financial.refunds)}</span><small>Refunds on payments made in this period</small></div><div class="stat"><small>Confirmed children</small><span class="value">${confirmed?.children ?? 0}</span><small>${confirmed?.orders ?? 0} confirmed registrations created in this period</small></div></div><div class="panel"><h2>Workshop popularity</h2>${d.popular.length ? d.popular.map((p: any) => `<p>${h(p.workshop_name)} — ${p.children} confirmed children</p>`).join('') : '<p class="muted">Confirmed registrations will build this picture over time.</p>'}</div>${role === 'owner' ? `<div class="panel"><h2>Privacy review</h2><p>${d.privacy?.count ?? 0} historical registrations are due for a personal-data review. Open Registrations to remove personal details when appropriate.</p></div>` : ''}<div class="panel"><h2>Registration states</h2>${d.registrations.length ? d.registrations.map((r: any) => `<p>${status(r.status)} ${r.orders} registrations · ${r.children} children</p>`).join('') : '<p class="muted">No registrations in this date range.</p>'}</div>`;
   };
   form.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -547,7 +554,7 @@ async function renderContent() {
   const owner = role === 'owner';
   workspace.innerHTML =
     heading(
-      'Make it yours.',
+      'Website content',
       'Edit the words and images. The design takes care of itself.',
       `<a class="btn small light" href="/" target="_blank" rel="noopener">View website ↗</a>`,
     ) +
@@ -647,7 +654,7 @@ async function renderVenues() {
   venues = await api('venues');
   workspace.innerHTML =
     heading(
-      'Places to create.',
+      'Venues',
       'Verify the address before publishing a class date.',
       button('+ Add venue', 'new-venue', '', ''),
     ) +
@@ -686,11 +693,11 @@ async function renderRegistrations() {
   const rows = await api('registrations');
   workspace.innerHTML =
     heading(
-      'Every little adventurer.',
+      'Registrations',
       'Payment and registration states are shown separately.',
       button('Check payment updates', 'reconcile'),
     ) +
-    `<div class="panel"><div class="field"><label for="registration-search">Find a registration</label><input id="registration-search" type="search" placeholder="Guardian, workshop, or reference"/></div><div class="overflow"><table class="table"><thead><tr><th>Workshop / guardian</th><th>Places</th><th>Registration</th><th>Verified payment</th><th>Actions</th></tr></thead><tbody>${rows.map((r: any) => `<tr data-search="${h(`${r.guardian_name} ${r.guardian_email} ${r.workshop_name} ${r.id}`.toLowerCase())}"><td><strong>${h(r.workshop_name)}</strong><br/>${h(r.guardian_name ?? 'Personal details removed')}<br/><small>${h(r.guardian_email)}<br/>${h(r.id)}</small></td><td>${r.seats - r.cancelled_seats} active<br/><small>${r.seats} originally booked</small></td><td>${status(r.status)}${r.needs_attention ? '<br/><small>Follow-up needed</small>' : ''}</td><td>${cash(r.paid)} received<br/>${(r.payment_issues ?? []).map((i: any) => `<strong>Needs review: ${h(i.amount / 100)} ${h(i.currency)}</strong><br/>`).join('')}${cash(r.refunded)} refunded<br/><small>Order total ${cash(r.total)}</small></td><td>${button('Review booking', 'booking-details', r.id)}<div class="inline-actions">${r.status === 'payment_review' && r.paid - r.refunded >= r.total ? button('Confirm available places', 'confirm-review', r.id) : ''}${r.needs_attention && !['pending', 'payment_review'].includes(r.status) ? button('Follow-up complete', 'complete-review', r.id) : ''}</div>${role === 'owner' ? `<div class="inline-actions">${r.paid > r.refunded || (r.payment_issues ?? []).some((i: any) => i.refunded < i.amount) ? button('Review refund', 'booking-details', r.id) : ''}${r.ends_at < Date.now() / 1000 && !r.anonymized_at ? button('Remove personal details', 'anonymize', r.id) : ''}</div>` : ''}</td></tr>`).join('')}</tbody></table></div>${!rows.length ? '<p class="muted">Registrations will appear here when a family starts checkout.</p>' : ''}</div>`;
+    `<div class="panel"><div class="field"><label for="registration-search">Find a registration</label><input id="registration-search" type="search" placeholder="Guardian, workshop, or reference"/></div><div class="overflow"><table class="table registrations-table"><thead><tr><th>Workshop / guardian</th><th>Places</th><th>Registration</th><th>Verified payment</th><th>Actions</th></tr></thead><tbody>${rows.map((r: any) => `<tr data-search="${h(`${r.guardian_name} ${r.guardian_email} ${r.workshop_name} ${r.id}`.toLowerCase())}"><td data-label="Workshop and guardian"><strong>${h(r.workshop_name)}</strong><br/>${h(r.guardian_name ?? 'Personal details removed')}<br/><small>${h(r.guardian_email)}<br/>${h(r.id)}</small></td><td data-label="Places">${r.seats - r.cancelled_seats} active<br/><small>${r.seats} originally booked</small></td><td data-label="Registration">${status(r.status)}${r.needs_attention ? '<br/><small>Follow-up needed</small>' : ''}</td><td data-label="Verified payment">${cash(r.paid)} received<br/>${(r.payment_issues ?? []).map((i: any) => `<strong>Needs review: ${h(i.amount / 100)} ${h(i.currency)}</strong><br/>`).join('')}${cash(r.refunded)} refunded<br/><small>Order total ${cash(r.total)}</small></td><td data-label="Actions">${button('Review booking', 'booking-details', r.id)}<div class="inline-actions">${r.status === 'payment_review' && r.paid - r.refunded >= r.total ? button('Confirm available places', 'confirm-review', r.id) : ''}${r.needs_attention && !['pending', 'payment_review'].includes(r.status) ? button('Follow-up complete', 'complete-review', r.id) : ''}</div>${role === 'owner' ? `<div class="inline-actions">${r.paid > r.refunded || (r.payment_issues ?? []).some((i: any) => i.refunded < i.amount) ? button('Review refund', 'booking-details', r.id) : ''}${r.ends_at < Date.now() / 1000 && !r.anonymized_at ? button('Remove personal details', 'anonymize', r.id) : ''}</div>` : ''}</td></tr>`).join('')}</tbody></table></div>${!rows.length ? '<p class="muted">Registrations will appear here when a family starts checkout.</p>' : ''}</div>`;
   workspace
     .querySelector<HTMLInputElement>('#registration-search')!
     .addEventListener('input', (event) => {

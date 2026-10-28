@@ -20,12 +20,16 @@ const heroAlt = site.heroMediaId
   <div class="wrap">
     <section class="hero">
       <div>
-        <div class="eyebrow">For the joy of creating</div>
+        <div class="maker-strip" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
         <h1>
           {site.headline === 'A little mess. A lot of imagination.' ? (
             <>
               A little mess.
-              <br />A lot of <em>imagination.</em>
+              <br />A lot of imagination.
             </>
           ) : (
             site.headline
@@ -40,12 +44,9 @@ const heroAlt = site.heroMediaId
             Meet Adventure Station
           </a>
         </div>
-        <div class="hero-note">Creative experiences for curious little minds</div>
+        <div class="hero-note">Arts and crafts in {site.locality || 'Florida'}</div>
       </div>
       <div class="hero-art">
-        <span class="spark" aria-hidden="true">
-          ✳
-        </span>
         <img
           src={site.heroMediaId ? `/media/${site.heroMediaId}?w=960` : '/brand/art-960.webp'}
           srcset={
@@ -94,7 +95,7 @@ const heroAlt = site.heroMediaId
       {workshops.length ? (
         <div class="grid">
           {workshops.slice(0, 3).map((w) => (
-            <WorkshopCard workshop={w} />
+            <WorkshopCard workshop={w} sessions={sessions.filter((s) => s.workshop_id === w.id)} />
           ))}
         </div>
       ) : (

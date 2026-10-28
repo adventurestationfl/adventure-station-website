@@ -23,7 +23,7 @@ const workshops = await catalog(env.DB),
       {workshops.length ? (
         <div class="grid">
           {workshops.map((w) => (
-            <WorkshopCard workshop={w} />
+            <WorkshopCard workshop={w} sessions={sessions.filter((s) => s.workshop_id === w.id)} />
           ))}
         </div>
       ) : (

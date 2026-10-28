@@ -7,6 +7,7 @@ test('owner setup is persistent, accessible on mobile, and separates external ch
   await page.goto('/admin/setup');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Get Adventure Station ready');
   await expect(page.getByText('Developer setup needed', { exact: true })).toHaveCount(5);
+  await page.getByText('Website personalization', { exact: true }).click();
   await page
     .getByLabel('Website review notes', { exact: true })
     .fill(`E2E editorial review ${testInfo.project.name} — test only`);
@@ -100,7 +101,7 @@ test('owner can save a workshop, publish it, and archive it without code', async
   page,
 }, testInfo) => {
   const slug = `e2e-${testInfo.project.name}-${Date.now()}`,
-    name = `E2E creative activity ${testInfo.project.name} — test only`;
+    name = `E2E creative activity ${testInfo.project.name} — test only ${slug}`;
   await page.goto('/admin/workshops');
   await page.getByRole('button', { name: '+ Create workshop', exact: true }).click();
   await page.getByLabel('Workshop name', { exact: true }).fill(name);

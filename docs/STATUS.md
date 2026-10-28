@@ -1,6 +1,6 @@
 # Review status — October 28, 2026
 
-**Implemented locally; not production-deployed or owner-accepted. Live payments and customer email remain disabled.**
+**Isolated hosted preview deployed; not production-deployed or owner-accepted. Live payments and customer email remain disabled. See [current preview evidence](PREVIEW.md).**
 
 ## Continued implementation
 
@@ -23,18 +23,14 @@
 
 ## CI evidence
 
-The reviewed starting commit `4dc4a5ef7442f51163575b9040152bfb52c340fc` passed 37 operational and 8 browser tests. The continuation workflow now runs 54 operational and 14 desktop/mobile browser cases, including setup persistence/accessibility, selected-child cancellation and notification/privacy navigation. Refer to draft PR #1 for actual current-head results; a passing current-head result must be recorded before claiming this continuation passed CI. No local Playwright execution is claimed. Targeted axe checks do not certify full WCAG conformance.
+The continuation retains 54 operational cases and now runs 30 desktop/mobile browser cases, including seven explicit widths, keyboard/focus, disclosure, long text, enlarged text, validation, Setup persistence, cancellation, editing and media/history. The full 54-case local operational run and the full 30-case browser run against a fresh isolated local database passed. Refer to draft PR #1 for exact-head CI evidence; a previous commit's passing run is not current-head verification. Targeted axe checks do not certify full WCAG conformance.
 
 ## Hosted and external state
 
-- The connected Adventure Station business account was rechecked. Zero Workers and D1 databases were listed. Access is not enabled (403); R2 requires dashboard activation (403/10042); no workers.dev subdomain exists (404/10007).
-- The billing subscription endpoint cannot be read through this OAuth connection and requires Billing Read/Write token permission. Account-specific quota/billing safety cannot be confirmed. No resources, subscriptions, DNS records or production services were changed. No hosted preview URL or deployment exists.
-- No Square sandbox token/location/webhook setup was available. No actual checkout, payment, refund, webhook replay or provider contention test occurred.
-- Resend is selected and test integration implemented, but no account/sender-domain setup, real test delivery/bounce feedback or provider privacy/terms review occurred. No email DNS was changed and no paid plan was activated.
-- Scheduled recovery code exists. Hosted cron behavior, Access login/denial/revocation/logout/direct-hostname behavior, provider outages and complete database/media recovery remain unverified.
+The [preview inventory and verification record](PREVIEW.md) supersedes the earlier onboarding blockers. Workers, D1, private Standard R2 and owner-only Access are provisioned. Public HTTP and negative staff-route checks passed, and real scheduled execution was observed. The owner's interactive sign-in remains pending; successful hosted staff workflows and auth lifecycle are not claimed. Missing Square sandbox and Resend credentials still block actual provider verification. No production DNS, additional subscription, customer email or live payment was enabled.
 
 ## Remaining before owner acceptance or production consideration
 
 The owner completes Setup: verified legal/public contact details, suitable business mailing contact, actual venues/capacities/accessibility/permission, supervision/safety/emergency arrangements, operating/licensing determination, privacy/retention/marketing choices and final policy adoption. Freeport/`America/Chicago` remains configured; parent-present is still only a proposed policy option, not an adopted business model. Drop-off needs additional evidence and matching policies.
 
-A developer completes cost-safe account onboarding and an isolated Access-protected preview, verifies actual Square sandbox and email test journeys, establishes monitored scheduled processing and restricted backups/removal-register handling, and performs a full restore rehearsal. The owner then exercises the configured preview. Production payments/email need reviewed follow-up changes; production cutover, merge and any paid services require explicit authorization. No production-ready claim is made.
+A developer finishes hosted authentication/authorization and owner workflows after owner sign-in, verifies actual Square sandbox and email test journeys, establishes failure monitoring and restricted backups/removal-register handling, and performs a full restore rehearsal. The owner then exercises the configured preview. Production payments/email need reviewed follow-up changes; production cutover, merge and any paid services require explicit authorization. No production-ready claim is made.

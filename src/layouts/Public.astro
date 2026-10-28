@@ -26,7 +26,7 @@ const organization = JSON.stringify({
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>{title} | Adventure Station</title>
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#182642" />
+    <meta name="theme-color" content="#155e75" />
     <link rel="icon" type="image/webp" href="/brand/logo-96.webp" />
     <meta property="og:title" content={`${title} | Adventure Station`} />
     <meta property="og:description" content={description} />
@@ -36,12 +36,18 @@ const organization = JSON.stringify({
     <link rel="canonical" href={new URL(Astro.url.pathname, origin).href} />
   </head>
   <body
-    style={`--coral:${site.accent === 'blue' ? '#21629a' : site.accent === 'green' ? '#346541' : '#b73345'}`}
+    style={`--coral:${site.accent === 'blue' ? '#21629a' : site.accent === 'green' ? '#346541' : '#b63e35'}`}
   >
     <a class="skip" href="#main">
       Skip to content
     </a>
-    <div class="topline">LITTLE HANDS. BIG IDEAS. ENDLESS POSSIBILITIES.</div>
+    {env.ENVIRONMENT === 'preview' && (
+      <div class="preview-public">
+        <strong>Preview</strong> Synthetic workshop examples. No real bookings, payments or customer
+        emails.
+      </div>
+    )}
+    <div class="topline">Little hands. Big ideas. Endless possibilities.</div>
     <header class="header wrap">
       <a class="brand" href="/" aria-label="Adventure Station home">
         <img src="/brand/logo-96.webp" alt="" width="62" height="62" />
@@ -106,6 +112,16 @@ const organization = JSON.stringify({
         const open = b.getAttribute('aria-expanded') !== 'true';
         b.setAttribute('aria-expanded', String(open));
         document.querySelector('#main-nav')?.classList.toggle('open', open);
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          const b = document.querySelector<HTMLButtonElement>('.mobile-menu')!;
+          if (b.getAttribute('aria-expanded') === 'true') {
+            b.setAttribute('aria-expanded', 'false');
+            document.querySelector('#main-nav')?.classList.remove('open');
+            b.focus();
+          }
+        }
       });
     </script>
   </body>

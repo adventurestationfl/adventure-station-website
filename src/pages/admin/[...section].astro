@@ -4,33 +4,63 @@ import '../../styles/admin.css';
 import { env } from 'cloudflare:workers';
 const staff = Astro.locals.staff!,
   section = Astro.params.section || 'dashboard';
-const nav =
+const groups =
   staff.role === 'instructor'
-    ? [['sessions', '◷', 'My class dates']]
+    ? [{ name: 'Daily work', items: [['sessions', 'My class dates']] }]
     : [
-        ['dashboard', '◈', 'Overview'],
-        ['workshops', '✳', 'Workshops'],
-        ['sessions', '◷', 'Class dates'],
-        ['registrations', '☷', 'Registrations'],
-        ['notifications', '✉', 'Messages'],
-        ...(staff.role === 'owner'
-          ? [
-              ['setup', '✓', 'Setup'],
-              ['privacy', '◇', 'Privacy review'],
-            ]
-          : []),
-        ['content', '▤', 'Website content'],
-        ['media', '▧', 'Images'],
-        ['venues', '⌂', 'Venues'],
-        ...(staff.role === 'owner' ? [['team', '♧', 'Team access']] : []),
+        {
+          name: 'Daily work',
+          items: [
+            ['dashboard', 'Overview'],
+            ['workshops', 'Workshops'],
+            ['sessions', 'Class dates'],
+            ['registrations', 'Registrations'],
+            ['notifications', 'Messages'],
+          ],
+        },
+        {
+          name: 'Website',
+          items: [
+            ['content', 'Website content'],
+            ['media', 'Images'],
+          ],
+        },
+        {
+          name: 'Business',
+          items: [
+            ['venues', 'Venues'],
+            ...(staff.role === 'owner'
+              ? [
+                  ['setup', 'Setup'],
+                  ['privacy', 'Privacy review'],
+                  ['team', 'Team access'],
+                ]
+              : []),
+          ],
+        },
       ];
+const icons: Record<string, string> = {
+  dashboard: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
+  workshops: 'm14 3 7 7-9 9-7 2 2-7z M5 16l3 3 M12 5l7 7',
+  sessions: 'M4 5h16v16H4z M8 2v6 M16 2v6 M4 10h16',
+  registrations: 'M4 4h16v17H4z M8 8h8 M8 12h8 M8 16h5',
+  notifications: 'M3 5h18v14H3z m0 0 9 7 9-7',
+  content: 'M5 3h10l4 4v14H5z M14 3v5h5 M8 12h8 M8 16h6',
+  media: 'M3 3h18v18H3z m0 14 6-6 4 4 3-3 5 5 M15 7h2',
+  venues: 'M12 22S4 14 4 9a8 8 0 0 1 16 0c0 5-8 13-8 13z M9 9a3 3 0 1 0 6 0 3 3 0 1 0-6 0',
+  setup: 'M4 3h16v18H4z m4 9 3 3 5-6',
+  privacy: 'm12 2 9 4v6c0 5-9 10-9 10S3 17 3 12V6z m-4 10 3 3 5-6',
+  team: 'M16 21v-3a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v3 M9 3a4 4 0 1 0 0 8 4 4 0 1 0 0-8 M17 4a4 4 0 0 1 0 7 M22 21v-3a4 4 0 0 0-3-4',
+};
+const sectionLabel =
+  groups.flatMap((g) => g.items).find((i) => i[0] === section)?.[1] || 'Studio desk';
 ---
 
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Studio desk | Adventure Station</title>
     <meta name="robots" content="noindex,nofollow" />
   </head>
@@ -43,38 +73,59 @@ const nav =
         <a class="brand" href="/admin">
           <img src="/brand/logo-96.webp" width="44" height="44" alt="" />
           <span>
-            Adventure Station<small>Your studio desk</small>
+            Adventure Station<small>Studio desk</small>
           </span>
         </a>
-        <div>
-          <div class="admin-label">Make a little magic</div>
-          <nav class="admin-nav" aria-label="Staff navigation">
-            {nav.map(([slug, icon, label]) => (
-              <a href={`/admin/${slug}`} aria-current={section === slug ? 'page' : undefined}>
-                <span aria-hidden="true">{icon}</span>
-                {label}
-              </a>
-            ))}
-          </nav>
-        </div>
+        <button
+          class="admin-menu-toggle"
+          aria-label="Workspace menu"
+          aria-controls="staff-menu"
+          aria-expanded="false"
+        >
+          Menu
+        </button>
+        <nav class="staff-menu" id="staff-menu" aria-label="Staff navigation">
+          {groups.map((group) => (
+            <div class="nav-group">
+              <p class="nav-group-title">{group.name}</p>
+              <div class="admin-nav">
+                {group.items.map(([slug, label]) => (
+                  <a href={`/admin/${slug}`} aria-current={section === slug ? 'page' : undefined}>
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linejoin="round"
+                      stroke-linecap="round"
+                      aria-hidden="true"
+                    >
+                      <path d={icons[slug!]} />
+                    </svg>
+                    {label}
+                  </a>
+                ))}
+              </div>
+            </div>
+          ))}
+        </nav>
         <div class="sidebar-bottom">
           <strong>{staff.name}</strong>
-          <br />
-          {staff.role}
-          <br />
+          <small>{staff.role}</small>
           <a href="/cdn-cgi/access/logout">Sign out</a>
         </div>
       </aside>
       <div class="admin-body">
         {env.ENVIRONMENT !== 'production' && (
           <div class="preview-note">
-            Development workspace · Use test information only · Payments use Square Sandbox
+            Preview workspace. Use synthetic information only. Live payments and customer emails are
+            disabled.
           </div>
         )}
         <header class="admin-top">
-          <span>YOUR STUDIO, AT A GLANCE</span>
+          <span>Studio desk / {sectionLabel}</span>
           <a href="/" target="_blank" rel="noopener">
-            View website ↗
+            View website
           </a>
         </header>
         <main id="admin-main" class="admin-main" data-section={section} data-role={staff.role}>
@@ -85,6 +136,28 @@ const nav =
         </main>
       </div>
     </div>
+    <script>
+      const menu = document.querySelector<HTMLElement>('#staff-menu')!,
+        toggle = document.querySelector<HTMLButtonElement>('.admin-menu-toggle')!,
+        narrow = matchMedia('(max-width:960px)');
+      const reset = () => {
+        menu.hidden = narrow.matches;
+        toggle.setAttribute('aria-expanded', String(!menu.hidden));
+      };
+      reset();
+      narrow.addEventListener('change', reset);
+      toggle.addEventListener('click', () => {
+        menu.hidden = !menu.hidden;
+        toggle.setAttribute('aria-expanded', String(!menu.hidden));
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && narrow.matches && !menu.hidden) {
+          menu.hidden = true;
+          toggle.setAttribute('aria-expanded', 'false');
+          toggle.focus();
+        }
+      });
+    </script>
     <script src="../../scripts/admin.ts" />
   </body>
 </html>

@@ -28,6 +28,7 @@ jobs:
           npm run db:local
           npx wrangler d1 execute adventure-station-local --local --file scripts/seed-local.sql
           npx wrangler d1 execute adventure-station-local --local --file scripts/seed-e2e.sql
+          npx wrangler d1 execute adventure-station-local --local --file scripts/seed-preview.sql
           npm run build
           npx playwright install --with-deps chromium
       - run: npm run test:e2e

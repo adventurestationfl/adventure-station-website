@@ -8,7 +8,16 @@ const { sessions } = Astro.props;
     <article class="session-row">
       <div>
         <h3>{s.workshop_name}</h3>
-        <p>{dateLabel(s.starts_at, s.timezone)}</p>
+        <p class="session-date">
+          <time datetime={new Date(s.starts_at * 1000).toISOString()}>
+            {dateLabel(s.starts_at, s.timezone)}{' '}
+            {
+              new Intl.DateTimeFormat('en-US', { timeZone: s.timezone, timeZoneName: 'short' })
+                .formatToParts(s.starts_at * 1000)
+                .find((p) => p.type === 'timeZoneName')?.value
+            }
+          </time>
+        </p>
         <p>
           {s.venue_name} · Ages {s.age_min}–{s.age_max}
         </p>

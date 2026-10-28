@@ -4,7 +4,13 @@ This guide describes the new system. It is a development preview until your sign
 
 ## Sign in
 
-Open the staff sign-in address provided during setup. Sign in with the email on your team invitation. You do not need a new website password. If you see “Staff sign-in is not configured yet,” setup is still needed; contact the person helping with the website.
+Open [preview Setup](https://adventure-station-preview.adventurestationfl.workers.dev/admin/setup). The preview currently allows only the business owner through the existing Cloudflare account sign-in. Enter passwords and verification codes only on Cloudflare's page. Successful hosted sign-in is still awaiting your test. Sign in with the email on your team invitation. You do not need a new website password. If you see “Staff sign-in is not configured yet,” setup is still needed; contact the person helping with the website.
+
+## Find your way around
+
+The menu groups Daily work, Website and Business. On a phone, choose **Menu** to open it. **Setup** shows one next action and a task list; each business-decision form expands when you select its heading. Saving remains explicit. Website editing, registration readiness and production approval are separate. Overview puts upcoming classes and follow-up ahead of period-based sales figures.
+
+Synthetic preview examples are labeled and are not real classes. No real booking, payment or customer email is available.
 
 ## Create a workshop
 

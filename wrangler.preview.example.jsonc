@@ -1,0 +1,48 @@
+// Copy into local-artifacts/preview.wrangler.jsonc and fill verified IDs there.
+// Relative paths assume the ignored local-artifacts directory. No account credentials here.
+{
+  "name": "adventure-station-preview",
+  "main": "../src/worker.ts",
+  "compatibility_date": "2026-10-26",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./preview-dist/client",
+    "run_worker_first": true,
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "adventure-station-preview",
+      "database_id": "REPLACE_WITH_PREVIEW_D1_ID",
+      "migrations_dir": "../migrations",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "adventure-station-preview-media",
+    },
+  ],
+  "vars": {
+    "ENVIRONMENT": "preview",
+    "DEV_AUTH": "false",
+    "ACCESS_TEAM_DOMAIN": "REPLACE_WITH_TEAM.cloudflareaccess.com",
+    "ACCESS_AUD": "REPLACE_WITH_PREVIEW_ACCESS_AUDIENCE",
+    "SQUARE_ENVIRONMENT": "sandbox",
+    "SQUARE_LOCATION_ID": "",
+    "SQUARE_WEBHOOK_URL": "https://adventure-station-preview.adventurestationfl.workers.dev/api/square/webhook",
+    "PUBLIC_ORIGIN": "https://adventure-station-preview.adventurestationfl.workers.dev",
+    "EMAIL_MODE": "disabled",
+    "EMAIL_FROM": "",
+    "EMAIL_TEST_RECIPIENT": "delivered@resend.dev",
+  },
+  "triggers": {
+    "crons": ["*/15 * * * *"],
+  },
+  "observability": {
+    "enabled": false,
+  },
+}

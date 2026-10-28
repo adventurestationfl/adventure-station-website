@@ -1,0 +1,13 @@
+-- Isolated preview only. These are labeled synthetic design examples, not advertised classes.
+-- Never run against production. Policies stay unapproved and registration stays closed.
+INSERT INTO venues(id,name,address,instructions,verified,capacity,accessibility,permission_confirmed)
+ VALUES('preview-location','Sample studio — not a real venue','Synthetic test location, Freeport, Florida','Preview arrival instructions only. Do not travel to this location.',0,12,'Sample accessibility information for interface review only.',0);
+INSERT INTO workshops(id,slug,name,summary,description,category,age_min,age_max,duration,price,capacity,venue_id,materials,instructions,status) VALUES
+ ('preview-paper','paper-garden-preview','Paper garden — preview sample','A synthetic paper-making example for reviewing the website. This is not an offered class.','Design sample only. Explore paper shapes, layered leaves and a garden composition. This synthetic description is for interface review and does not advertise an Adventure Station activity. No booking or payment is available.','Preview sample',4,10,60,2500,12,'preview-location','Sample materials: paper, crayons and glue.','Synthetic instructions only. No attendance or travel.','published'),
+ ('preview-paint','paint-pattern-preview','Paint & pattern — preview sample','A synthetic painting example. No real session or payment is offered.','Design sample only. A longer description lets us review reading comfort, wrapping and the relationship between age suitability, materials, dates and price. This is not an advertised Adventure Station workshop.','Preview sample',5,10,60,3000,8,'preview-location','Sample materials only: paper, washable color and brushes.','Synthetic instructions only.','published'),
+ ('preview-collage','tiny-worlds-preview','Tiny worlds — preview sample','A synthetic collage example for design review, not a business offering.','Design sample only. Review a different age range and session price without representing this as an actual class. No customer registration is open.','Preview sample',6,10,75,2800,10,'preview-location','Sample paper and collage materials.','Synthetic instructions only.','published');
+INSERT INTO sessions(id,workshop_id,starts_at,ends_at,timezone,venue_id,capacity,price,status) VALUES
+ ('preview-paper-1','preview-paper',1794078000,1794081600,'America/Chicago','preview-location',12,2500,'published'),
+ ('preview-paper-2','preview-paper',1794682800,1794686400,'America/Chicago','preview-location',12,2500,'published'),
+ ('preview-paint-1','preview-paint',1794164400,1794168000,'America/Chicago','preview-location',8,3000,'published'),
+ ('preview-collage-1','preview-collage',1794769200,1794773700,'America/Chicago','preview-location',10,2800,'draft');

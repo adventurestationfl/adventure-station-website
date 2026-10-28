@@ -2,6 +2,7 @@ import { handle } from '@astrojs/cloudflare/handler';
 import { reconcile } from './lib/registration';
 import { reconcileRefunds } from './lib/booking-operations';
 import { deliverNotifications } from './lib/notifications';
+import { audit } from './lib/data';
 export default {
   fetch(...args: Parameters<typeof handle>) {
     return handle(...args);
@@ -13,5 +14,6 @@ export default {
     await reconcile(env);
     await reconcileRefunds(env);
     await deliverNotifications(env);
+    await audit(env.DB, 'scheduled', 'scheduled.completed', env.ENVIRONMENT).run();
   },
 };
