@@ -1,0 +1,26 @@
+---
+const { workshop: w } = Astro.props;
+---
+
+<a class="workshop-card" href={`/workshops/${w.slug}`}>
+  <div class="card-image">
+    <img
+      src={w.media_id ? `/media/${w.media_id}?w=480` : '/brand/art-480.webp'}
+      alt={w.image_alt ?? 'Adventure Station crafts and arts artwork'}
+      width="480"
+      height="480"
+      loading="lazy"
+    />
+  </div>
+  <div class="card-body">
+    <span class="tag">{w.category}</span>
+    <h3>{w.name}</h3>
+    <p>{w.summary}</p>
+    <div class="card-foot">
+      <span>
+        Ages {w.age_min}–{w.age_max} · {w.duration} minutes
+      </span>
+      <span aria-hidden="true">↗</span>
+    </div>
+  </div>
+</a>

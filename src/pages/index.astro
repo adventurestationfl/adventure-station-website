@@ -1,0 +1,183 @@
+---
+import Public from '../layouts/Public.astro';
+import WorkshopCard from '../components/WorkshopCard.astro';
+import SessionList from '../components/SessionList.astro';
+import { env } from 'cloudflare:workers';
+import { settings, catalog, upcoming } from '../lib/data';
+const site = await settings(env.DB),
+  workshops = await catalog(env.DB),
+  sessions = await upcoming(env.DB);
+const heroAlt = site.heroMediaId
+  ? (
+      await env.DB.prepare('SELECT alt FROM media WHERE id=?')
+        .bind(site.heroMediaId)
+        .first<{ alt: string }>()
+    )?.alt
+  : 'Adventure Station’s colorful arts and crafts characters';
+---
+
+<Public>
+  <div class="wrap">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">For the joy of creating</div>
+        <h1>
+          {site.headline === 'A little mess. A lot of imagination.' ? (
+            <>
+              A little mess.
+              <br />A lot of <em>imagination.</em>
+            </>
+          ) : (
+            site.headline
+          )}
+        </h1>
+        <p>{site.intro}</p>
+        <div class="hero-actions">
+          <a class="btn coral" href="/workshops">
+            Explore workshops <span aria-hidden="true">↗</span>
+          </a>
+          <a class="text-link" href="/about">
+            Meet Adventure Station
+          </a>
+        </div>
+        <div class="hero-note">Creative experiences for curious little minds</div>
+      </div>
+      <div class="hero-art">
+        <span class="spark" aria-hidden="true">
+          ✳
+        </span>
+        <img
+          src={site.heroMediaId ? `/media/${site.heroMediaId}?w=960` : '/brand/art-960.webp'}
+          srcset={
+            site.heroMediaId
+              ? `/media/${site.heroMediaId}?w=480 480w, /media/${site.heroMediaId}?w=960 960w`
+              : '/brand/art-480.webp 480w, /brand/art-960.webp 960w'
+          }
+          sizes="(max-width:720px) 85vw, 45vw"
+          width="960"
+          height="960"
+          alt={heroAlt}
+          fetchpriority="high"
+        />
+        <span class="art-label">Big ideas start with little hands.</span>
+      </div>
+    </section>
+    <div class="ribbon" aria-label="Workshop themes">
+      <span>
+        <b aria-hidden="true">✦</b> Hands-on making
+      </span>
+      <span>
+        <b aria-hidden="true">✦</b> Room to explore
+      </span>
+      <span>
+        <b aria-hidden="true">✦</b> Seasonal inspiration
+      </span>
+      <span>
+        <b aria-hidden="true">✦</b> Made with imagination
+      </span>
+    </div>
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Pick a little adventure</div>
+          <h2>
+            What will they
+            <br />
+            make next?
+          </h2>
+        </div>
+        <p>
+          A new idea. A splash of color. Something to call their own. Explore our creative
+          workshops.
+        </p>
+      </div>
+      {workshops.length ? (
+        <div class="grid">
+          {workshops.slice(0, 3).map((w) => (
+            <WorkshopCard workshop={w} />
+          ))}
+        </div>
+      ) : (
+        <div class="empty">
+          <h3>Something creative is taking shape.</h3>
+          <p>We’re preparing our next workshops. Check back soon or get in touch to learn more.</p>
+          <a class="text-link" href="/contact">
+            Contact Adventure Station ↗
+          </a>
+        </div>
+      )}
+      <div class="upcoming" id="dates">
+        <div class="eyebrow">Coming up</div>
+        <SessionList sessions={sessions.slice(0, 4)} />
+      </div>
+    </section>
+    <section class="section split">
+      <div class="story-panel">
+        Not every masterpiece
+        <br />
+        belongs in a museum.
+        <br />
+        <em>
+          Some belong on
+          <br />
+          your fridge.
+        </em>
+        <div class="mini">A LITTLE WONDER GOES A LONG WAY.</div>
+      </div>
+      <div>
+        <div class="eyebrow">More than the finished project</div>
+        <h2>
+          The magic is
+          <br />
+          in the making.
+        </h2>
+        <p>{site.about}</p>
+        <p>
+          There’s joy in trying something new, choosing your own colors, and seeing an idea become
+          something you can hold.
+        </p>
+        <a class="text-link" href="/about">
+          A little about us ↗
+        </a>
+      </div>
+    </section>
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Simple from the start</div>
+          <h2>From “let’s go” to “look what I made!”</h2>
+        </div>
+      </div>
+      <div class="steps">
+        <article>
+          <span class="step-number">01.</span>
+          <h3>Find their next adventure</h3>
+          <p>
+            Explore the workshops. Check the age range, project details, and available class dates.
+          </p>
+        </article>
+        <article>
+          <span class="step-number">02.</span>
+          <h3>Choose a date together</h3>
+          <p>
+            A parent or guardian registers the children and pays through secure hosted checkout.
+          </p>
+        </article>
+        <article>
+          <span class="step-number">03.</span>
+          <h3>Let creativity take over</h3>
+          <p>
+            Check your confirmed registration and class instructions. Then get ready to make
+            something special.
+          </p>
+        </article>
+      </div>
+    </section>
+    <section class="cta-band">
+      <h2>{site.promotion}</h2>
+      <a class="btn" href="/workshops">
+        Find a workshop <span aria-hidden="true">↗</span>
+      </a>
+    </section>
+  </div>
+</Public>

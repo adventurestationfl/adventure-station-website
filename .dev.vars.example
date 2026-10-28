@@ -1,0 +1,7 @@
+# Copy to .dev.vars for local testing only. Never commit real credentials.
+DEV_AUTH=true
+# Local developer identity exists only after running scripts/seed-local.mjs.
+# Sandbox secrets are optional; checkout fails closed without them.
+# SQUARE_ACCESS_TOKEN=
+# SQUARE_WEBHOOK_SIGNATURE_KEY=
+# ABUSE_SALT=

@@ -1,0 +1,555 @@
+import { workshopSchema, sessionSchema, siteSchema, venueSchema, id } from './validation';
+import { settings, audit } from './data';
+import { authorize, type Staff } from './auth';
+import { HttpError, bodyJson, json, now } from './http';
+import { reconcile, applyPayment } from './registration';
+import { getPayment, square } from './square';
+export async function adminApi(request: Request, env: Cloudflare.Env, staff: Staff, path: string) {
+  const db = env.DB,
+    url = new URL(request.url),
+    method = request.method;
+  if (path === 'me' && method === 'GET') return json(staff);
+  if (path === 'sessions' && method === 'GET') {
+    const rows = await db
+      .prepare(
+        `SELECT s.*,w.name AS workshop_name,v.name AS venue_name,COALESCE((SELECT SUM(seats) FROM registrations r WHERE r.session_id=s.id AND(r.status='confirmed' OR(r.status='pending' AND r.hold_until>unixepoch()))),0) AS occupied
+    FROM sessions s JOIN workshops w ON w.id=s.workshop_id JOIN venues v ON v.id=s.venue_id ${staff.role === 'instructor' ? 'WHERE s.instructor_id=?' : ''} ORDER BY starts_at DESC LIMIT 500`,
+      )
+      .bind(...(staff.role === 'instructor' ? [staff.id] : []))
+      .all();
+    return json(rows.results);
+  }
+  const roster = /^sessions\/([\w-]+)\/roster$/.exec(path);
+  if (roster && method === 'GET') {
+    const s = await db
+      .prepare('SELECT * FROM sessions WHERE id=?')
+      .bind(roster[1])
+      .first<{ instructor_id: string }>();
+    if (!s) throw new HttpError(404, 'Class date not found.');
+    if (staff.role === 'instructor' && s.instructor_id !== staff.id)
+      throw new HttpError(403, 'This date is not assigned to you.');
+    const rows = await db
+      .prepare(
+        `SELECT p.id,p.first_name,p.age,p.attended,r.workshop_name,r.starts_at,r.timezone,r.status ${staff.role !== 'instructor' ? ',r.guardian_name,r.guardian_email,r.guardian_phone' : ''}
+    FROM participants p JOIN registrations r ON r.id=p.registration_id WHERE r.session_id=? AND r.status='confirmed' ORDER BY p.first_name`,
+      )
+      .bind(roster[1])
+      .all();
+    return json(rows.results);
+  }
+  const attendance = /^participants\/([\w-]+)\/attendance$/.exec(path);
+  if (attendance && method === 'POST') {
+    const data = await bodyJson(request);
+    if (typeof data.attended !== 'boolean')
+      throw new HttpError(400, 'Choose checked in or not checked in.');
+    const result = await db.batch([
+      db
+        .prepare(
+          `UPDATE participants SET attended=? WHERE id=? AND registration_id IN(SELECT r.id FROM registrations r JOIN sessions s ON s.id=r.session_id WHERE r.status='confirmed' ${staff.role === 'instructor' ? 'AND s.instructor_id=?' : ''}) RETURNING id`,
+        )
+        .bind(
+          Number(data.attended),
+          attendance[1],
+          ...(staff.role === 'instructor' ? [staff.id] : []),
+        ),
+      audit(db, staff.id, 'attendance.updated', attendance[1]!),
+    ]);
+    if (!result[0]?.results.length)
+      throw new HttpError(403, 'This participant is not available to your account.');
+    return json({ saved: true });
+  }
+  authorize(staff, ['owner', 'manager']);
+  if (path === 'dashboard' && method === 'GET') {
+    const from = Number(url.searchParams.get('from') ?? now() - 2592000),
+      to = Number(url.searchParams.get('to') ?? now() + 1);
+    if (!Number.isSafeInteger(from) || !Number.isSafeInteger(to) || to < from)
+      throw new HttpError(400, 'Choose a valid date range.');
+    const site = await settings(db);
+    const [financial, registrations, upcoming, attention, popular, privacy] = await db.batch([
+      db
+        .prepare(
+          'SELECT COALESCE(SUM(amount),0) AS gross,COALESCE(SUM(refunded),0) AS refunds,COUNT(*) AS payments FROM payments WHERE completed_at>=? AND completed_at<?',
+        )
+        .bind(from, to),
+      db
+        .prepare(
+          'SELECT status,COUNT(*) AS orders,SUM(seats) AS children FROM registrations WHERE created_at>=? AND created_at<? GROUP BY status',
+        )
+        .bind(from, to),
+      db.prepare(
+        "SELECT s.id,s.starts_at,s.timezone,s.capacity,w.name,COALESCE((SELECT SUM(seats) FROM registrations WHERE session_id=s.id AND status='confirmed'),0) AS confirmed FROM sessions s JOIN workshops w ON w.id=s.workshop_id WHERE s.starts_at>unixepoch() AND s.status IN('draft','published','closed') ORDER BY s.starts_at LIMIT 8",
+      ),
+      db.prepare(
+        'SELECT id,status,workshop_name,created_at FROM registrations WHERE needs_attention=1 ORDER BY created_at LIMIT 50',
+      ),
+      db
+        .prepare(
+          "SELECT r.workshop_name,SUM(r.seats) AS children FROM registrations r WHERE r.status='confirmed' AND r.created_at>=? AND r.created_at<? GROUP BY r.workshop_name ORDER BY children DESC LIMIT 10",
+        )
+        .bind(from, to),
+      db
+        .prepare(
+          "SELECT COUNT(*) AS count FROM registrations WHERE anonymized_at IS NULL AND ends_at<? AND status NOT IN('pending','payment_review')",
+        )
+        .bind(now() - site.retentionDays * 86400),
+    ]);
+    return json({
+      financial: financial?.results[0],
+      registrations: registrations?.results,
+      upcoming: upcoming?.results,
+      attention: attention?.results,
+      popular: popular?.results,
+      privacy: staff.role === 'owner' ? privacy?.results[0] : undefined,
+    });
+  }
+  if (path === 'workshops' && method === 'GET')
+    return json(
+      (
+        await db
+          .prepare(
+            "SELECT w.*,COALESCE((SELECT json_group_array(media_id) FROM workshop_gallery WHERE workshop_id=w.id),'[]') AS gallery_json FROM workshops w ORDER BY updated_at DESC",
+          )
+          .all()
+      ).results.map(({ gallery_json, ...w }) => ({
+        ...w,
+        gallery_ids: JSON.parse(String(gallery_json)),
+      })),
+    );
+  if (path === 'venues' && method === 'GET')
+    return json((await db.prepare('SELECT * FROM venues ORDER BY name').all()).results);
+  if (path === 'instructors' && method === 'GET')
+    return json(
+      (await db.prepare('SELECT id,name FROM staff WHERE active=1 ORDER BY name').all()).results,
+    );
+  if (path === 'content' && method === 'GET') {
+    const s = await settings(db);
+    const row = await db.prepare("SELECT revision FROM settings WHERE key='site'").first();
+    return json({ ...s, revision: row?.revision });
+  }
+  if (path === 'content/history' && method === 'GET')
+    return json(
+      (await db.prepare('SELECT * FROM content_versions ORDER BY created_at DESC LIMIT 20').all())
+        .results,
+    );
+  if (path === 'content' && method === 'POST') {
+    const input = await bodyJson(request),
+      data = siteSchema.parse(input);
+    if (staff.role !== 'owner') {
+      const old = await settings(db);
+      for (const k of [
+        'policiesApproved',
+        'refundPolicy',
+        'supervisionPolicy',
+        'pickupPolicy',
+        'privacyPolicy',
+        'timezone',
+        'locality',
+        'retentionDays',
+      ] as const)
+        if (JSON.stringify(data[k]) !== JSON.stringify(old[k]))
+          throw new HttpError(403, 'Only the owner can change business settings or policies.');
+    }
+    if (
+      data.heroMediaId &&
+      !(await db.prepare('SELECT id FROM media WHERE id=?').bind(data.heroMediaId).first())
+    )
+      throw new HttpError(400, 'Choose an image from the media library.');
+    const current = await db
+      .prepare("SELECT * FROM settings WHERE key='site'")
+      .first<{ revision: number; value: string }>();
+    if (current?.revision !== input.revision)
+      throw new HttpError(409, 'Someone has changed this page. Reload before saving.');
+    const versionId = crypto.randomUUID();
+    const result = await db.batch([
+      db
+        .prepare(
+          "INSERT INTO content_versions(id,value,actor) SELECT ?,value,? FROM settings WHERE key='site' AND revision=?",
+        )
+        .bind(versionId, staff.id, input.revision),
+      db
+        .prepare(
+          "INSERT INTO content_media_refs(owner_key,media_id) SELECT ?,json_extract(value,'$.heroMediaId') FROM settings WHERE key='site' AND json_extract(value,'$.heroMediaId') IS NOT NULL",
+        )
+        .bind(versionId),
+      db
+        .prepare(
+          "UPDATE settings SET value=CASE WHEN revision=? THEN ? ELSE NULL END,revision=revision+1 WHERE key='site' RETURNING revision",
+        )
+        .bind(input.revision, JSON.stringify(data)),
+      db.prepare("DELETE FROM content_media_refs WHERE owner_key='site'"),
+      ...(data.heroMediaId
+        ? [
+            db
+              .prepare("INSERT INTO content_media_refs(owner_key,media_id) VALUES('site',?)")
+              .bind(data.heroMediaId),
+          ]
+        : []),
+      audit(db, staff.id, 'content.published', 'site'),
+    ]);
+    if (!result[2]?.results.length)
+      throw new HttpError(409, 'Someone has changed this page. Reload before saving.');
+    return json({ saved: true });
+  }
+  const workshop = /^workshops(?:\/([\w-]+))?$/.exec(path);
+  if (workshop && method === 'POST') {
+    const data = workshopSchema.parse(await bodyJson(request)),
+      key = workshop[1] ?? crypto.randomUUID();
+    const { revision, gallery_ids, ...fields } = data;
+    const cols = Object.keys(fields),
+      vals = Object.values(fields);
+    if (data.status === 'published' && (!data.summary || !data.description))
+      throw new HttpError(400, 'Add a short and detailed description before publishing.');
+    // A stale update violates the NOT NULL name constraint and rolls back the entire batch, including gallery edits.
+    const query = workshop[1]
+      ? db
+          .prepare(
+            `UPDATE workshops SET ${cols.map((c) => (c === 'name' ? 'name=CASE WHEN revision=? THEN ? ELSE NULL END' : `${c}=?`)).join(',')},revision=revision+1,updated_at=unixepoch() WHERE id=? RETURNING id`,
+          )
+          .bind(
+            ...cols.flatMap((c) =>
+              c === 'name' ? [revision ?? 0, fields.name] : [fields[c as keyof typeof fields]],
+            ),
+            key,
+          )
+      : db
+          .prepare(
+            `INSERT INTO workshops(id,${cols.join(',')}) VALUES(?,${cols.map(() => '?').join(',')}) RETURNING id`,
+          )
+          .bind(key, ...vals);
+    const result = await db.batch([
+      query,
+      db.prepare('DELETE FROM workshop_gallery WHERE workshop_id=?').bind(key),
+      ...Array.from(new Set(gallery_ids)).map((mid) =>
+        db.prepare('INSERT INTO workshop_gallery(workshop_id,media_id) VALUES(?,?)').bind(key, mid),
+      ),
+      audit(db, staff.id, 'workshop.saved', key),
+    ]);
+    if (!result[0]?.results.length)
+      throw new HttpError(409, 'This workshop has changed. Reload before saving.');
+    return json({ id: key });
+  }
+  if (path === 'sessions/batch' && method === 'POST') {
+    const input = await bodyJson(request);
+    if (!Array.isArray(input.sessions) || !input.sessions.length || input.sessions.length > 20)
+      throw new HttpError(400, 'Add between 1 and 20 dates.');
+    const site = await settings(db),
+      statements = [];
+    for (const item of input.sessions) {
+      const s = sessionSchema.parse(item);
+      try {
+        new Intl.DateTimeFormat('en', { timeZone: s.timezone });
+      } catch {
+        throw new HttpError(400, 'Choose a valid business timezone.');
+      }
+      if (s.status === 'published') {
+        if (
+          !site.policiesApproved ||
+          !site.timezone ||
+          s.timezone !== site.timezone ||
+          !site.locality ||
+          s.starts_at <= now()
+        )
+          throw new HttpError(
+            400,
+            'Confirm policies and the business timezone, and choose future dates before publishing.',
+          );
+        if (
+          !(await db
+            .prepare(
+              "SELECT v.id FROM venues v JOIN workshops w ON w.id=? WHERE v.id=? AND v.verified=1 AND v.archived=0 AND w.status='published'",
+            )
+            .bind(s.workshop_id, s.venue_id)
+            .first())
+        )
+          throw new HttpError(400, 'Publish the workshop and verify the venue first.');
+      }
+      if (
+        s.instructor_id &&
+        !(await db
+          .prepare('SELECT id FROM staff WHERE id=? AND active=1')
+          .bind(s.instructor_id)
+          .first())
+      )
+        throw new HttpError(400, 'Choose an active team member.');
+      const key = crypto.randomUUID(),
+        { revision, ...fields } = s,
+        cols = Object.keys(fields);
+      statements.push(
+        db
+          .prepare(
+            `INSERT INTO sessions(id,${cols.join(',')}) VALUES(?,${cols.map(() => '?').join(',')})`,
+          )
+          .bind(key, ...Object.values(fields)),
+        audit(db, staff.id, 'session.created', key),
+      );
+    }
+    await db.batch(statements);
+    return json({ saved: true, count: input.sessions.length });
+  }
+  const session = /^sessions(?:\/([\w-]+))?$/.exec(path);
+  if (session && method === 'POST') {
+    const data = sessionSchema.parse(await bodyJson(request)),
+      site = await settings(db),
+      key = session[1] ?? crypto.randomUUID();
+    try {
+      new Intl.DateTimeFormat('en', { timeZone: data.timezone });
+    } catch {
+      throw new HttpError(400, 'Choose a valid business timezone.');
+    }
+    if (data.status === 'published') {
+      if (
+        !site.policiesApproved ||
+        !site.timezone ||
+        data.timezone !== site.timezone ||
+        !site.locality
+      )
+        throw new HttpError(
+          400,
+          'The owner must confirm the business timezone and policies before publishing.',
+        );
+      if (data.starts_at <= now()) throw new HttpError(400, 'Choose a future start time.');
+      if (
+        !(await db
+          .prepare(
+            "SELECT s.id FROM venues s JOIN workshops w ON w.id=? WHERE s.id=? AND s.verified=1 AND s.archived=0 AND w.status='published'",
+          )
+          .bind(data.workshop_id, data.venue_id)
+          .first())
+      )
+        throw new HttpError(400, 'Publish the workshop and verify this venue first.');
+    }
+    if (
+      data.instructor_id &&
+      !(await db
+        .prepare('SELECT id FROM staff WHERE id=? AND active=1')
+        .bind(data.instructor_id)
+        .first())
+    )
+      throw new HttpError(400, 'Choose an active team member.');
+    const { revision, ...fields } = data,
+      cols = Object.keys(fields),
+      vals = Object.values(fields);
+    // Once booked, operational status/capacity/instructor remain editable; historical details are locked by SQLite.
+    const old = session[1]
+      ? await db
+          .prepare('SELECT * FROM sessions WHERE id=?')
+          .bind(key)
+          .first<Record<string, unknown>>()
+      : null;
+    const changed = cols.filter((c) => !old || fields[c as keyof typeof fields] !== old[c]);
+    const query = old
+      ? db
+          .prepare(
+            `UPDATE sessions SET ${changed.map((c) => `${c}=?,`).join('')}revision=revision+1 WHERE id=? AND revision=? RETURNING id`,
+          )
+          .bind(...changed.map((c) => fields[c as keyof typeof fields]), key, revision ?? 0)
+      : db
+          .prepare(
+            `INSERT INTO sessions(id,${cols.join(',')}) VALUES(?,${cols.map(() => '?').join(',')}) RETURNING id`,
+          )
+          .bind(key, ...vals);
+    const statements = [query, audit(db, staff.id, 'session.saved', key)];
+    if (data.status === 'cancelled')
+      statements.push(
+        db
+          .prepare(
+            "UPDATE registrations SET status='cancelled',needs_attention=1 WHERE session_id=? AND status IN('pending','confirmed','expired','payment_review') AND EXISTS(SELECT 1 FROM sessions WHERE id=? AND status='cancelled')",
+          )
+          .bind(key, key),
+      );
+    const result = await db.batch(statements);
+    if (!result[0]?.results.length)
+      throw new HttpError(409, 'This date has changed. Reload before saving.');
+    return json({ id: key });
+  }
+  const venue = /^venues(?:\/([\w-]+))?$/.exec(path);
+  if (venue && method === 'POST') {
+    const data = venueSchema.parse(await bodyJson(request)),
+      key = venue[1] ?? crypto.randomUUID();
+    if (data.verified && !data.address) throw new HttpError(400, 'Add a verified address.');
+    await db.batch([
+      db
+        .prepare(
+          'INSERT INTO venues(id,name,address,instructions,verified,archived) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,address=excluded.address,instructions=excluded.instructions,verified=excluded.verified,archived=excluded.archived',
+        )
+        .bind(
+          key,
+          data.name,
+          data.address,
+          data.instructions,
+          Number(data.verified),
+          Number(data.archived),
+        ),
+      audit(db, staff.id, 'venue.saved', key),
+    ]);
+    return json({ id: key });
+  }
+  if (path === 'registrations' && method === 'GET') {
+    const rows = (
+      await db
+        .prepare(
+          `SELECT r.*,COALESCE((SELECT SUM(amount) FROM payments WHERE registration_id=r.id),0) AS paid,COALESCE((SELECT SUM(refunded) FROM payments WHERE registration_id=r.id),0) AS refunded FROM registrations r ORDER BY created_at DESC LIMIT 250`,
+        )
+        .all()
+    ).results;
+    const issues = (await db.prepare('SELECT * FROM payment_issues WHERE resolved=0').all())
+      .results;
+    return json(
+      rows.map(({ receipt_hash, request_hash, intent_key, ...safe }) => ({
+        ...safe,
+        payment_issues: issues.filter((i) => i.registration_id === safe.id),
+      })),
+    );
+  }
+  if (path === 'reconcile' && method === 'POST') {
+    await reconcile(env);
+    return json({ saved: true });
+  }
+  const review = /^registrations\/([\w-]+)\/review$/.exec(path);
+  if (review && method === 'POST') {
+    const v = await bodyJson(request),
+      key = review[1]!;
+    if (v.action === 'confirm') {
+      const r = await db
+        .prepare(
+          "SELECT r.id FROM registrations r JOIN sessions s ON s.id=r.session_id JOIN workshops w ON w.id=s.workshop_id WHERE r.id=? AND r.status='payment_review' AND s.status='published' AND w.status='published' AND s.starts_at>unixepoch() AND NOT EXISTS(SELECT 1 FROM payment_issues WHERE registration_id=r.id AND resolved=0) AND (SELECT COALESCE(SUM(amount-refunded),0) FROM payments WHERE registration_id=r.id)>=r.total",
+        )
+        .bind(key)
+        .first();
+      if (!r)
+        throw new HttpError(
+          409,
+          'This registration does not have verified payment and an available future class. Resolve or refund the payment first.',
+        );
+      const result = await db.batch([
+        db
+          .prepare(
+            "UPDATE registrations SET status='confirmed',needs_attention=0 WHERE id=? AND status='payment_review' AND NOT EXISTS(SELECT 1 FROM payment_issues WHERE registration_id=registrations.id AND resolved=0) AND (SELECT COALESCE(SUM(amount-refunded),0) FROM payments WHERE registration_id=registrations.id)>=total RETURNING id",
+          )
+          .bind(key),
+        audit(db, staff.id, 'registration.review.confirmed', key),
+      ]);
+      if (!result[0]?.results.length)
+        throw new HttpError(409, 'The payment or registration changed. Refresh before confirming.');
+    } else if (v.action === 'complete') {
+      const result = await db.batch([
+        db
+          .prepare(
+            "UPDATE registrations SET needs_attention=0 WHERE id=? AND status NOT IN('pending','payment_review') AND NOT EXISTS(SELECT 1 FROM payment_issues WHERE registration_id=registrations.id AND resolved=0) RETURNING id",
+          )
+          .bind(key),
+        audit(db, staff.id, 'registration.review.completed', key),
+      ]);
+      if (!result[0]?.results.length)
+        throw new HttpError(
+          409,
+          'Resolve the pending registration or payment issue before completing follow-up.',
+        );
+    } else throw new HttpError(400, 'Choose a review action.');
+    return json({ saved: true });
+  }
+  authorize(staff, ['owner']);
+  if (path === 'team' && method === 'GET')
+    return json(
+      (await db.prepare('SELECT id,email,subject,name,role,active FROM staff ORDER BY name').all())
+        .results,
+    );
+  if (path === 'team' && method === 'POST') {
+    const v = await bodyJson(request);
+    const email = String(v.email ?? '')
+        .trim()
+        .toLowerCase(),
+      subject = String(v.subject ?? '').trim(),
+      name = String(v.name ?? '').trim();
+    if (
+      !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ||
+      email.length > 254 ||
+      subject.length > 255 ||
+      !name ||
+      name.length > 100 ||
+      !['owner', 'manager', 'instructor'].includes(v.role) ||
+      typeof v.active !== 'boolean'
+    )
+      throw new HttpError(400, 'Complete the name, email and role.');
+    const key = v.id ? id.parse(v.id) : crypto.randomUUID();
+    if (
+      key === staff.id &&
+      (v.role !== 'owner' || !v.active || email !== staff.email || subject !== staff.subject)
+    )
+      throw new HttpError(
+        400,
+        'Keep your own owner access active. Ask another owner to change it.',
+      );
+    await db.batch([
+      db
+        .prepare(
+          'INSERT INTO staff(id,email,subject,name,role,active) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET email=excluded.email,subject=CASE WHEN staff.email=excluded.email THEN staff.subject ELSE NULL END,name=excluded.name,role=excluded.role,active=excluded.active',
+        )
+        .bind(key, email, subject || null, name, v.role, Number(v.active)),
+      audit(db, staff.id, 'team.saved', key),
+    ]);
+    return json({ id: key });
+  }
+  const erase = /^registrations\/([\w-]+)\/anonymize$/.exec(path);
+  if (erase && method === 'POST') {
+    const r = await db
+      .prepare('SELECT * FROM registrations WHERE id=?')
+      .bind(erase[1])
+      .first<{ ends_at: number; status: string }>();
+    if (!r || r.ends_at > now() || ['pending', 'payment_review'].includes(r.status))
+      throw new HttpError(
+        400,
+        'Only completed historical registrations without unresolved payment review can be anonymized.',
+      );
+    await db.batch([
+      db
+        .prepare(
+          'UPDATE registrations SET guardian_name=NULL,guardian_email=NULL,guardian_phone=NULL,marketing_consent=0,photo_consent=0,anonymized_at=unixepoch() WHERE id=?',
+        )
+        .bind(erase[1]),
+      db
+        .prepare('UPDATE participants SET first_name=NULL,age=NULL WHERE registration_id=?')
+        .bind(erase[1]),
+      audit(db, staff.id, 'registration.anonymized', erase[1]!),
+    ]);
+    return json({ saved: true });
+  }
+  const refund = /^registrations\/([\w-]+)\/refund$/.exec(path);
+  if (refund && method === 'POST') {
+    const payments = (
+      await db
+        .prepare(
+          'SELECT id,amount,refunded FROM payments WHERE registration_id=? AND refunded<amount UNION SELECT id,amount,refunded FROM payment_issues WHERE registration_id=? AND resolved=0',
+        )
+        .bind(refund[1], refund[1])
+        .all<{ id: string; amount: number; refunded: number }>()
+    ).results;
+    if (env.SQUARE_ENVIRONMENT !== 'sandbox')
+      throw new HttpError(403, 'Live refunds are not enabled in this development release.');
+    for (const p of payments) {
+      const current = await getPayment(env, p.id);
+      await applyPayment(env, current);
+      const remaining = current.amount_money.amount - (current.refunded_money?.amount ?? 0);
+      if (remaining > 0)
+        await square(env, '/refunds', 'POST', {
+          idempotency_key: `refund-${p.id}-${current.refunded_money?.amount ?? 0}`,
+          payment_id: p.id,
+          amount_money: { amount: remaining, currency: current.amount_money.currency },
+          reason: 'Workshop registration refund',
+        });
+    }
+    await db.batch([
+      db.prepare('UPDATE registrations SET needs_attention=1 WHERE id=?').bind(refund[1]),
+      audit(db, staff.id, 'refund.requested.sandbox', refund[1]!),
+    ]);
+    return json({
+      saved: true,
+      message: 'Sandbox refund requested. Reconcile to verify completion.',
+    });
+  }
+  if (path === 'audit' && method === 'GET')
+    return json(
+      (await db.prepare('SELECT * FROM audit ORDER BY created_at DESC LIMIT 200').all()).results,
+    );
+  throw new HttpError(404, 'This action was not found.');
+}

@@ -1,0 +1,83 @@
+---
+import '../../styles/global.css';
+import '../../styles/admin.css';
+import { env } from 'cloudflare:workers';
+const staff = Astro.locals.staff!,
+  section = Astro.params.section || 'dashboard';
+const nav =
+  staff.role === 'instructor'
+    ? [['sessions', '◷', 'My class dates']]
+    : [
+        ['dashboard', '◈', 'Overview'],
+        ['workshops', '✳', 'Workshops'],
+        ['sessions', '◷', 'Class dates'],
+        ['registrations', '☷', 'Registrations'],
+        ['content', '▤', 'Website content'],
+        ['media', '▧', 'Images'],
+        ['venues', '⌂', 'Venues'],
+        ...(staff.role === 'owner' ? [['team', '♧', 'Team access']] : []),
+      ];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Studio desk | Adventure Station</title>
+    <meta name="robots" content="noindex,nofollow" />
+  </head>
+  <body>
+    <a href="#admin-main" class="skip">
+      Skip to workspace
+    </a>
+    <div class="admin-shell">
+      <aside class="sidebar">
+        <a class="brand" href="/admin">
+          <img src="/brand/logo-96.webp" width="44" height="44" alt="" />
+          <span>
+            Adventure Station<small>Your studio desk</small>
+          </span>
+        </a>
+        <div>
+          <div class="admin-label">Make a little magic</div>
+          <nav class="admin-nav" aria-label="Staff navigation">
+            {nav.map(([slug, icon, label]) => (
+              <a href={`/admin/${slug}`} aria-current={section === slug ? 'page' : undefined}>
+                <span aria-hidden="true">{icon}</span>
+                {label}
+              </a>
+            ))}
+          </nav>
+        </div>
+        <div class="sidebar-bottom">
+          <strong>{staff.name}</strong>
+          <br />
+          {staff.role}
+          <br />
+          <a href="/cdn-cgi/access/logout">Sign out</a>
+        </div>
+      </aside>
+      <div class="admin-body">
+        {env.ENVIRONMENT !== 'production' && (
+          <div class="preview-note">
+            Development workspace · Use test information only · Payments use Square Sandbox
+          </div>
+        )}
+        <header class="admin-top">
+          <span>YOUR STUDIO, AT A GLANCE</span>
+          <a href="/" target="_blank" rel="noopener">
+            View website ↗
+          </a>
+        </header>
+        <main id="admin-main" class="admin-main" data-section={section} data-role={staff.role}>
+          <div id="admin-message" role="status" aria-live="polite" class="notice"></div>
+          <div id="workspace">
+            <div class="loading">Opening your workspace…</div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <script src="../../scripts/admin.ts" />
+  </body>
+</html>

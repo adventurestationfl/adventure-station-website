@@ -1,0 +1,44 @@
+---
+import Public from '../../layouts/Public.astro';
+import WorkshopCard from '../../components/WorkshopCard.astro';
+import SessionList from '../../components/SessionList.astro';
+import { env } from 'cloudflare:workers';
+import { catalog, upcoming } from '../../lib/data';
+const workshops = await catalog(env.DB),
+  sessions = await upcoming(env.DB);
+---
+
+<Public title="Creative workshops">
+  <div class="wrap">
+    <div class="page-heading">
+      <div class="eyebrow">Make something wonderful</div>
+      <h1>
+        A little adventure.
+        <br />
+        All their own.
+      </h1>
+      <p>Explore the workshops, find a date that fits, and make space for imagination.</p>
+    </div>
+    <section class="section">
+      {workshops.length ? (
+        <div class="grid">
+          {workshops.map((w) => (
+            <WorkshopCard workshop={w} />
+          ))}
+        </div>
+      ) : (
+        <div class="empty">
+          <h2>New ideas are on the way.</h2>
+          <p>
+            Our workshop catalog will be here soon. <a href="/contact">Contact us</a> for more
+            information.
+          </p>
+        </div>
+      )}
+    </section>
+    <section class="upcoming" id="dates">
+      <h2>Find your next date.</h2>
+      <SessionList sessions={sessions} />
+    </section>
+  </div>
+</Public>

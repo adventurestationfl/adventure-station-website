@@ -1,0 +1,112 @@
+---
+import '../styles/global.css';
+import { env } from 'cloudflare:workers';
+import { settings } from '../lib/data';
+const site = await settings(env.DB);
+const {
+  title = 'A little mess. A lot of imagination.',
+  description = 'Hands-on arts and crafts for curious kids. Explore workshops and upcoming dates at Adventure Station.',
+} = Astro.props;
+const origin = env.PUBLIC_ORIGIN;
+const organization = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Adventure Station',
+  url: origin,
+  email: site.email,
+  logo: `${origin}/brand/logo-96.webp`,
+}).replace(/</g, '\\u003c');
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <script type="application/ld+json" set:html={organization} />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{title} | Adventure Station</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#182642" />
+    <link rel="icon" type="image/webp" href="/brand/logo-96.webp" />
+    <meta property="og:title" content={`${title} | Adventure Station`} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content={`${origin}/brand/art-960.webp`} />
+    <meta property="og:url" content={new URL(Astro.url.pathname, origin).href} />
+    <link rel="canonical" href={new URL(Astro.url.pathname, origin).href} />
+  </head>
+  <body
+    style={`--coral:${site.accent === 'blue' ? '#21629a' : site.accent === 'green' ? '#346541' : '#b73345'}`}
+  >
+    <a class="skip" href="#main">
+      Skip to content
+    </a>
+    <div class="topline">LITTLE HANDS. BIG IDEAS. ENDLESS POSSIBILITIES.</div>
+    <header class="header wrap">
+      <a class="brand" href="/" aria-label="Adventure Station home">
+        <img src="/brand/logo-96.webp" alt="" width="62" height="62" />
+        <span>
+          Adventure Station<small>Crafts & arts for kids</small>
+        </span>
+      </a>
+      <button class="mobile-menu" aria-expanded="false" aria-controls="main-nav">
+        Menu
+      </button>
+      <nav class="nav" id="main-nav" aria-label="Main navigation">
+        <a href="/workshops">Workshops</a>
+        <a href="/about">Our story</a>
+        <a href="/faq">Good to know</a>
+        <a href="/contact">Contact</a>
+        <a class="btn small" href="/workshops#dates">
+          Find a workshop <span aria-hidden="true">↗</span>
+        </a>
+      </nav>
+    </header>
+    <main id="main">
+      <slot />
+    </main>
+    <footer class="footer">
+      <div class="wrap">
+        <div class="footer-main">
+          <div>
+            <a class="brand" href="/">
+              Adventure Station
+            </a>
+            <p>
+              A place for curious minds, colorful ideas,
+              <br />
+              and the joy of making something.
+            </p>
+          </div>
+          <div class="footer-links">
+            <div>
+              <strong>Explore</strong>
+              <a href="/workshops">Workshops</a>
+              <a href="/about">Our story</a>
+              <a href="/faq">FAQ & policies</a>
+            </div>
+            <div>
+              <strong>Say hello</strong>
+              <a href={`mailto:${site.email}`}>Email us</a>
+              <a href="/contact">Contact information</a>
+              <a href="/admin">Staff sign-in</a>
+            </div>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <span>© {new Date().getFullYear()} Adventure Station</span>
+          <a href="/policies">Privacy & workshop policies</a>
+          <span>Made for a little more wonder.</span>
+        </div>
+      </div>
+    </footer>
+    <script>
+      document.querySelector('.mobile-menu')?.addEventListener('click', (e) => {
+        const b = e.currentTarget as HTMLButtonElement;
+        const open = b.getAttribute('aria-expanded') !== 'true';
+        b.setAttribute('aria-expanded', String(open));
+        document.querySelector('#main-nav')?.classList.toggle('open', open);
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,14 @@
+---
+import Public from '../layouts/Public.astro';
+Astro.response.status = 404;
+---
+
+<Public title="Page not found">
+  <div class="wrap section">
+    <h1>This page wandered off.</h1>
+    <p>Let’s get you back to something creative.</p>
+    <a class="btn" href="/workshops">
+      Explore workshops ↗
+    </a>
+  </div>
+</Public>

@@ -1,0 +1,165 @@
+---
+import Public from '../../layouts/Public.astro';
+import { env } from 'cloudflare:workers';
+import { settings, upcoming, money, dateLabel } from '../../lib/data';
+import { paymentConfigured } from '../../lib/square';
+const site = await settings(env.DB),
+  session = (await upcoming(env.DB)).find((s) => s.id === Astro.params.id);
+if (!session) Astro.response.status = 404;
+const available = session ? Math.max(0, session.capacity - session.occupied) : 0,
+  ready = paymentConfigured(env) && site.policiesApproved && available > 0;
+---
+
+<Public title="Register for a workshop">
+  <div class="wrap">
+    <div class="breadcrumb">
+      <a href="/workshops">Workshops</a> / Registration
+    </div>
+    <div class="page-heading">
+      <div class="eyebrow">A little adventure awaits</div>
+      <h1>
+        Save their place
+        <br />
+        at the table.
+      </h1>
+    </div>
+    <section class="section split" style="align-items:start">
+      {session ? (
+        <>
+          <aside class="form-panel">
+            <span class="tag">For parents & guardians</span>
+            <h2 style="font-size:2.2rem">{session.workshop_name}</h2>
+            <p>{dateLabel(session.starts_at, session.timezone)}</p>
+            <p>
+              {session.venue_name}
+              <br />
+              Ages {session.age_min}–{session.age_max}
+            </p>
+            <hr class="divider" />
+            <p>
+              <strong>{money(session.price)} per child</strong>
+              <br />
+              {available} places currently available
+            </p>
+            <p class="muted">
+              Your places are held for 15 minutes once checkout starts. Registration is confirmed
+              only after payment is verified. A late payment may need our help to resolve
+              availability.
+            </p>
+            <a href="/policies">Read workshop & privacy policies</a>
+          </aside>
+          {ready ? (
+            <form
+              id="registration-form"
+              class="form-panel"
+              data-session={session.id}
+              data-age-min={session.age_min}
+              data-age-max={session.age_max}
+            >
+              <h2 style="font-size:2rem">Who’s joining the adventure?</h2>
+              <p class="muted">
+                A parent or guardian must complete this form. Please use children’s first names
+                only.
+              </p>
+              <div id="form-message" class="notice" role="status" aria-live="polite"></div>
+              <div class="field">
+                <label for="guardian-name">Parent or guardian’s name</label>
+                <input
+                  id="guardian-name"
+                  name="guardian_name"
+                  autocomplete="name"
+                  maxlength="100"
+                  required
+                />
+              </div>
+              <div class="field">
+                <label for="guardian-email">Email</label>
+                <input
+                  id="guardian-email"
+                  name="guardian_email"
+                  type="email"
+                  autocomplete="email"
+                  maxlength="254"
+                  required
+                />
+              </div>
+              <div class="field">
+                <label for="guardian-phone">Contact phone</label>
+                <input
+                  id="guardian-phone"
+                  name="guardian_phone"
+                  type="tel"
+                  autocomplete="tel"
+                  minlength="7"
+                  maxlength="40"
+                  required
+                />
+              </div>
+              <div class="field">
+                <label for="quantity">Number of children</label>
+                <select id="quantity" name="quantity">
+                  {Array.from({ length: Math.min(12, available) }, (_, i) => (
+                    <option value={i + 1}>{i + 1}</option>
+                  ))}
+                </select>
+              </div>
+              <div id="participants"></div>
+              <label class="check">
+                <input type="checkbox" name="guardian_attestation" required />I am a parent or
+                guardian registering these children.
+              </label>
+              <label class="check">
+                <input type="checkbox" name="policy_agreement" required />I have read and agree to
+                the workshop and privacy policies linked above.
+              </label>
+              <label class="check">
+                <input type="checkbox" name="marketing_consent" />
+                Optional: email me about future workshops.
+              </label>
+              <label class="check">
+                <input type="checkbox" name="photo_consent" />
+                Optional: I give permission for workshop photographs of my child to be used by
+                Adventure Station.
+              </label>
+              <p class="muted">
+                Both optional choices are off by default. Card details are entered only on Square’s
+                secure checkout.
+              </p>
+              <button class="btn coral" type="submit">
+                Continue to secure checkout ↗
+              </button>
+              <p>
+                <small>
+                  Sandbox registration. Do not enter real children’s information in this preview.
+                </small>
+              </p>
+            </form>
+          ) : (
+            <div class="empty">
+              <h2 style="font-size:2rem">
+                {available === 0 ? 'This class is full.' : 'Registration is not open yet.'}
+              </h2>
+              <p>
+                {available === 0
+                  ? 'Please explore another date.'
+                  : 'We’re finalizing the registration details. Please contact us for help.'}
+              </p>
+              <a class="btn" href="/contact">
+                Contact Adventure Station ↗
+              </a>
+            </div>
+          )}
+        </>
+      ) : (
+        <div class="empty">
+          <h2>This class date is unavailable.</h2>
+          <p>It may have ended, filled up, or been cancelled.</p>
+          <a class="btn" href="/workshops#dates">
+            Explore available dates ↗
+          </a>
+        </div>
+      )}
+    </section>
+  </div>
+  <script src="../../scripts/register.ts" />
+</Public>

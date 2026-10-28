@@ -1,0 +1,115 @@
+---
+import Public from '../layouts/Public.astro';
+import { env } from 'cloudflare:workers';
+import { settings } from '../lib/data';
+const page = Astro.params.page,
+  site = await settings(env.DB);
+const titles: Record<string, string> = {
+  about: 'A place for big little ideas.',
+  faq: 'A few good things to know.',
+  policies: 'Privacy & workshop policies.',
+  contact: 'Let’s make a connection.',
+};
+const title = titles[page ?? ''];
+if (!title) {
+  Astro.response.status = 404;
+}
+const venues = (
+  await env.DB.prepare(
+    'SELECT name,address,instructions FROM venues WHERE verified=1 AND archived=0 ORDER BY name',
+  ).all<{ name: string; address: string; instructions: string }>()
+).results;
+---
+
+<Public title={title ?? 'Page not found'}>
+  <div class="wrap">
+    <div class="page-heading">
+      <div class="eyebrow">Adventure Station</div>
+      <h1>{title ?? 'This page wandered off.'}</h1>
+    </div>
+    <section class="section prose">
+      {page === 'about' && (
+        <>
+          <h2>For the joy of making.</h2>
+          <p>{site.about}</p>
+          <p>Seasonal inspiration. Hands-on exploration. A chance to make something special.</p>
+          <a class="btn" href="/workshops">
+            Explore workshops ↗
+          </a>
+        </>
+      )}
+      {(page === 'faq' || page === 'policies') && (
+        <>
+          {page === 'faq' && (
+            <>
+              {site.faqs.map((f) => (
+                <details>
+                  <summary>{f.question}</summary>
+                  <p>{f.answer}</p>
+                </details>
+              ))}
+            </>
+          )}
+          <h2>Before you register</h2>
+          {!site.policiesApproved && (
+            <div class="policy-pending">
+              Workshop policies are awaiting owner confirmation. Please contact us before making
+              plans.
+            </div>
+          )}
+          {[
+            ['Cancellations & refunds', site.refundPolicy],
+            ['Guardian supervision', site.supervisionPolicy],
+            ['Drop-off & pickup', site.pickupPolicy],
+            ['Privacy & your information', site.privacyPolicy],
+          ].map(([heading, value]) => (
+            <article>
+              <h3>{heading}</h3>
+              <p>
+                {value ||
+                  (site.policiesApproved
+                    ? 'Please contact us for details.'
+                    : 'Awaiting owner confirmation.')}
+              </p>
+            </article>
+          ))}
+        </>
+      )}
+      {page === 'contact' && (
+        <>
+          <p>
+            Questions about workshops, upcoming dates, or joining in? We’d love to hear from you.
+          </p>
+          <h2>Say hello.</h2>
+          <p>
+            <a href={`mailto:${site.email}`}>{site.email}</a>
+          </p>
+          {site.phone && <p>{site.phone}</p>}
+          <h2>Where we create.</h2>
+          {venues.length ? (
+            venues.map((v) => (
+              <article>
+                <h3>{v.name}</h3>
+                <p>{v.address}</p>
+                <p>{v.instructions}</p>
+              </article>
+            ))
+          ) : (
+            <p>
+              Venue details will be shared with each published workshop date. Please contact us to
+              confirm the location.
+            </p>
+          )}
+        </>
+      )}
+      {!title && (
+        <>
+          <p>Let’s get you back to something creative.</p>
+          <a class="btn" href="/">
+            Back to home
+          </a>
+        </>
+      )}
+    </section>
+  </div>
+</Public>
