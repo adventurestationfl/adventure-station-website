@@ -324,6 +324,196 @@ async function roster(id: string) {
     }),
   );
 }
+function setupSummary(s: any) {
+  return `<details class="panel setup-summary" ${s.minimized ? '' : 'open'}><summary>Get Adventure Station ready · ${s.completed} of ${s.total} owner tasks complete</summary><p>You can edit your website and prepare workshops now. Registration and launch have separate checks.</p><progress value="${s.completed}" max="${s.total}" aria-label="Owner setup progress"></progress><div class="setup-tasks">${s.tasks
+    .filter((t: any) => !t.complete)
+    .slice(0, 3)
+    .map(
+      (t: any) =>
+        `<article><strong>${h(t.title)}</strong><p>${h(t.help)}</p><a class="text-link" href="${h(t.href)}">Review this task ↗</a></article>`,
+    )
+    .join(
+      '',
+    )}</div><a class="btn small" href="/admin/setup">Open setup checklist ↗</a><p class="muted">${s.integrations.filter((i: any) => !i.complete).length} external checks still need developer help. Live registration stays disabled in this release.</p></details>`;
+}
+async function renderSetup() {
+  const s = await api('setup'),
+    d = s.decisions;
+  workspace.innerHTML =
+    heading(
+      'Get Adventure Station ready',
+      'Finish a little at a time. Your saved decisions will be here when you return.',
+    ) +
+    `<div class="panel"><h2>${s.completed} of ${s.total} owner tasks complete</h2><progress value="${s.completed}" max="${s.total}" aria-label="Owner setup progress"></progress><p>Website editing is available. Class dates are validated individually. Registration: ${s.registrationAllowed ? 'test setup complete' : 'setup still needed'}. Production launch requires separate review and authorization.</p></div><div class="setup-tasks">${s.tasks.map((t: any) => `<article class="panel"><h2>${h(t.title)}</h2>${status(t.status)}<p>${h(t.help)}</p><a href="${h(t.href)}" class="text-link">Review this task ↗</a></article>`).join('')}</div><form id="setup-form"><section class="panel" id="business"><h2>Business information</h2>${field('Legal business name', 'legalName', d.legalName)}${field('Business mailing contact', 'mailingContact', d.mailingContact, 'textarea', 'Use an appropriate business contact. Do not enter a private home address unnecessarily.')}<p><a href="/admin/content">Review public email, phone, locality and timezone ↗</a></p>${check('I have checked these business details.', 'confirm-business', false)}</section><section class="panel" id="supervision"><h2>How children participate</h2>${select(
+      'Supervision arrangement',
+      'supervision',
+      d.supervision,
+      [
+        { id: 'undecided', name: 'I am still deciding' },
+        { id: 'parent_present', name: 'A responsible adult stays throughout' },
+        { id: 'drop_off', name: 'Children attend without their adult' },
+      ],
+    )}${field('Supervision, ages, arrival and emergency arrangements', 'safetyNotes', d.safetyNotes, 'textarea', 'Record the arrangements you can actually provide. Changing supervision reopens policy and operating reviews.')}<p class="notice">Drop-off needs additional regulatory evidence, safety arrangements and newly reviewed policies. Choosing it does not authorize a drop-off service.</p>${check('I have confirmed these participation arrangements.', 'confirm-supervision', false)}</section><section class="panel" id="licensing"><h2>Operating and licensing review</h2><p>Consider the actual Florida requirements with the appropriate authority or adviser. This records your report; it is not independent certification or a finding of exemption.</p>${select(
+      'Current review position',
+      'licensingOutcome',
+      d.licensingOutcome,
+      [
+        { id: 'unreviewed', name: 'Not reviewed yet' },
+        { id: 'review_pending', name: 'Waiting for advice or a determination' },
+        { id: 'license_required', name: 'A license or further approval is needed' },
+        {
+          id: 'owner_reports_authorized',
+          name: 'I report that the required authorization is in place',
+        },
+        {
+          id: 'owner_reports_not_required',
+          name: 'I report a determination that this program does not require it',
+        },
+      ],
+    )}${field('Determination and supporting notes', 'licensingNotes', d.licensingNotes, 'textarea')}${field('Supporting reference (optional https link)', 'licensingReference', d.licensingReference, 'url')}${check('I have recorded my current determination accurately.', 'confirm-licensing', false)}</section><section class="panel" id="privacy"><h2>Privacy and optional permissions</h2><p>For this release, use artwork, crafts, materials, venues and non-identifying photos. Identifiable child photos and their consent workflow are deferred.</p>${field('Data, retention and privacy-request arrangements', 'privacyNotes', d.privacyNotes, 'textarea', 'Record who handles requests and the review/deletion schedule, including backups. Describe optional marketing and its opt-out process, or record that it is not used.')}<p><a href="/admin/privacy">Review historical records ↗</a> · <a href="/admin/content">Review privacy policy and review period ↗</a></p>${check('I have confirmed these privacy arrangements.', 'confirm-privacy', false)}</section><section class="panel"><h2>Website personalization</h2>${field('Website review notes', 'editorialNotes', d.editorialNotes, 'textarea', 'Review the homepage, About, FAQ, permitted images and contact details. This task can wait while you prepare drafts.')}${check('I have reviewed the website content.', 'confirm-editorial', false)}${check('Keep the dashboard setup section minimized.', 'minimized', s.minimized)}</section>${saveBar('Save setup progress')}</form><section class="panel" id="integrations"><h2>Help from your developer</h2><p>These checks need real external tests. You do not need to enter passwords, keys or technical settings here.</p>${s.integrations.map((i: any) => `<article class="setup-item"><h3>${h(i.title)}</h3>${status(i.status)}<p>${h(i.help)}</p></article>`).join('')}<p>Owner-reported operating review: ${h(d.licensingOutcome.replaceAll('_', ' '))}. Independent regulatory evidence: ${s.external.find((e: any) => e.kind === 'regulatory')?.verified ? 'Recorded for the current arrangements' : 'Not recorded'}.</p></section>`;
+  const form = document.querySelector<HTMLFormElement>('#setup-form')!;
+  onSave(form, async () => {
+    const value: any = formValues(form);
+    value.minimized = (form.elements.namedItem('minimized') as HTMLInputElement).checked;
+    value.confirm = ['business', 'supervision', 'licensing', 'privacy', 'editorial'].filter(
+      (k) => (form.elements.namedItem(`confirm-${k}`) as HTMLInputElement).checked,
+    );
+    value.revision = s.revision;
+    await api('setup', 'POST', value);
+    await renderSetup();
+    notify('Setup progress saved. External verification stays separate.');
+  });
+}
+async function renderNotifications() {
+  const rows = await api('notifications');
+  workspace.innerHTML =
+    heading(
+      'Messages to families',
+      'Booking and payment records stay correct even when a message needs follow-up.',
+      button('Check notification updates', 'check-notifications'),
+    ) +
+    `<div class="notice">Development release: customer sending is disabled. Configured tests go only to the email provider’s test addresses. Accepted means accepted by the provider; it does not mean delivered.</div>` +
+    (rows.length
+      ? `<div class="grid">${rows.map((n: any) => `<article class="panel"><h2>${h(n.subject)}</h2>${status(n.state)}<p>Reference: ${h(n.registration_id)}</p><p>${h(n.last_error)}</p><p>${n.attempts} attempt(s). ${h(new Date(n.updated_at * 1000).toLocaleString())}</p>${n.state === 'queued' ? button('Retry safely', 'retry-notice', n.id) : ''}${['review', 'bounced', 'failed', 'suppressed'].includes(n.state) ? '<p>Check the outcome and contact the guardian another way. Do not send a duplicate blindly.</p>' : ''}</article>`).join('')}</div>`
+      : empty(
+          'No booking messages yet.',
+          'Verified confirmations, cancellations and refund updates will appear here.',
+        ));
+}
+function retentionEditor(id: string) {
+  workspace.innerHTML =
+    heading(
+      'Record a retention review',
+      'Keep only what is still needed, and choose when to review it again.',
+      button('Back to privacy review', 'back'),
+    ) +
+    `<form id="retention-form" class="panel">${select(
+      'Why are details still needed?',
+      'reason',
+      'operational_followup',
+      [
+        { id: 'operational_followup', name: 'Unfinished booking follow-up' },
+        { id: 'unresolved_dispute', name: 'An unresolved dispute' },
+        { id: 'legal_obligation', name: 'A documented legal recordkeeping obligation' },
+      ],
+    )}${field('Review again in this many days', 'days', 30, 'number', 'Choose 1–365 days. Keep any supporting legal advice securely; do not enter personal or medical details here.', 'required min="1" max="365"')}<p>This records a reason for temporary retention, not a legal determination.</p>${saveBar('Save retention review')}</form>`;
+  const form = document.querySelector<HTMLFormElement>('#retention-form')!;
+  onSave(form, async () => {
+    const v = formValues(form);
+    await api(`privacy-review/${id}`, 'POST', {
+      reason: v.reason,
+      reviewAfter: Math.floor(Date.now() / 1000) + Number(v.days) * 86400,
+    });
+    await renderPrivacy();
+    notify('Retention reason and next review date saved.');
+  });
+}
+async function renderPrivacy() {
+  const rows = await api('privacy-review');
+  workspace.innerHTML =
+    heading(
+      'Privacy review',
+      'Review due records, unresolved follow-up and reasons for retaining information.',
+    ) +
+    `<div class="panel"><p>A due date is a reminder, not automatic deletion. Financial facts and a removal record are preserved. Historical backups and payment-provider records need their own review.</p><a href="/admin/registrations">Open registration records ↗</a></div>` +
+    (rows.length
+      ? `<div class="grid">${rows.map((r: any) => `<article class="panel"><h2>${h(r.workshop_name)}</h2>${status(r.review_state)}<p>${h(r.id)}</p><p>Booking: ${h(r.status)}</p>${!r.anonymized_at ? button('Record retention review', 'retain-record', r.id) : ''}${r.review_after ? `<p>Review again ${h(new Date(r.review_after * 1000).toLocaleDateString())} · ${h(r.reason.replaceAll('_', ' '))}</p>` : ''}${!r.anonymized_at && !['pending', 'payment_review'].includes(r.status) ? button('Remove personal details', 'anonymize', r.id) : ''}</article>`).join('')}</div>`
+      : empty(
+          'Nothing due yet.',
+          'Historical registrations will be listed here after their class.',
+        ));
+}
+async function registrationDetails(id: string) {
+  const d = await api(`registrations/${id}/details`);
+  workspace.innerHTML =
+    heading(
+      'Review a family booking',
+      'Cancel selected places and handle refunds as separate, recorded actions.',
+      button('Back to registrations', 'back'),
+    ) +
+    `<div class="panel"><p>Reference: ${h(id)}</p><p>Cancelling places releases only those places. It does not issue a refund. The original order and payment history stay intact.</p><form id="cancel-places"><fieldset><legend>Places on this booking</legend>${d.participants.map((p: any) => check(`${p.first_name ?? 'Personal details removed'}${p.cancelled_at ? ' — cancelled' : ''}`, 'participantIds', false, !!p.cancelled_at).replace('name="participantIds"', `name="participantIds" value="${h(p.id)}"`)).join('')}</fieldset><button class="btn small" type="submit">Cancel selected places</button></form></div>${
+      role === 'owner'
+        ? `<form id="refund-form" class="panel"><h2>Request a sandbox refund</h2><p>Review the adopted policy and agreed adjustment first. This does not cancel places or prove that a refund is complete.</p>${select(
+            'Verified payment',
+            'paymentId',
+            '',
+            d.payments.map((p: any) => ({
+              id: p.id,
+              name: `${p.id} · ${cash(p.amount - p.refunded)} remaining`,
+            })),
+          )}${field('Refund amount ($)', 'refundAmount', '', 'number', '', 'required min="0.01" step="0.01"')}<button class="btn small" type="submit">Request sandbox refund</button></form>`
+        : ''
+    }<div class="panel"><h2>Refund follow-up</h2>${d.refunds.map((r: any) => `<article><p>${cash(r.amount)} · ${status(r.state)}</p><small>Request ${h(r.id)}</small>${r.state === 'review' ? button('Check same refund request', 'retry-refund', r.id) : ''}</article>`).join('') || '<p>No refund requests recorded.</p>'}</div>`;
+  const form = document.querySelector<HTMLFormElement>('#cancel-places')!;
+  onSave(form, async () => {
+    const participantIds = new FormData(form).getAll('participantIds');
+    if (!participantIds.length) throw new Error('Select at least one active place.');
+    if (
+      !confirm(
+        `Cancel ${participantIds.length} selected place(s)? Other places stay unchanged. Refunds are handled separately.`,
+      )
+    )
+      return;
+    await api(`registrations/${id}/cancel-places`, 'POST', { participantIds });
+    await registrationDetails(id);
+    notify('Selected places cancelled. Review any refund and message follow-up.');
+  });
+  const refund = document.querySelector<HTMLFormElement>('#refund-form');
+  const requestId = crypto.randomUUID();
+  if (refund)
+    onSave(refund, async () => {
+      const v = formValues(refund);
+      if (
+        !confirm(
+          `Request ${cash(Math.round(Number(v.refundAmount) * 100))} as a sandbox refund? Places do not change.`,
+        )
+      )
+        return;
+      await api(`registrations/${id}/refund`, 'POST', {
+        requestId,
+        paymentId: v.paymentId,
+        amount: Math.round(Number(v.refundAmount) * 100),
+      });
+      await registrationDetails(id);
+      notify('Refund request recorded. Check its verified outcome.');
+    });
+  workspace.querySelectorAll<HTMLButtonElement>('[data-action=retry-refund]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      try {
+        const r = d.refunds.find((r: any) => r.id === b.dataset.id);
+        await api(`registrations/${id}/refund`, 'POST', {
+          requestId: r.id,
+          paymentId: r.payment_id,
+          amount: r.amount,
+        });
+        await registrationDetails(id);
+      } catch (e) {
+        notify(e instanceof Error ? e.message : 'Please try again.', true);
+      }
+    }),
+  );
+}
+
 async function renderDashboard() {
   const from = new Date();
   from.setUTCDate(1);
@@ -334,6 +524,7 @@ async function renderDashboard() {
       'Your workshops, your families, your next adventure.',
       `<a class="btn small" href="/admin/workshops">Manage workshops ↗</a>`,
     ) +
+    (role === 'owner' ? setupSummary(await api('setup')) : '') +
     `<form id="range" class="toolbar">${field('From', 'from', from.toISOString().slice(0, 10), 'date')}${field('Through', 'to', to.toISOString().slice(0, 10), 'date')}<button class="btn small" type="submit">Update overview</button></form><div id="dashboard-data" class="loading">Loading your records…</div>`;
   const form = document.querySelector<HTMLFormElement>('#range')!;
   const load = async () => {
@@ -343,7 +534,7 @@ async function renderDashboard() {
     );
     const confirmed = d.registrations.find((r: any) => r.status === 'confirmed');
     document.querySelector('#dashboard-data')!.innerHTML =
-      `<p class="muted">Payment and registration activity in the chosen date range (UTC calendar dates).</p><div class="stats"><div class="stat"><small>GROSS VERIFIED SALES</small><span class="value money">${cash(d.financial.gross)}</span><small>${d.financial.payments} verified payment${d.financial.payments === 1 ? '' : 's'} · Before refunds and fees</small></div><div class="stat"><small>REFUNDS VERIFIED</small><span class="value money">${cash(d.financial.refunds)}</span><small>Refunds on payments made in this period</small></div><div class="stat"><small>CONFIRMED CHILDREN</small><span class="value">${confirmed?.children ?? 0}</span><small>${confirmed?.orders ?? 0} confirmed registrations created in this period</small></div></div><div class="panel"><h2>Your next class dates</h2>${d.upcoming.length ? d.upcoming.map((s: any) => `<div class="session-row"><div><strong>${h(s.name)}</strong><p>${h(date(s.starts_at, s.timezone))}</p></div><span>${s.confirmed} confirmed · ${s.capacity - s.confirmed} remaining before holds</span><a class="text-link" href="/admin/sessions">Open dates ↗</a></div>`).join('') : '<p class="muted">No upcoming class dates. Start with Workshops → Add date.</p>'}</div><div class="panel"><h2>Needs a little attention</h2>${d.attention.length ? `<ul class="attention-list">${d.attention.map((r: any) => `<li>${h(r.workshop_name)} · ${status(r.status)} · <a href="/admin/registrations">Review registration</a></li>`).join('')}</ul>` : '<p class="muted">No registrations flagged for payment follow-up.</p>'}</div><div class="panel"><h2>Workshop popularity</h2>${d.popular.length ? d.popular.map((p: any) => `<p>${h(p.workshop_name)} — ${p.children} confirmed children</p>`).join('') : '<p class="muted">Confirmed registrations will build this picture over time.</p>'}</div>${role === 'owner' ? `<div class="panel"><h2>Privacy review</h2><p>${d.privacy?.count ?? 0} historical registrations are due for a personal-data review. Open Registrations to remove personal details when appropriate.</p></div>` : ''}<div class="panel"><h2>Registration states</h2>${d.registrations.length ? d.registrations.map((r: any) => `<p>${status(r.status)} ${r.orders} registrations · ${r.children} children</p>`).join('') : '<p class="muted">No registrations in this date range.</p>'}</div>`;
+      `<p class="muted">Payment and registration activity in the chosen date range (UTC calendar dates).</p><div class="stats"><div class="stat"><small>GROSS VERIFIED SALES</small><span class="value money">${cash(d.financial.gross)}</span><small>${d.financial.payments} verified payment${d.financial.payments === 1 ? '' : 's'} · Before refunds and fees</small></div><div class="stat"><small>REFUNDS VERIFIED</small><span class="value money">${cash(d.financial.refunds)}</span><small>Refunds on payments made in this period</small></div><div class="stat"><small>CONFIRMED CHILDREN</small><span class="value">${confirmed?.children ?? 0}</span><small>${confirmed?.orders ?? 0} confirmed registrations created in this period</small></div></div><div class="panel"><h2>Your next class dates</h2>${d.upcoming.length ? d.upcoming.map((s: any) => `<div class="session-row"><div><strong>${h(s.name)}</strong><p>${h(date(s.starts_at, s.timezone))}</p></div><span>${s.confirmed} confirmed · ${s.capacity - s.confirmed} remaining before holds</span><a class="text-link" href="/admin/sessions">Open dates ↗</a></div>`).join('') : '<p class="muted">No upcoming class dates. Start with Workshops → Add date.</p>'}</div><div class="panel"><h2>Needs a little attention</h2><p>${d.notifications?.attention ?? 0} messages need follow-up · ${d.notifications?.pending ?? 0} waiting to send. <a href="/admin/notifications">Review messages ↗</a></p>${d.attention.length ? `<ul class="attention-list">${d.attention.map((r: any) => `<li>${h(r.workshop_name)} · ${status(r.status)} · <a href="/admin/registrations">Review registration</a></li>`).join('')}</ul>` : '<p class="muted">No registrations flagged for payment follow-up.</p>'}</div><div class="panel"><h2>Workshop popularity</h2>${d.popular.length ? d.popular.map((p: any) => `<p>${h(p.workshop_name)} — ${p.children} confirmed children</p>`).join('') : '<p class="muted">Confirmed registrations will build this picture over time.</p>'}</div>${role === 'owner' ? `<div class="panel"><h2>Privacy review</h2><p>${d.privacy?.count ?? 0} historical registrations are due for a personal-data review. Open Registrations to remove personal details when appropriate.</p></div>` : ''}<div class="panel"><h2>Registration states</h2>${d.registrations.length ? d.registrations.map((r: any) => `<p>${status(r.status)} ${r.orders} registrations · ${r.children} children</p>`).join('') : '<p class="muted">No registrations in this date range.</p>'}</div>`;
   };
   form.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -476,10 +667,14 @@ function venueEditor(
       'Use verified business information.',
       button('Back', 'back'),
     ) +
-    `<form id="editor" class="panel">${field('Venue name', 'name', v.name, 'text', '', 'required')}${field('Full address', 'address', v.address, 'textarea')}${field('Arrival instructions', 'instructions', v.instructions, 'textarea')}${check('I have verified this address and the venue details.', 'verified', !!v.verified)}${check('Archive this venue (keep it in history).', 'archived', !!v.archived)}${saveBar('Save venue')}</form>`;
+    `<form id="editor" class="panel">${field('Venue name', 'name', v.name, 'text', '', 'required')}${field('Full address', 'address', v.address, 'textarea')}${field('Arrival instructions', 'instructions', v.instructions, 'textarea')}${field('Venue capacity', 'capacity', v.capacity ?? '', 'number', 'Maximum children permitted for these activities.', 'min="1" max="100"')}${field('Accessibility information', 'accessibility', v.accessibility ?? '', 'textarea')}${check('Permission to hold workshops here is confirmed.', 'permission_confirmed', !!v.permission_confirmed)}${check('I have verified this address and the venue details.', 'verified', !!v.verified)}${check('Archive this venue (keep it in history).', 'archived', !!v.archived)}${saveBar('Save venue')}</form>`;
   const form = document.querySelector<HTMLFormElement>('#editor')!;
   onSave(form, async () => {
     const d: any = formValues(form);
+    d.capacity = d.capacity ? Number(d.capacity) : null;
+    d.permission_confirmed = (
+      form.elements.namedItem('permission_confirmed') as HTMLInputElement
+    ).checked;
     d.verified = (form.elements.namedItem('verified') as HTMLInputElement).checked;
     d.archived = (form.elements.namedItem('archived') as HTMLInputElement).checked;
     await api(`venues${v.id ? `/${v.id}` : ''}`, 'POST', d);
@@ -495,7 +690,7 @@ async function renderRegistrations() {
       'Payment and registration states are shown separately.',
       button('Check payment updates', 'reconcile'),
     ) +
-    `<div class="panel"><div class="field"><label for="registration-search">Find a registration</label><input id="registration-search" type="search" placeholder="Guardian, workshop, or reference"/></div><div class="overflow"><table class="table"><thead><tr><th>Workshop / guardian</th><th>Places</th><th>Registration</th><th>Verified payment</th><th>Actions</th></tr></thead><tbody>${rows.map((r: any) => `<tr data-search="${h(`${r.guardian_name} ${r.guardian_email} ${r.workshop_name} ${r.id}`.toLowerCase())}"><td><strong>${h(r.workshop_name)}</strong><br/>${h(r.guardian_name ?? 'Personal details removed')}<br/><small>${h(r.guardian_email)}<br/>${h(r.id)}</small></td><td>${r.seats}</td><td>${status(r.status)}${r.needs_attention ? '<br/><small>Follow-up needed</small>' : ''}</td><td>${cash(r.paid)} received<br/>${(r.payment_issues ?? []).map((i: any) => `<strong>Needs review: ${h(i.amount / 100)} ${h(i.currency)}</strong><br/>`).join('')}${cash(r.refunded)} refunded<br/><small>Order total ${cash(r.total)}</small></td><td><div class="inline-actions">${r.status === 'payment_review' && r.paid - r.refunded >= r.total ? button('Confirm available places', 'confirm-review', r.id) : ''}${r.needs_attention && !['pending', 'payment_review'].includes(r.status) ? button('Follow-up complete', 'complete-review', r.id) : ''}</div>${role === 'owner' ? `<div class="inline-actions">${r.paid > r.refunded || (r.payment_issues ?? []).some((i: any) => i.refunded < i.amount) ? button('Sandbox refund', 'refund', r.id) : ''}${r.ends_at < Date.now() / 1000 && !r.anonymized_at ? button('Remove personal details', 'anonymize', r.id) : ''}</div>` : ''}</td></tr>`).join('')}</tbody></table></div>${!rows.length ? '<p class="muted">Registrations will appear here when a family starts checkout.</p>' : ''}</div>`;
+    `<div class="panel"><div class="field"><label for="registration-search">Find a registration</label><input id="registration-search" type="search" placeholder="Guardian, workshop, or reference"/></div><div class="overflow"><table class="table"><thead><tr><th>Workshop / guardian</th><th>Places</th><th>Registration</th><th>Verified payment</th><th>Actions</th></tr></thead><tbody>${rows.map((r: any) => `<tr data-search="${h(`${r.guardian_name} ${r.guardian_email} ${r.workshop_name} ${r.id}`.toLowerCase())}"><td><strong>${h(r.workshop_name)}</strong><br/>${h(r.guardian_name ?? 'Personal details removed')}<br/><small>${h(r.guardian_email)}<br/>${h(r.id)}</small></td><td>${r.seats - r.cancelled_seats} active<br/><small>${r.seats} originally booked</small></td><td>${status(r.status)}${r.needs_attention ? '<br/><small>Follow-up needed</small>' : ''}</td><td>${cash(r.paid)} received<br/>${(r.payment_issues ?? []).map((i: any) => `<strong>Needs review: ${h(i.amount / 100)} ${h(i.currency)}</strong><br/>`).join('')}${cash(r.refunded)} refunded<br/><small>Order total ${cash(r.total)}</small></td><td>${button('Review booking', 'booking-details', r.id)}<div class="inline-actions">${r.status === 'payment_review' && r.paid - r.refunded >= r.total ? button('Confirm available places', 'confirm-review', r.id) : ''}${r.needs_attention && !['pending', 'payment_review'].includes(r.status) ? button('Follow-up complete', 'complete-review', r.id) : ''}</div>${role === 'owner' ? `<div class="inline-actions">${r.paid > r.refunded || (r.payment_issues ?? []).some((i: any) => i.refunded < i.amount) ? button('Review refund', 'booking-details', r.id) : ''}${r.ends_at < Date.now() / 1000 && !r.anonymized_at ? button('Remove personal details', 'anonymize', r.id) : ''}</div>` : ''}</td></tr>`).join('')}</tbody></table></div>${!rows.length ? '<p class="muted">Registrations will appear here when a family starts checkout.</p>' : ''}</div>`;
   workspace
     .querySelector<HTMLInputElement>('#registration-search')!
     .addEventListener('input', (event) => {
@@ -531,7 +726,7 @@ async function renderMedia() {
   media = await api('media');
   workspace.innerHTML =
     heading('Your creative library.', 'Images here can be used on the website and in workshops.') +
-    `<form id="upload" class="panel"><h2>Add an image</h2><p class="muted">Upload a JPEG, PNG or WebP. Images are optimized and metadata is removed before publication. Use only images you have permission to publish; this is a public website image library.</p>${field('Choose image', 'image', '', 'file', '', 'accept="image/jpeg,image/png,image/webp" required')}${field('Describe the image', 'alt', '', 'text', 'Used for accessibility and to help you find it later.', 'required maxlength="300"')}${check('I have permission to publish this image, including any required photo permissions.', 'rights', false)}<button class="btn" type="submit">Upload image ↗</button></form><div class="media-grid">${media.map((m) => `<article class="media-item"><img src="/media/${h(m.id)}?w=480" width="480" height="480" alt="${h(m.alt)}"/><p>${h(m.alt)}</p><small>${m.width} × ${m.height} · ${Math.ceil(m.bytes / 1024)} KB (all sizes)</small><div class="inline-actions">${button('Edit description', 'alt-media', m.id)}${button('Remove unused image', 'delete-media', m.id)}</div></article>`).join('')}</div>`;
+    `<form id="upload" class="panel"><h2>Add an image</h2><p class="muted">Upload a JPEG, PNG or WebP. Images are optimized and metadata is removed before publication. Use only images you have permission to publish; this is a public website image library.</p>${field('Choose image', 'image', '', 'file', '', 'accept="image/jpeg,image/png,image/webp" required')}${field('Describe the image', 'alt', '', 'text', 'Used for accessibility and to help you find it later.', 'required maxlength="300"')}${check('I have permission to publish this image, including any required photo permissions.', 'rights', false)}${check('This image does not identify a child.', 'non_identifying', false)}<p>Use brand artwork, craft projects, materials, venues or non-identifying photos. Identifiable child photos are deferred.</p><button class="btn" type="submit">Upload image ↗</button></form><div class="media-grid">${media.map((m) => `<article class="media-item"><img src="/media/${h(m.id)}?w=480" width="480" height="480" alt="${h(m.alt)}"/><p>${h(m.alt)}</p><small>${m.width} × ${m.height} · ${Math.ceil(m.bytes / 1024)} KB (all sizes)</small><div class="inline-actions">${button('Edit description', 'alt-media', m.id)}${button('Remove unused image', 'delete-media', m.id)}</div></article>`).join('')}</div>`;
   const form = document.querySelector<HTMLFormElement>('#upload')!;
   onSave(form, async () => {
     const data = new FormData(form),
@@ -539,6 +734,7 @@ async function renderMedia() {
     if (!file || file.size > 20000000) throw new Error('Choose an image up to 20 MB.');
     const payload = new FormData();
     payload.set('alt', String(data.get('alt')));
+    payload.set('non_identifying', String(data.get('non_identifying') === 'on'));
     payload.set('rights', String(data.get('rights') === 'on'));
     for (const w of [1600, 960, 480]) payload.set(String(w), await optimized(file, w), `${w}.jpg`);
     await api('media', 'POST', payload);
@@ -599,6 +795,15 @@ async function render() {
     return;
   }
   switch (section) {
+    case 'setup':
+      await renderSetup();
+      break;
+    case 'notifications':
+      await renderNotifications();
+      break;
+    case 'privacy':
+      await renderPrivacy();
+      break;
     case 'dashboard':
       await renderDashboard();
       break;
@@ -637,6 +842,21 @@ workspace.addEventListener('click', async (event) => {
     action = b.dataset.action;
   try {
     switch (action) {
+      case 'retain-record':
+        retentionEditor(key);
+        break;
+      case 'booking-details':
+        await registrationDetails(key);
+        break;
+      case 'check-notifications':
+        await api('notifications/check', 'POST', {});
+        await renderNotifications();
+        notify('Notification checks complete. Review any follow-up.');
+        break;
+      case 'retry-notice':
+        await api(`notifications/${key}/retry`, 'POST', {});
+        await renderNotifications();
+        break;
       case 'load-policy-drafts':
         if (
           confirm(
@@ -712,15 +932,6 @@ workspace.addEventListener('click', async (event) => {
         notify('Follow-up marked complete.');
         await renderRegistrations();
         break;
-      case 'refund':
-        if (
-          confirm('Request a sandbox refund for this registration? No live refund will be issued.')
-        ) {
-          await api(`registrations/${key}/refund`, 'POST', {});
-          notify('Sandbox refund requested. Check payment updates to verify completion.');
-          await renderRegistrations();
-        }
-        break;
       case 'anonymize':
         if (
           confirm(
@@ -729,7 +940,8 @@ workspace.addEventListener('click', async (event) => {
         ) {
           await api(`registrations/${key}/anonymize`, 'POST', {});
           notify('Personal details removed. Financial history preserved.');
-          await renderRegistrations();
+          if (section === 'privacy') await renderPrivacy();
+          else await renderRegistrations();
         }
         break;
       case 'delete-media':

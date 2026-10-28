@@ -27,6 +27,7 @@ jobs:
           printf 'DEV_AUTH=true\nABUSE_SALT=ci-test-only-not-a-production-secret\n' > .dev.vars
           npm run db:local
           npx wrangler d1 execute adventure-station-local --local --file scripts/seed-local.sql
+          npx wrangler d1 execute adventure-station-local --local --file scripts/seed-e2e.sql
           npm run build
           npx playwright install --with-deps chromium
       - run: npm run test:e2e

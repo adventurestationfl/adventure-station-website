@@ -5,3 +5,5 @@ DEV_AUTH=true
 # SQUARE_ACCESS_TOKEN=
 # SQUARE_WEBHOOK_SIGNATURE_KEY=
 # ABUSE_SALT=
+# RESEND_API_KEY=
+# EMAIL_MODE stays disabled until provider test setup. Only resend_test is supported.

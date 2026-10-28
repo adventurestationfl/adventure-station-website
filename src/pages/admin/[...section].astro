@@ -12,6 +12,13 @@ const nav =
         ['workshops', '✳', 'Workshops'],
         ['sessions', '◷', 'Class dates'],
         ['registrations', '☷', 'Registrations'],
+        ['notifications', '✉', 'Messages'],
+        ...(staff.role === 'owner'
+          ? [
+              ['setup', '✓', 'Setup'],
+              ['privacy', '◇', 'Privacy review'],
+            ]
+          : []),
         ['content', '▤', 'Website content'],
         ['media', '▧', 'Images'],
         ['venues', '⌂', 'Venues'],

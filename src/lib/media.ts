@@ -83,6 +83,11 @@ export async function mediaApi(request: Request, env: Cloudflare.Env, staff: Sta
     const alt = String(form.get('alt') ?? '').trim();
     if (!alt || alt.length > 300)
       throw new HttpError(400, 'Add a description of this image (up to 300 characters).');
+    if (form.get('non_identifying') !== 'true')
+      throw new HttpError(
+        400,
+        'Identifiable child photos are deferred. Confirm this image does not identify a child.',
+      );
     if (form.get('rights') !== 'true')
       throw new HttpError(400, 'Confirm you have permission to publish this image.');
     const key = crypto.randomUUID();

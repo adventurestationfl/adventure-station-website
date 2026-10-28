@@ -1,3 +1,6 @@
+import { ownerSetup, saveSetup, integrationFingerprint } from '../src/lib/setup';
+import { deliverNotifications, notificationText } from '../src/lib/notifications';
+import { cancelPlaces, requestRefund } from '../src/lib/booking-operations';
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { readFileSync } from 'node:fs';
@@ -95,13 +98,18 @@ beforeEach(async () => {
     '0002_reconciliation.sql',
     '0003_review_and_media_integrity.sql',
     '0004_freeport_policy_drafts.sql',
+    '0005_owner_operations.sql',
+    '0006_photo_deferral.sql',
+    '0007_photo_draft_line_endings.sql',
+    '0008_privacy_review.sql',
+    '0009_exact_draft_encoding.sql',
   ]
     .map((f) => readFileSync(`migrations/${f}`, 'utf8'))
     .join('\n');
   // D1 exec splits on newlines; batch each complete statement, preserving trigger bodies.
   const cleaned = sql.replace(/--[^\n]*/g, '');
   const chunks = cleaned
-    .split(/;\s*(?=(?:CREATE|INSERT|PRAGMA|ALTER|UPDATE)\b)/)
+    .split(/;\s*(?=(?:CREATE|INSERT|PRAGMA|ALTER|UPDATE|DROP)\b)/)
     .map((s) => s.trim())
     .filter(Boolean);
   for (const chunk of chunks) await db.prepare(chunk.endsWith(';') ? chunk : chunk + ';').run();
@@ -132,6 +140,7 @@ beforeEach(async () => {
     supervisionPolicy: 'Test policy',
     pickupPolicy: 'Test policy',
     privacyPolicy: 'Test policy',
+    phone: '5550000000',
   });
   await db.prepare("UPDATE settings SET value=? WHERE key='site'").bind(JSON.stringify(s)).run();
   env = {
@@ -140,6 +149,10 @@ beforeEach(async () => {
     ASSETS: { fetch: async () => new Response('') },
     ENVIRONMENT: 'test',
     DEV_AUTH: 'false',
+    EMAIL_MODE: 'disabled',
+    EMAIL_FROM: 'test@example.invalid',
+    EMAIL_TEST_RECIPIENT: 'delivered@resend.dev',
+    RESEND_API_KEY: '',
     ACCESS_TEAM_DOMAIN: '',
     ACCESS_AUD: '',
     PUBLIC_ORIGIN: 'https://preview.example.invalid',
@@ -150,6 +163,46 @@ beforeEach(async () => {
     SQUARE_WEBHOOK_SIGNATURE_KEY: 'test-webhook-not-a-credential',
     ABUSE_SALT: 'test-only-randomization-key',
   };
+  const decisions = {
+    legalName: 'Test business only',
+    mailingContact: 'Test business contact',
+    supervision: 'parent_present',
+    safetyNotes: 'Test safety arrangements',
+    licensingOutcome: 'owner_reports_not_required',
+    licensingNotes: 'Test fixture only; no actual determination',
+    licensingReference: '',
+    privacyNotes: 'Test retention review',
+    editorialNotes: '',
+    confirmed: {},
+    minimized: false,
+  };
+  await db
+    .prepare("UPDATE settings SET value=? WHERE key='owner_setup'")
+    .bind(JSON.stringify(decisions))
+    .run();
+  await saveSetup(env, owner, {
+    ...decisions,
+    revision: 1,
+    confirm: ['business', 'supervision', 'licensing', 'privacy'],
+  });
+  await db
+    .prepare(
+      "UPDATE venues SET capacity=12,accessibility='Test accessibility',permission_confirmed=1",
+    )
+    .run();
+  for (const kind of ['payment', 'access'])
+    await db
+      .prepare(
+        'INSERT INTO integration_verifications(kind,fingerprint,evidence,verified_at,expires_at) VALUES(?,?,?,?,?)',
+      )
+      .bind(
+        kind,
+        await integrationFingerprint(env, kind),
+        'Mock test fixture, not external verification',
+        Math.floor(Date.now() / 1000),
+        Math.floor(Date.now() / 1000) + 86400,
+      )
+      .run();
   mockSquare();
 });
 afterEach(async () => {
@@ -357,12 +410,437 @@ describe('Payment evidence and events', () => {
   });
 });
 describe('Owner operations and access boundaries', () => {
+  it('derives setup progress, persists decisions, and never grants external verification from owner input', async () => {
+    const before = await ownerSetup(env);
+    expect(before.registrationAllowed).toBe(true);
+    expect(before.tasks.find((t) => t.id === 'business')?.complete).toBe(true);
+    const response = await admin('setup');
+    const setup = await response.json();
+    await admin('setup', {
+      ...setup.decisions,
+      revision: setup.revision,
+      minimized: true,
+      confirm: [],
+      verified: { email: true },
+      production: true,
+    });
+    const after = await (await admin('setup')).json();
+    expect(after.minimized).toBe(true);
+    expect(after.external.find((e: any) => e.kind === 'email').verified).toBe(false);
+    expect(after.readiness.production).toBe(false);
+    await expect(admin('setup', undefined, manager)).rejects.toThrow('role');
+    await expect(
+      admin('setup', { ...setup.decisions, revision: setup.revision, confirm: [] }, manager),
+    ).rejects.toThrow('role');
+  });
+  it('reopens business tasks when saved contact details change while allowing editorial work', async () => {
+    const site = await (await admin('content')).json();
+    await admin('content', { ...site, phone: '5559999999', headline: 'Owner can still edit' });
+    const setup = await ownerSetup(env);
+    expect(setup.tasks.find((t) => t.id === 'business')?.complete).toBe(false);
+    expect(setup.readiness.editorial).toBe(true);
+    expect((await settings(db)).headline).toBe('Owner can still edit');
+    await expect(record()).rejects.toThrow('setup');
+  });
+  it('reopens operating and policy reviews when supervision changes to drop-off', async () => {
+    const setup = await (await admin('setup')).json();
+    await admin('setup', {
+      ...setup.decisions,
+      revision: setup.revision,
+      supervision: 'drop_off',
+      confirm: ['supervision'],
+    });
+    const after = await ownerSetup(env);
+    expect(after.tasks.find((t) => t.id === 'licensing')?.complete).toBe(false);
+    expect(after.tasks.find((t) => t.id === 'privacy')?.complete).toBe(false);
+    expect((await settings(db)).policiesApproved).toBe(false);
+    expect(after.registrationAllowed).toBe(false);
+    await expect(record()).rejects.toThrow('finalized');
+  });
+  it('revokes readiness for changed or expired external configuration evidence', async () => {
+    expect((await ownerSetup(env)).registrationAllowed).toBe(true);
+    expect(
+      (await ownerSetup({ ...env, SQUARE_ACCESS_TOKEN: 'rotated-test-only' })).registrationAllowed,
+    ).toBe(false);
+    await db
+      .prepare("UPDATE integration_verifications SET revoked_at=unixepoch() WHERE kind='access'")
+      .run();
+    expect((await ownerSetup(env)).registrationAllowed).toBe(false);
+    await db
+      .prepare(
+        "UPDATE integration_verifications SET revoked_at=NULL,expires_at=unixepoch()-1 WHERE kind='access'",
+      )
+      .run();
+    expect((await ownerSetup(env)).registrationAllowed).toBe(false);
+  });
+  it('keeps workshop drafts editable during incomplete onboarding', async () => {
+    await db.prepare('DELETE FROM integration_verifications').run();
+    const w = await db.prepare("SELECT * FROM workshops WHERE id='workshop'").first();
+    await admin('workshops/workshop', { ...w, status: 'draft', summary: 'Prepared during setup' });
+    expect(
+      (await db.prepare("SELECT status FROM workshops WHERE id='workshop'").first())?.status,
+    ).toBe('draft');
+  });
+  it('prevents a shared venue edit from silently moving an already booked class', async () => {
+    await record();
+    const venue = await db.prepare("SELECT * FROM venues WHERE id='venue'").first();
+    await expect(
+      admin('venues/venue', {
+        ...venue,
+        verified: true,
+        archived: false,
+        permission_confirmed: true,
+        address: 'Different test location',
+      }),
+    ).rejects.toThrow('future booked class');
+    expect((await db.prepare("SELECT address FROM venues WHERE id='venue'").first())?.address).toBe(
+      'Test address — not a real location',
+    );
+  });
+  it('records a bounded retention reason without confusing it with anonymization', async () => {
+    const r = await record();
+    await admin(`privacy-review/${r.id}`, {
+      reason: 'unresolved_dispute',
+      reviewAfter: Math.floor(Date.now() / 1000) + 30 * 86400,
+    });
+    expect(
+      (
+        await db
+          .prepare('SELECT reason FROM privacy_reviews WHERE registration_id=?')
+          .bind(r.id)
+          .first()
+      )?.reason,
+    ).toBe('unresolved_dispute');
+    expect(
+      (await db.prepare('SELECT anonymized_at FROM registrations WHERE id=?').bind(r.id).first())
+        ?.anonymized_at,
+    ).toBeNull();
+    await expect(
+      admin(
+        `privacy-review/${r.id}`,
+        { reason: 'legal_obligation', reviewAfter: Math.floor(Date.now() / 1000) + 86400 },
+        manager,
+      ),
+    ).rejects.toThrow('role');
+    await expect(
+      admin(`privacy-review/${r.id}`, { reason: 'legal_obligation', reviewAfter: 1 }),
+    ).rejects.toThrow('review date');
+  });
+  it('cancels one of three paid children, releases exactly one place, and preserves the $75 order', async () => {
+    const r = await record(3);
+    await applyPayment(env, pay(r, { amount_money: { amount: 7500, currency: 'USD' } }));
+    const d = await (await admin(`registrations/${r.id}/details`)).json();
+    await admin(`registrations/${r.id}/cancel-places`, { participantIds: [d.participants[0].id] });
+    await admin(`registrations/${r.id}/cancel-places`, { participantIds: [d.participants[0].id] });
+    expect(
+      await db
+        .prepare('SELECT seats,cancelled_seats,total,status FROM registrations WHERE id=?')
+        .bind(r.id)
+        .first(),
+    ).toMatchObject({ seats: 3, cancelled_seats: 1, total: 7500, status: 'confirmed' });
+    expect((await upcoming(db))[0]?.occupied).toBe(2);
+    expect(
+      await (await admin('sessions/session/roster', undefined, instructor)).json(),
+    ).toHaveLength(2);
+    await record(10);
+    await expect(record()).rejects.toThrow('CAPACITY');
+    expect(
+      (
+        await db
+          .prepare(
+            "SELECT COUNT(*) AS n FROM notification_outbox WHERE kind='participant_cancelled'",
+          )
+          .first()
+      )?.n,
+    ).toBe(1);
+  });
+  it('cancels complete pending bookings and refuses unrelated participant changes', async () => {
+    const r = await record(2),
+      other = await record();
+    const d = await (await admin(`registrations/${r.id}/details`)).json();
+    await expect(
+      admin(`registrations/${other.id}/cancel-places`, { participantIds: [d.participants[0].id] }),
+    ).rejects.toThrow('this registration');
+    await admin(`registrations/${r.id}/cancel-places`, {
+      participantIds: d.participants.map((p: any) => p.id),
+    });
+    expect(
+      (await db.prepare('SELECT status FROM registrations WHERE id=?').bind(r.id).first())?.status,
+    ).toBe('cancelled');
+    expect((await upcoming(db))[0]?.occupied).toBe(1);
+  });
+  it('keeps refund requests distinct from completion and safely retries an ambiguous partial refund', async () => {
+    const r = await record(3),
+      payment = pay(r, { amount_money: { amount: 7500, currency: 'USD' } });
+    await applyPayment(env, payment);
+    const requestId = crypto.randomUUID();
+    let refunded = 0;
+    const keys: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.endsWith(`/payments/${payment.id}`))
+          return Response.json({
+            payment: { ...payment, refunded_money: { amount: refunded, currency: 'USD' } },
+          });
+        if (url.endsWith('/refunds')) {
+          keys.push(JSON.parse(String(init?.body)).idempotency_key);
+          if (keys.length === 1) throw new Error('ambiguous test timeout');
+          return Response.json({ refund: { id: 'partial-refund', status: 'PENDING' } });
+        }
+        if (url.endsWith('/refunds/partial-refund'))
+          return Response.json({
+            refund: {
+              id: 'partial-refund',
+              payment_id: payment.id,
+              status: refunded ? 'COMPLETED' : 'PENDING',
+              amount_money: { amount: 2500, currency: 'USD' },
+            },
+          });
+        throw new Error('Unexpected test request');
+      }),
+    );
+    const body = { requestId, paymentId: payment.id, amount: 2500 };
+    await expect(admin(`registrations/${r.id}/refund`, body)).rejects.toThrow(
+      'same refund reference',
+    );
+    await admin(`registrations/${r.id}/refund`, body);
+    expect(keys).toEqual([requestId, requestId]);
+    expect((await db.prepare('SELECT state FROM refund_requests').first())?.state).toBe(
+      'processing',
+    );
+    expect(
+      (
+        await db
+          .prepare("SELECT COUNT(*) AS n FROM notification_outbox WHERE kind='refund_completed'")
+          .first()
+      )?.n,
+    ).toBe(0);
+    refunded = 2500;
+    await applyPayment(env, { ...payment, refunded_money: { amount: 2500, currency: 'USD' } });
+    expect(
+      await db
+        .prepare('SELECT status,total,seats FROM registrations WHERE id=?')
+        .bind(r.id)
+        .first(),
+    ).toMatchObject({ status: 'confirmed', total: 7500, seats: 3 });
+    const notice = await db
+      .prepare("SELECT kind,message FROM notification_outbox WHERE kind='refund_completed'")
+      .first<{ kind: string; message: string }>();
+    expect(notificationText(notice!)).toContain('$25.00');
+    await expect(
+      admin(`registrations/${r.id}/refund`, {
+        ...body,
+        requestId: crypto.randomUUID(),
+        amount: 9000,
+      }),
+    ).rejects.toThrow('exceeds');
+    await expect(admin(`registrations/${r.id}/refund`, body, manager)).rejects.toThrow('role');
+  });
+  it('queues only one confirmation after verified payment and no child names in messages', async () => {
+    const r = await record();
+    expect((await db.prepare('SELECT COUNT(*) AS n FROM notification_outbox').first())?.n).toBe(0);
+    await applyPayment(env, pay(r), 'same-notice-event');
+    await applyPayment(env, pay(r), 'same-notice-event');
+    await applyPayment(env, pay(r));
+    const rows = (await db.prepare('SELECT * FROM notification_outbox').all()).results;
+    expect(rows).toHaveLength(1);
+    const n = rows[0] as { kind: string; message: string };
+    const text = notificationText(n);
+    expect(text).toContain('confirmed');
+    expect(text).toContain('America/New_York');
+    expect(text).not.toContain('Test 0');
+    expect(text).not.toContain('guardian@example.invalid');
+    await deliverNotifications(env);
+    expect((await db.prepare('SELECT state FROM notification_outbox').first())?.state).toBe(
+      'queued',
+    );
+  });
+  it('preserves payment confirmation when delivery fails and bounds retries to one provider key', async () => {
+    const r = await record();
+    await applyPayment(env, pay(r));
+    const sendEnv = {
+      ...env,
+      EMAIL_MODE: 'resend_test',
+      RESEND_API_KEY: 'test-only',
+      EMAIL_FROM: 'Test <test@example.invalid>',
+    };
+    const keys: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_u: string, init?: RequestInit) => {
+        keys.push(new Headers(init?.headers).get('Idempotency-Key')!);
+        throw new Error('test offline');
+      }),
+    );
+    for (let i = 0; i < 6; i++) {
+      await db.prepare('UPDATE notification_outbox SET next_attempt_at=0').run();
+      await deliverNotifications(sendEnv);
+    }
+    expect(keys).toHaveLength(5);
+    expect(new Set(keys).size).toBe(1);
+    expect((await db.prepare('SELECT state FROM notification_outbox').first())?.state).toBe(
+      'review',
+    );
+    expect(
+      (await db.prepare('SELECT status FROM registrations WHERE id=?').bind(r.id).first())?.status,
+    ).toBe('confirmed');
+  });
+  it('distinguishes accepted test mail from bounced feedback and prevents blind resends', async () => {
+    const r = await record();
+    await applyPayment(env, pay(r));
+    const sendEnv = {
+      ...env,
+      EMAIL_MODE: 'resend_test',
+      RESEND_API_KEY: 'test-only',
+      EMAIL_FROM: 'Test <test@example.invalid>',
+    };
+    let event = 'sent';
+    let sent = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method === 'POST') {
+          sent++;
+          expect(JSON.parse(String(init.body)).to).toEqual(['delivered@resend.dev']);
+          return Response.json({ id: 'test-email-id' });
+        }
+        return Response.json({ id: 'test-email-id', last_event: event });
+      }),
+    );
+    await deliverNotifications(sendEnv);
+    expect((await db.prepare('SELECT state FROM notification_outbox').first())?.state).toBe(
+      'accepted',
+    );
+    event = 'bounced';
+    await db.prepare('UPDATE notification_outbox SET provider_checked_at=0').run();
+    await deliverNotifications(sendEnv);
+    expect((await db.prepare('SELECT state FROM notification_outbox').first())?.state).toBe(
+      'bounced',
+    );
+    expect(sent).toBe(1);
+    const n = await db.prepare('SELECT id FROM notification_outbox').first<{ id: string }>();
+    await expect(admin(`notifications/${n!.id}/retry`, {})).rejects.toThrow('cannot safely');
+    await expect(admin('notifications', undefined, instructor)).rejects.toThrow('role');
+  });
+  it('stops ambiguous email retries before the provider idempotency window expires', async () => {
+    const r = await record();
+    await applyPayment(env, pay(r));
+    await db.prepare('UPDATE notification_outbox SET first_attempt_at=unixepoch()-82800').run();
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    await deliverNotifications({
+      ...env,
+      EMAIL_MODE: 'resend_test',
+      RESEND_API_KEY: 'test-only',
+      EMAIL_FROM: 'test@example.invalid',
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    expect((await db.prepare('SELECT state FROM notification_outbox').first())?.state).toBe(
+      'review',
+    );
+  });
+  it('claims a queued message once across concurrent workers and blocks customer-recipient modes', async () => {
+    const r = await record();
+    await applyPayment(env, pay(r));
+    let sends = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        if (init?.method === 'POST') {
+          sends++;
+          return Response.json({ id: 'concurrent-test-email' });
+        }
+        return Response.json({ id: 'concurrent-test-email', last_event: 'delivered' });
+      }),
+    );
+    const mail = {
+      ...env,
+      EMAIL_MODE: 'resend_test',
+      RESEND_API_KEY: 'test-only',
+      EMAIL_FROM: 'test@example.invalid',
+    };
+    await deliverNotifications({ ...mail, EMAIL_TEST_RECIPIENT: 'guardian@example.invalid' });
+    expect(sends).toBe(0);
+    await Promise.all([deliverNotifications(mail), deliverNotifications(mail)]);
+    expect(sends).toBe(1);
+    expect((await db.prepare('SELECT state FROM notification_outbox').first())?.state).toBe(
+      'delivered',
+    );
+  });
+  it('notifies only affected guardians of a cancelled class without promising a completed refund', async () => {
+    const r = await record();
+    await applyPayment(env, pay(r));
+    const s = await db.prepare("SELECT * FROM sessions WHERE id='session'").first();
+    await admin('sessions/session', { ...s, status: 'cancelled' });
+    const notice = await db
+      .prepare("SELECT recipient,kind,message FROM notification_outbox WHERE kind='cancellation'")
+      .first<{ recipient: string; kind: string; message: string }>();
+    expect(notice?.recipient).toBe('guardian@example.invalid');
+    expect(notificationText(notice!)).toContain('does not mean a refund has completed');
+  });
+  it('defers identifiable photo consent and retains privacy tombstones when anonymizing', async () => {
+    await expect(
+      register(env, { ...input(), photo_consent: true }, crypto.randomUUID()),
+    ).rejects.toThrow();
+    const r = await record();
+    await applyPayment(env, pay(r));
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date((sessionStart + 86400) * 1000));
+    await admin(`registrations/${r.id}/anonymize`, {});
+    expect(
+      (await db.prepare('SELECT registration_id FROM privacy_tombstones').first())?.registration_id,
+    ).toBe(r.id);
+    expect(
+      await db.prepare('SELECT recipient,message,state FROM notification_outbox').first(),
+    ).toMatchObject({ recipient: null, message: '{}', state: 'suppressed' });
+    expect((await db.prepare('SELECT amount FROM payments').first())?.amount).toBe(2500);
+    // Simulate an older restored snapshot after importing the latest separate removal register.
+    await db
+      .prepare(
+        "UPDATE registrations SET guardian_name='Restored test name',guardian_email='restored@example.invalid',anonymized_at=NULL WHERE id=?",
+      )
+      .bind(r.id)
+      .run();
+    await db
+      .prepare(
+        "UPDATE participants SET first_name='Restored test child',age=6 WHERE registration_id=?",
+      )
+      .bind(r.id)
+      .run();
+    const sql = readFileSync('scripts/reapply-privacy-removals.sql', 'utf8').replace(
+      /--[^\n]*/g,
+      '',
+    );
+    for (const statement of sql
+      .split(';')
+      .map((s) => s.trim())
+      .filter(Boolean))
+      await db.prepare(statement).run();
+    expect(
+      (await db.prepare('SELECT guardian_name FROM registrations WHERE id=?').bind(r.id).first())
+        ?.guardian_name,
+    ).toBeNull();
+    expect(
+      (
+        await db
+          .prepare('SELECT first_name FROM participants WHERE registration_id=?')
+          .bind(r.id)
+          .first()
+      )?.first_name,
+    ).toBeNull();
+    expect((await db.prepare('SELECT amount FROM payments').first())?.amount).toBe(2500);
+    await expect(admin('privacy-review', undefined, manager)).rejects.toThrow('role');
+  });
   it('initializes Freeport in Central Time with private, unapproved policy drafts', () => {
     expect(initialDefaults.locality).toBe('Freeport, Florida');
     expect(initialDefaults.timezone).toBe('America/Chicago');
     expect(initialDefaults.policiesApproved).toBe(false);
     expect(initialDefaults.refundPolicy).toContain('48 hours');
     expect(initialDefaults.privacyPolicy).toContain('[OWNER:');
+    expect(initialDefaults.privacyPolicy).toContain(
+      'Identifiable photographs of children are not collected',
+    );
     expect(zonedDateTime('2026-01-15T13:00', initialDefaults.timezone)).toBe(
       Date.parse('2026-01-15T19:00Z') / 1000,
     );
@@ -426,6 +904,7 @@ describe('Owner operations and access boundaries', () => {
     const form = new FormData();
     form.set('alt', 'Test image');
     form.set('rights', 'true');
+    form.set('non_identifying', 'true');
     for (const width of [1600, 960, 480])
       form.set(String(width), new Blob([jpeg], { type: 'image/jpeg' }), `${width}.jpg`);
     const response = await mediaApi(
@@ -630,9 +1109,13 @@ describe('Owner operations and access boundaries', () => {
   });
   it('publishes content, preserves earlier versions, and rejects stale saves', async () => {
     const site = await (await admin('content')).json();
+    const before = (await db.prepare('SELECT COUNT(*) AS n FROM content_versions').first())
+      ?.n as number;
     await admin('content', { ...site, headline: 'Updated by owner', revision: site.revision });
     expect((await settings(db)).headline).toBe('Updated by owner');
-    expect((await db.prepare('SELECT COUNT(*) AS n FROM content_versions').first())?.n).toBe(2);
+    expect((await db.prepare('SELECT COUNT(*) AS n FROM content_versions').first())?.n).toBe(
+      before + 1,
+    );
     await expect(admin('content', { ...site, revision: site.revision })).rejects.toThrow('Reload');
   });
   it('rejects instructor management access and unrelated attendance', async () => {

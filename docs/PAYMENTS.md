@@ -21,7 +21,7 @@ Square is selected for the initial development integration because Adventure Sta
 5. Duplicate event IDs are committed with the payment transaction. Concurrent duplicates are harmless. Out-of-order notifications cannot downgrade payment evidence. Failed/pending attempts do not prove that the order can never be paid, so holds expire normally instead of being released prematurely.
 6. Reconciliation rotates through oldest checked registrations, 30 at a time, so an old empty order cannot starve newer records. Failures remain flagged. This requires a configured scheduled trigger in each hosted environment; that trigger is not active in the checked-in local configuration.
 
-Guardian receipt access uses a per-registration, HttpOnly, same-site cookie. Public receipt responses contain only workshop/payment status and an opaque reference, not guardian or child details. A different browser is asked to contact the business. No automatic confirmation email is currently sent.
+Guardian receipt access uses a per-registration, HttpOnly, same-site cookie. Public receipt responses contain only workshop/payment status and an opaque reference, not guardian or child details. A different browser is asked to contact the business. A transactional outbox records a confirmation only after verified payment and registration. Customer email transport is disabled in this release; test delivery is separate from provider verification.
 
 ## Sandbox setup and provider acceptance gate
 
@@ -40,3 +40,13 @@ Sources checked October 27, 2026:
 - [Signature verification](https://developer.squareup.com/docs/webhooks/step3validate)
 - [Manage and retire payment links](https://developer.squareup.com/docs/checkout-api/manage-checkout)
 - [Square pricing](https://squareup.com/us/en/pricing)
+
+## Selected-place cancellation and partial refunds
+
+`participants.cancelled_at` and `registrations.cancelled_seats` track cancellation separately from immutable original seats, total and payment facts. A database trigger updates the cancelled count once; capacity sums original seats minus cancelled seats. Pending/confirmed future places can be cancelled by owner/manager; instructor attendance excludes cancelled participants. Repeating the same cancellation does not release another place. Cancelling all places changes the registration status. Cancellation never submits a refund.
+
+Owner-only sandbox refund requests take a specific verified payment, integer-cent amount and durable UUID. One unresolved request per payment prevents overlapping adjustments. Canonical payment reads bound the remaining amount; a request row is persisted before the provider call. Ambiguous outcomes retain the same UUID for safe retry. Requests, provider processing, verified aggregate refund amounts and booking state are distinct. Refund requests and outcomes remain auditable; no policy eligibility calculation is automated. Payment-issue refunds are supported, but currency mismatches requiring a non-USD refund need manual provider review in a separately authorized follow-up.
+
+Material booked date/venue/price changes remain locked. Cancel and communicate, then make a new date; alternatives need the guardian’s express agreement. No silent rescheduling is implemented.
+
+Shared venue names, addresses and arrival instructions are also locked while used by a future booked class. Editing the venue record cannot bypass the booked-session location safeguard. Create a new venue and follow the cancellation/explicit-alternative workflow instead.

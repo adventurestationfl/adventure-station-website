@@ -20,7 +20,7 @@ export async function upcoming(db: D1Database, workshopId?: string) {
     await db
       .prepare(
         `SELECT s.*,w.name AS workshop_name,w.slug,w.age_min,w.age_max,v.name AS venue_name,v.address,
- COALESCE((SELECT SUM(r.seats) FROM registrations r WHERE r.session_id=s.id AND(r.status='confirmed' OR(r.status='pending' AND r.hold_until>unixepoch()))),0) AS occupied
+ COALESCE((SELECT SUM(r.seats-r.cancelled_seats) FROM registrations r WHERE r.session_id=s.id AND(r.status='confirmed' OR(r.status='pending' AND r.hold_until>unixepoch()))),0) AS occupied
  FROM sessions s JOIN workshops w ON w.id=s.workshop_id JOIN venues v ON v.id=s.venue_id
  WHERE s.status='published' AND w.status='published' AND s.starts_at>unixepoch() ${workshopId ? 'AND w.id=?' : ''} ORDER BY s.starts_at LIMIT 100`,
       )

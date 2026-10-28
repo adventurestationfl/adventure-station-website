@@ -56,7 +56,7 @@ import Public from '../../layouts/Public.astro';
         for (const line of [
           text[1],
           r.workshop_name,
-          `${r.seats} child${r.seats === 1 ? '' : 'ren'} · ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(r.total / 100)}`,
+          `${r.seats - (r.cancelled_seats ?? 0)} active place(s) · ${r.seats} originally booked · Original order ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(r.total / 100)}`,
           `Reference: ${panel.dataset.id}`,
         ]) {
           const p = document.createElement('p');

@@ -41,3 +41,11 @@ Astro renders public pages from D1 on each request, so publishing content or a s
 Workshops are reusable definitions. Sessions copy scheduling defaults and allow overrides. Registrations snapshot the price, workshop name, times, venue and policies at booking. SQLite triggers enforce capacity and protect historical facts. All customer checkout is hosted by Square. This release deliberately permits **Square Sandbox only**; enabling production money movement requires a reviewed follow-up change and explicit authorization.
 
 See [technical operations](docs/OPERATIONS.md), [payment behavior](docs/PAYMENTS.md), [owner guide](docs/OWNER_GUIDE.md), [privacy review](docs/PRIVACY_REVIEW.md), and [current acceptance status](docs/STATUS.md).
+
+## Owner setup and operational follow-up
+
+**Setup** derives seven owner tasks from saved settings, venue details and confirmed decisions. Infrastructure checks use expiring, environment-bound external evidence; owner checkboxes cannot verify payments, email, Access or legal status. Editorial work and draft preparation remain available. Production readiness remains false in this sandbox-only release.
+
+**Review booking** supports selected-place cancellation without changing original financial facts and separate partial sandbox refund requests. **Messages** provides an idempotent transactional outbox, bounded retries, provider-feedback polling and follow-up. Only Resend test recipients are supported; actual customer sending is disabled. **Privacy review** exposes due/anonymized records. Identifiable child photography is deferred.
+
+CI additionally loads `scripts/seed-e2e.sql` into its disposable local database. Those clearly labeled three-child pending bookings contain no payments or real people. Never apply this fixture remotely. Nine versioned migrations are required; existing migrations are preserved.

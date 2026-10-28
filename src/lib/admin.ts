@@ -2,9 +2,11 @@ import { workshopSchema, sessionSchema, siteSchema, venueSchema, id } from './va
 import { settings, audit } from './data';
 import { authorize, type Staff } from './auth';
 import { HttpError, bodyJson, json, now } from './http';
-import { reconcile, applyPayment } from './registration';
-import { getPayment, square } from './square';
+import { reconcile } from './registration';
 import { policyDrafts } from './policy-drafts';
+import { ownerSetup, saveSetup } from './setup';
+import { deliverNotifications, retryNotification } from './notifications';
+import { cancelPlaces, requestRefund, reconcileRefunds } from './booking-operations';
 export async function adminApi(request: Request, env: Cloudflare.Env, staff: Staff, path: string) {
   const db = env.DB,
     url = new URL(request.url),
@@ -13,7 +15,7 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
   if (path === 'sessions' && method === 'GET') {
     const rows = await db
       .prepare(
-        `SELECT s.*,w.name AS workshop_name,v.name AS venue_name,COALESCE((SELECT SUM(seats) FROM registrations r WHERE r.session_id=s.id AND(r.status='confirmed' OR(r.status='pending' AND r.hold_until>unixepoch()))),0) AS occupied
+        `SELECT s.*,w.name AS workshop_name,v.name AS venue_name,COALESCE((SELECT SUM(seats-cancelled_seats) FROM registrations r WHERE r.session_id=s.id AND(r.status='confirmed' OR(r.status='pending' AND r.hold_until>unixepoch()))),0) AS occupied
     FROM sessions s JOIN workshops w ON w.id=s.workshop_id JOIN venues v ON v.id=s.venue_id ${staff.role === 'instructor' ? 'WHERE s.instructor_id=?' : ''} ORDER BY starts_at DESC LIMIT 500`,
       )
       .bind(...(staff.role === 'instructor' ? [staff.id] : []))
@@ -32,7 +34,7 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
     const rows = await db
       .prepare(
         `SELECT p.id,p.first_name,p.age,p.attended,r.workshop_name,r.starts_at,r.timezone,r.status ${staff.role !== 'instructor' ? ',r.guardian_name,r.guardian_email,r.guardian_phone' : ''}
-    FROM participants p JOIN registrations r ON r.id=p.registration_id WHERE r.session_id=? AND r.status='confirmed' ORDER BY p.first_name`,
+    FROM participants p JOIN registrations r ON r.id=p.registration_id WHERE r.session_id=? AND r.status='confirmed' AND p.cancelled_at IS NULL ORDER BY p.first_name`,
       )
       .bind(roster[1])
       .all();
@@ -46,7 +48,7 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
     const result = await db.batch([
       db
         .prepare(
-          `UPDATE participants SET attended=? WHERE id=? AND registration_id IN(SELECT r.id FROM registrations r JOIN sessions s ON s.id=r.session_id WHERE r.status='confirmed' ${staff.role === 'instructor' ? 'AND s.instructor_id=?' : ''}) RETURNING id`,
+          `UPDATE participants SET attended=? WHERE id=? AND cancelled_at IS NULL AND registration_id IN(SELECT r.id FROM registrations r JOIN sessions s ON s.id=r.session_id WHERE r.status='confirmed' ${staff.role === 'instructor' ? 'AND s.instructor_id=?' : ''}) RETURNING id`,
         )
         .bind(
           Number(data.attended),
@@ -60,6 +62,68 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
     return json({ saved: true });
   }
   authorize(staff, ['owner', 'manager']);
+  if (path === 'setup') {
+    authorize(staff, ['owner']);
+    if (method === 'POST') await saveSetup(env, staff, await bodyJson(request));
+    return json(await ownerSetup(env));
+  }
+  if (path === 'notifications' && method === 'GET')
+    return json(
+      (
+        await db
+          .prepare(
+            'SELECT id,registration_id,kind,subject,state,attempts,last_error,created_at,updated_at FROM notification_outbox ORDER BY created_at DESC LIMIT 250',
+          )
+          .all()
+      ).results,
+    );
+  if (path === 'notifications/check' && method === 'POST') {
+    await deliverNotifications(env);
+    return json({ saved: true });
+  }
+  const retry = /^notifications\/([\w-]+)\/retry$/.exec(path);
+  if (retry && method === 'POST') {
+    await retryNotification(env, retry[1]!, staff.id);
+    await deliverNotifications(env);
+    return json({ saved: true });
+  }
+  const retain = /^privacy-review\/([\w-]+)$/.exec(path);
+  if (retain && method === 'POST') {
+    authorize(staff, ['owner']);
+    const v = await bodyJson(request);
+    if (
+      !['unresolved_dispute', 'legal_obligation', 'operational_followup'].includes(v.reason) ||
+      !Number.isSafeInteger(v.reviewAfter) ||
+      v.reviewAfter <= now() ||
+      v.reviewAfter > now() + 366 * 86400
+    )
+      throw new HttpError(400, 'Choose a reason and a review date within the next year.');
+    const result = await db.batch([
+      db
+        .prepare(
+          'INSERT INTO privacy_reviews(registration_id,reason,review_after,actor) SELECT id,?,?,? FROM registrations WHERE id=? AND anonymized_at IS NULL ON CONFLICT(registration_id) DO UPDATE SET reason=excluded.reason,review_after=excluded.review_after,actor=excluded.actor,updated_at=unixepoch() RETURNING registration_id',
+        )
+        .bind(v.reason, v.reviewAfter, staff.id, retain[1]),
+      audit(db, staff.id, 'privacy.retention.reviewed', retain[1]!),
+    ]);
+    if (!result[0]?.results.length)
+      throw new HttpError(400, 'This record is already anonymized or unavailable.');
+    return json({ saved: true });
+  }
+  if (path === 'privacy-review' && method === 'GET') {
+    authorize(staff, ['owner']);
+    const site = await settings(db);
+    return json(
+      (
+        await db
+          .prepare(
+            "SELECT r.id,r.workshop_name,r.ends_at,r.status,r.anonymized_at,p.reason,p.review_after,CASE WHEN r.anonymized_at IS NOT NULL THEN 'anonymized' WHEN p.review_after>unixepoch() THEN 'retained' WHEN r.ends_at<? THEN 'due' ELSE 'not_due' END AS review_state FROM registrations r LEFT JOIN privacy_reviews p ON p.registration_id=r.id WHERE r.ends_at<unixepoch() ORDER BY r.ends_at LIMIT 250",
+          )
+          .bind(now() - site.retentionDays * 86400)
+          .all()
+      ).results,
+    );
+  }
   if (path === 'dashboard' && method === 'GET') {
     const from = Number(url.searchParams.get('from') ?? now() - 2592000),
       to = Number(url.searchParams.get('to') ?? now() + 1);
@@ -74,27 +138,33 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
         .bind(from, to),
       db
         .prepare(
-          'SELECT status,COUNT(*) AS orders,SUM(seats) AS children FROM registrations WHERE created_at>=? AND created_at<? GROUP BY status',
+          'SELECT status,COUNT(*) AS orders,SUM(seats-cancelled_seats) AS children FROM registrations WHERE created_at>=? AND created_at<? GROUP BY status',
         )
         .bind(from, to),
       db.prepare(
-        "SELECT s.id,s.starts_at,s.timezone,s.capacity,w.name,COALESCE((SELECT SUM(seats) FROM registrations WHERE session_id=s.id AND status='confirmed'),0) AS confirmed FROM sessions s JOIN workshops w ON w.id=s.workshop_id WHERE s.starts_at>unixepoch() AND s.status IN('draft','published','closed') ORDER BY s.starts_at LIMIT 8",
+        "SELECT s.id,s.starts_at,s.timezone,s.capacity,w.name,COALESCE((SELECT SUM(seats-cancelled_seats) FROM registrations WHERE session_id=s.id AND status='confirmed'),0) AS confirmed FROM sessions s JOIN workshops w ON w.id=s.workshop_id WHERE s.starts_at>unixepoch() AND s.status IN('draft','published','closed') ORDER BY s.starts_at LIMIT 8",
       ),
       db.prepare(
         'SELECT id,status,workshop_name,created_at FROM registrations WHERE needs_attention=1 ORDER BY created_at LIMIT 50',
       ),
       db
         .prepare(
-          "SELECT r.workshop_name,SUM(r.seats) AS children FROM registrations r WHERE r.status='confirmed' AND r.created_at>=? AND r.created_at<? GROUP BY r.workshop_name ORDER BY children DESC LIMIT 10",
+          "SELECT r.workshop_name,SUM(r.seats-r.cancelled_seats) AS children FROM registrations r WHERE r.status='confirmed' AND r.created_at>=? AND r.created_at<? GROUP BY r.workshop_name ORDER BY children DESC LIMIT 10",
         )
         .bind(from, to),
       db
         .prepare(
-          "SELECT COUNT(*) AS count FROM registrations WHERE anonymized_at IS NULL AND ends_at<? AND status NOT IN('pending','payment_review')",
+          "SELECT COUNT(*) AS count FROM registrations WHERE anonymized_at IS NULL AND ends_at<? AND status NOT IN('pending','payment_review') AND NOT EXISTS(SELECT 1 FROM privacy_reviews p WHERE p.registration_id=registrations.id AND p.review_after>unixepoch())",
         )
         .bind(now() - site.retentionDays * 86400),
     ]);
+    const notifications = await db
+      .prepare(
+        "SELECT SUM(CASE WHEN state IN('queued','sending') THEN 1 ELSE 0 END) AS pending,SUM(CASE WHEN state IN('review','failed','bounced','suppressed') AND recipient IS NOT NULL THEN 1 ELSE 0 END) AS attention FROM notification_outbox",
+      )
+      .first();
     return json({
+      notifications,
       financial: financial?.results[0],
       registrations: registrations?.results,
       upcoming: upcoming?.results,
@@ -157,6 +227,29 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
   if (path === 'content' && method === 'POST') {
     const input = await bodyJson(request),
       data = siteSchema.parse(input);
+    const previous = await settings(db);
+    if (data.policiesApproved && !previous.policiesApproved) {
+      const setup = await ownerSetup(env);
+      if (
+        !setup.tasks.find((t) => t.id === 'supervision')?.complete ||
+        !setup.tasks.find((t) => t.id === 'licensing')?.complete
+      )
+        throw new HttpError(
+          400,
+          'Complete supervision and the operating review in Setup before approving policies.',
+        );
+      if (
+        setup.decisions.supervision === 'drop_off' &&
+        (!setup.external.find((e) => e.kind === 'regulatory')?.verified ||
+          /parent-present|must stay with each child|must remain in the workshop area/i.test(
+            [data.supervisionPolicy, data.pickupPolicy].join(' '),
+          ))
+      )
+        throw new HttpError(
+          400,
+          'Drop-off needs a new operating review and matching policies. The parent-present drafts cannot authorize it.',
+        );
+    }
     if (staff.role !== 'owner') {
       const old = await settings(db);
       for (const k of [
@@ -390,10 +483,31 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
     const data = venueSchema.parse(await bodyJson(request)),
       key = venue[1] ?? crypto.randomUUID();
     if (data.verified && !data.address) throw new HttpError(400, 'Add a verified address.');
+    const previous = await db
+      .prepare('SELECT name,address,instructions FROM venues WHERE id=?')
+      .bind(key)
+      .first<{ name: string; address: string; instructions: string }>();
+    if (
+      previous &&
+      ['name', 'address', 'instructions'].some(
+        (k) =>
+          previous[k as keyof typeof previous] !== data[k as 'name' | 'address' | 'instructions'],
+      ) &&
+      (await db
+        .prepare(
+          'SELECT s.id FROM sessions s WHERE s.venue_id=? AND s.starts_at>unixepoch() AND EXISTS(SELECT 1 FROM registrations r WHERE r.session_id=s.id) LIMIT 1',
+        )
+        .bind(key)
+        .first())
+    )
+      throw new HttpError(
+        409,
+        'This venue is used by a future booked class. Keep its agreed location and arrival details; create a new venue and handle any class change with the families first.',
+      );
     await db.batch([
       db
         .prepare(
-          'INSERT INTO venues(id,name,address,instructions,verified,archived) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,address=excluded.address,instructions=excluded.instructions,verified=excluded.verified,archived=excluded.archived',
+          'INSERT INTO venues(id,name,address,instructions,verified,archived,capacity,accessibility,permission_confirmed) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,address=excluded.address,instructions=excluded.instructions,verified=excluded.verified,archived=excluded.archived,capacity=excluded.capacity,accessibility=excluded.accessibility,permission_confirmed=excluded.permission_confirmed',
         )
         .bind(
           key,
@@ -402,6 +516,9 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
           data.instructions,
           Number(data.verified),
           Number(data.archived),
+          data.capacity,
+          data.accessibility,
+          Number(data.permission_confirmed),
         ),
       audit(db, staff.id, 'venue.saved', key),
     ]);
@@ -426,6 +543,8 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
   }
   if (path === 'reconcile' && method === 'POST') {
     await reconcile(env);
+    await reconcileRefunds(env);
+    await deliverNotifications(env);
     return json({ saved: true });
   }
   const review = /^registrations\/([\w-]+)\/review$/.exec(path);
@@ -435,7 +554,7 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
     if (v.action === 'confirm') {
       const r = await db
         .prepare(
-          "SELECT r.id FROM registrations r JOIN sessions s ON s.id=r.session_id JOIN workshops w ON w.id=s.workshop_id WHERE r.id=? AND r.status='payment_review' AND s.status='published' AND w.status='published' AND s.starts_at>unixepoch() AND NOT EXISTS(SELECT 1 FROM payment_issues WHERE registration_id=r.id AND resolved=0) AND (SELECT COALESCE(SUM(amount-refunded),0) FROM payments WHERE registration_id=r.id)>=r.total",
+          "SELECT r.id FROM registrations r JOIN sessions s ON s.id=r.session_id JOIN workshops w ON w.id=s.workshop_id WHERE r.id=? AND r.status='payment_review' AND s.status='published' AND w.status='published' AND s.starts_at>unixepoch() AND r.cancelled_seats<r.seats AND NOT EXISTS(SELECT 1 FROM payment_issues WHERE registration_id=r.id AND resolved=0) AND (SELECT COALESCE(SUM(amount-refunded),0) FROM payments WHERE registration_id=r.id)>=r.total",
         )
         .bind(key)
         .first();
@@ -458,7 +577,7 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
       const result = await db.batch([
         db
           .prepare(
-            "UPDATE registrations SET needs_attention=0 WHERE id=? AND status NOT IN('pending','payment_review') AND NOT EXISTS(SELECT 1 FROM payment_issues WHERE registration_id=registrations.id AND resolved=0) RETURNING id",
+            "UPDATE registrations SET needs_attention=0 WHERE id=? AND status NOT IN('pending','payment_review') AND NOT EXISTS(SELECT 1 FROM payment_issues WHERE registration_id=registrations.id AND resolved=0) AND NOT EXISTS(SELECT 1 FROM refund_requests WHERE registration_id=registrations.id AND state IN('requested','processing','review')) RETURNING id",
           )
           .bind(key),
         audit(db, staff.id, 'registration.review.completed', key),
@@ -466,9 +585,40 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
       if (!result[0]?.results.length)
         throw new HttpError(
           409,
-          'Resolve the pending registration or payment issue before completing follow-up.',
+          'Resolve the pending registration, payment or refund issue before completing follow-up.',
         );
     } else throw new HttpError(400, 'Choose a review action.');
+    return json({ saved: true });
+  }
+  const detail = /^registrations\/([\w-]+)\/details$/.exec(path);
+  if (detail && method === 'GET')
+    return json({
+      participants: (
+        await db
+          .prepare(
+            'SELECT id,first_name,age,cancelled_at,attended FROM participants WHERE registration_id=?',
+          )
+          .bind(detail[1])
+          .all()
+      ).results,
+      payments: (
+        await db
+          .prepare(
+            'SELECT id,amount,refunded FROM payments WHERE registration_id=? UNION SELECT id,amount,refunded FROM payment_issues WHERE registration_id=?',
+          )
+          .bind(detail[1], detail[1])
+          .all()
+      ).results,
+      refunds: (
+        await db
+          .prepare('SELECT * FROM refund_requests WHERE registration_id=? ORDER BY created_at DESC')
+          .bind(detail[1])
+          .all()
+      ).results,
+    });
+  const cancel = /^registrations\/([\w-]+)\/cancel-places$/.exec(path);
+  if (cancel && method === 'POST') {
+    await cancelPlaces(env, cancel[1]!, (await bodyJson(request)).participantIds, staff.id);
     return json({ saved: true });
   }
   authorize(staff, ['owner']);
@@ -515,6 +665,18 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
   }
   const erase = /^registrations\/([\w-]+)\/anonymize$/.exec(path);
   if (erase && method === 'POST') {
+    if (
+      await db
+        .prepare(
+          "SELECT id FROM refund_requests WHERE registration_id=? AND state IN('requested','processing','review')",
+        )
+        .bind(erase[1])
+        .first()
+    )
+      throw new HttpError(
+        409,
+        'Finish the outstanding refund follow-up before removing contact details.',
+      );
     const r = await db
       .prepare('SELECT * FROM registrations WHERE id=?')
       .bind(erase[1])
@@ -525,6 +687,14 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
         'Only completed historical registrations without unresolved payment review can be anonymized.',
       );
     await db.batch([
+      db
+        .prepare('INSERT OR IGNORE INTO privacy_tombstones(registration_id) VALUES(?)')
+        .bind(erase[1]),
+      db
+        .prepare(
+          "UPDATE notification_outbox SET recipient=NULL,message='{}',state=CASE WHEN state IN('queued','sending','review') THEN 'suppressed' ELSE state END,last_error='' WHERE registration_id=?",
+        )
+        .bind(erase[1]),
       db
         .prepare(
           'UPDATE registrations SET guardian_name=NULL,guardian_email=NULL,guardian_phone=NULL,marketing_consent=0,photo_consent=0,anonymized_at=unixepoch() WHERE id=?',
@@ -539,36 +709,8 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
   }
   const refund = /^registrations\/([\w-]+)\/refund$/.exec(path);
   if (refund && method === 'POST') {
-    const payments = (
-      await db
-        .prepare(
-          'SELECT id,amount,refunded FROM payments WHERE registration_id=? AND refunded<amount UNION SELECT id,amount,refunded FROM payment_issues WHERE registration_id=? AND resolved=0',
-        )
-        .bind(refund[1], refund[1])
-        .all<{ id: string; amount: number; refunded: number }>()
-    ).results;
-    if (env.SQUARE_ENVIRONMENT !== 'sandbox')
-      throw new HttpError(403, 'Live refunds are not enabled in this development release.');
-    for (const p of payments) {
-      const current = await getPayment(env, p.id);
-      await applyPayment(env, current);
-      const remaining = current.amount_money.amount - (current.refunded_money?.amount ?? 0);
-      if (remaining > 0)
-        await square(env, '/refunds', 'POST', {
-          idempotency_key: `refund-${p.id}-${current.refunded_money?.amount ?? 0}`,
-          payment_id: p.id,
-          amount_money: { amount: remaining, currency: current.amount_money.currency },
-          reason: 'Workshop registration refund',
-        });
-    }
-    await db.batch([
-      db.prepare('UPDATE registrations SET needs_attention=1 WHERE id=?').bind(refund[1]),
-      audit(db, staff.id, 'refund.requested.sandbox', refund[1]!),
-    ]);
-    return json({
-      saved: true,
-      message: 'Sandbox refund requested. Reconcile to verify completion.',
-    });
+    await requestRefund(env, refund[1]!, await bodyJson(request), staff.id);
+    return json({ saved: true });
   }
   if (path === 'audit' && method === 'GET')
     return json(

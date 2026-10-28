@@ -1,8 +1,8 @@
 # Adventure Station — proposed customer policies
 
-**DRAFT 2026-10-27-draft-1 — not adopted or published.**
+**DRAFT 2026-10-28-draft-2 — not adopted or published.**
 
-Prepared for Freeport, Florida. All times use Central Time. The owner must confirm the operating arrangements, replace each [OWNER: ...] instruction, and approve the final text. These drafts are not a legal-compliance certification.
+Prepared for Freeport, Florida. The owner must confirm operating arrangements and complete each [OWNER: ...] item. The 48-hour period is a proposed commercial choice. These drafts are not a legal-compliance certification.
 
 ## Registration, cancellations and refunds
 
@@ -55,10 +55,12 @@ How registration information is used
 We use necessary information to arrange and administer the booked workshop, verify age suitability and payment, manage available places and attendance, contact the guardian about that booking, and handle cancellations, disputes, privacy requests and required records. The system also records registration references, payment and refund status, policy acceptance, optional permission choices and administrative actions. We do not sell or rent children's registration information or use it for behavioral advertising. Necessary information is available only to authorized staff according to their role. Instructors receive the participant and attendance details needed for assigned classes, not the complete financial or guardian-contact records.
 
 Payment, hosting and essential website functions
+Resend is the selected transactional email provider; it is not yet verified or enabled for customer delivery in this development release. Booking notifications are retained for follow-up. No advertising or marketing automation is provided.
+
 Square hosts checkout and processes payment details under its own privacy practices. Adventure Station keeps payment references and verification status, not card numbers or security codes. Cloudflare provides website, database, image-storage and staff sign-in services. These providers process information needed to deliver their services; this notice does not promise that every processing location is in Florida. Essential cookies support staff sign-in and access to a registration receipt. The receipt cookie lasts up to seven days. Abuse prevention uses temporary salted identifiers. This website has no advertising trackers or third-party analytics integration. Ordinary infrastructure security records may still be processed by service providers.
 
 Separate optional choices
-An optional workshop-update box records whether the guardian wants future workshop information. It is separate from booking communications and is not required to attend. Contact us to withdraw that choice. Photo permission is also separate and optional, and declining it does not affect a place or participation. If the guardian opts in, Adventure Station may use workshop images of the registered children on its own public website and business social-media pages. We will not attach a child's name, tag a child account, publish a live location, or include registration details with those images. Contact us to withdraw permission for future use and request removal from channels we control. We will review the request promptly; already distributed third-party copies may be outside our control. Do not photograph or post another family's child without their guardian's permission.
+An optional workshop-update box records whether the guardian wants future workshop information. It is separate from booking communications and is not required to attend. Contact us to withdraw that choice. Identifiable photographs of children are not collected for publication through this release. We publish brand artwork, craft projects, materials, venues and non-identifying images instead. No photo-permission checkbox is offered. Please do not send identifiable child photographs for website use. Any future photography program would require a separate permission, withdrawal and publication-record process before it starts.
 
 Retention, correction and removal
 Operational guardian contact details and children's names and ages are scheduled for a privacy review 180 days after the class. We remove information when it is no longer needed for the stated purpose; any longer retention needs a specific documented reason, such as an unresolved dispute or a legal recordkeeping obligation. This review is an operating responsibility, not a promise that the website automatically deletes every record on day 180. Financial references may be kept separately for necessary accounting and legal purposes, without children's identifying details where possible. [OWNER: adopt the financial and backup retention schedule, including deletion requests after a restore, before approving this notice.] Service providers may have their own necessary retention obligations.

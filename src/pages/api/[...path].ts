@@ -79,7 +79,7 @@ export const ALL: APIRoute = async ({ request, params }) => {
           'This confirmation is only available in the browser used to register. Contact Adventure Station with your payment reference.',
         );
       const r = await env.DB.prepare(
-        'SELECT status,hold_until,receipt_hash,workshop_name,seats,starts_at,timezone,total,needs_attention FROM registrations WHERE id=? AND receipt_hash=?',
+        'SELECT status,hold_until,receipt_hash,workshop_name,seats,cancelled_seats,starts_at,timezone,total,needs_attention FROM registrations WHERE id=? AND receipt_hash=?',
       )
         .bind(key, await sha256(token))
         .first<Record<string, unknown>>();

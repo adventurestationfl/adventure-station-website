@@ -1,6 +1,7 @@
 import { registrationSchema } from './validation';
 import { HttpError, sha256, now } from './http';
 import { settings, audit } from './data';
+import { ownerSetup } from './setup';
 import {
   createCheckout,
   paymentConfigured,
@@ -67,6 +68,11 @@ export async function register(env: Cloudflare.Env, input: unknown, intent: stri
       'Registration information is being finalized. Please contact Adventure Station.',
     );
   const requestHash = await sha256(JSON.stringify(data));
+  if (!(await ownerSetup(env)).registrationAllowed)
+    throw new HttpError(
+      503,
+      'Registration setup is still being finalized. Please contact Adventure Station.',
+    );
   let r = await env.DB.prepare('SELECT * FROM registrations WHERE intent_key=?')
     .bind(intent)
     .first<Registration>();
@@ -90,9 +96,9 @@ export async function register(env: Cloudflare.Env, input: unknown, intent: stri
     try {
       await env.DB.batch([
         env.DB.prepare(
-          `INSERT INTO registrations(id,intent_key,request_hash,receipt_hash,session_id,seats,guardian_name,guardian_email,guardian_phone,marketing_consent,photo_consent,status,hold_until,total,workshop_name,starts_at,ends_at,timezone,venue_name,venue_address,policy_snapshot,age_min,age_max)
-    SELECT ?,?,?,?,s.id,?,?,?,?,?,?,'pending',?,s.price*?,w.name,s.starts_at,s.ends_at,s.timezone,v.name,v.address,?,w.age_min,w.age_max
-    FROM sessions s JOIN workshops w ON w.id=s.workshop_id JOIN venues v ON v.id=s.venue_id WHERE s.id=? AND v.verified=1 AND w.age_min=? AND w.age_max=?`,
+          `INSERT INTO registrations(id,intent_key,request_hash,receipt_hash,session_id,seats,guardian_name,guardian_email,guardian_phone,marketing_consent,photo_consent,status,hold_until,total,workshop_name,starts_at,ends_at,timezone,venue_name,venue_address,policy_snapshot,age_min,age_max,instructions_snapshot,contact_snapshot)
+    SELECT ?,?,?,?,s.id,?,?,?,?,?,?,'pending',?,s.price*?,w.name,s.starts_at,s.ends_at,s.timezone,v.name,v.address,?,w.age_min,w.age_max,w.instructions||char(10)||v.instructions,?
+    FROM sessions s JOIN workshops w ON w.id=s.workshop_id JOIN venues v ON v.id=s.venue_id WHERE s.id=? AND v.verified=1 AND v.archived=0 AND v.permission_confirmed=1 AND v.accessibility<>'' AND v.capacity>=s.capacity AND w.age_min=? AND w.age_max=?`,
         ).bind(
           sid,
           intent,
@@ -112,6 +118,7 @@ export async function register(env: Cloudflare.Env, input: unknown, intent: stri
             pickup: site.pickupPolicy,
             privacy: site.privacyPolicy,
           }),
+          `${site.email}${site.phone ? ' · ' + site.phone : ''}`,
           data.session_id,
           s.age_min,
           s.age_max,
@@ -219,7 +226,7 @@ export async function applyPayment(env: Cloudflare.Env, p: SquarePayment, eventI
    WHEN (SELECT COUNT(*) FROM payments WHERE registration_id=registrations.id)>1 THEN 'payment_review'
    WHEN status IN('cancelled','refunded') THEN 'payment_review'
    WHEN EXISTS(SELECT 1 FROM sessions s JOIN workshops w ON w.id=s.workshop_id WHERE s.id=registrations.session_id AND s.status='published' AND w.status='published' AND s.starts_at>unixepoch()
-    AND s.capacity >= registrations.seats+COALESCE((SELECT SUM(other.seats) FROM registrations other WHERE other.session_id=s.id AND other.id<>registrations.id AND(other.status='confirmed' OR(other.status='pending' AND other.hold_until>unixepoch()))),0)) THEN 'confirmed'
+    AND s.capacity >= registrations.seats-registrations.cancelled_seats+COALESCE((SELECT SUM(other.seats-other.cancelled_seats) FROM registrations other WHERE other.session_id=s.id AND other.id<>registrations.id AND(other.status='confirmed' OR(other.status='pending' AND other.hold_until>unixepoch()))),0)) THEN 'confirmed'
    ELSE 'payment_review' END WHERE id=?`,
     ).bind(r.id),
     env.DB.prepare(

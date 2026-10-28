@@ -50,6 +50,9 @@ export const venueSchema = z.object({
   instructions: text(1500),
   verified: z.boolean(),
   archived: z.boolean().default(false),
+  capacity: z.number().int().min(1).max(100).nullable().default(null),
+  accessibility: text(1500).default(''),
+  permission_confirmed: z.boolean().default(false),
 });
 export const siteSchema = z
   .object({
@@ -116,7 +119,7 @@ export const registrationSchema = z.object({
   guardian_attestation: z.literal(true),
   policy_agreement: z.literal(true),
   marketing_consent: z.boolean().default(false),
-  photo_consent: z.boolean().default(false),
+  photo_consent: z.literal(false).default(false),
 });
 export type SiteSettings = z.infer<typeof siteSchema>;
 export type Workshop = z.infer<typeof workshopSchema> & { id: string };

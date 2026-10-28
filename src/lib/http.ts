@@ -12,7 +12,7 @@ export const json = (value: unknown, status = 200) =>
     status,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
-export async function readBody(request: Request, limit = 65536): Promise<string> {
+export async function readBody(request: Request | Response, limit = 65536): Promise<string> {
   if (Number(request.headers.get('Content-Length')) > limit)
     throw new HttpError(413, 'This file or form is too large.');
   const reader = request.body?.getReader();

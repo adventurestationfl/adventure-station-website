@@ -30,7 +30,7 @@ If a date has no registrations, you can also change its time, venue or price. On
 
 ## Add or replace a photograph
 
-Choose **Images**. Select a photograph, add a short description of what it shows, and confirm that you have permission to publish it. Choose **Upload image**. The website prepares smaller versions automatically and removes image metadata.
+Choose **Images**. Use artwork, crafts, materials, venues or a non-identifying photograph. Identifiable child photos are deferred. Select an image, add a short description of what it shows, and confirm that you have permission to publish it and that it does not identify a child. Choose **Upload image**. The website prepares smaller versions automatically and removes image metadata.
 
 To use it, open the workshop or **Website content** and choose the image. You can also select images for a workshop gallery. Save the workshop or publish the website changes.
 
@@ -73,7 +73,7 @@ The overview shows gross verified sales before refunds and processing fees. It d
 
 Open **Class dates → Edit**, choose Cancelled, and save. Read the confirmation carefully. The date stops accepting new bookings. Registrations and payment records stay available and are marked for follow-up.
 
-Contact every affected guardian. Review each payment and arrange the appropriate refund or alternative. Cancelling a class does not automatically refund money or notify families. There are no automatic customer emails in this release.
+Cancellation records a message for every affected booking. It does not automatically refund money. Open **Messages** to check follow-up, and review each payment before agreeing a refund or alternative. Customer sending remains disabled in this development release, so contact families manually before relying on a notification.
 
 ## Keep personal details only as long as needed
 
@@ -82,3 +82,25 @@ Review old registrations after the period in your privacy settings. When a histo
 ## Give a team member access
 
 The owner opens **Team access → Add team member**, enters their name and sign-in email, and chooses Owner, Manager or Instructor. Give instructors only the access they need. Disable access when someone leaves. Your website helper may need to allow the same email in the sign-in service during initial setup.
+
+## Get Adventure Station ready
+
+Open **Setup** from the staff menu, or use **Get Adventure Station ready** on Overview. Each task shows what remains and links to the right screen. Save a little at a time with **Save setup progress**; your notes remain when you return. You can minimize the dashboard section from Setup.
+
+Confirm your business contacts, locations, supervision, operating review and privacy arrangements. The licensing section records what you report; it does not certify an exemption. Changing supervision reopens the relevant reviews and makes policies private again. Review the policy drafts in Website content only after the operating arrangements are settled.
+
+You can edit the website, upload permitted images and prepare workshop/date drafts throughout setup. Website personalization can wait. Payments, staff sign-in, email testing, recovery and launch checks need developer help; you never need to enter keys or use a terminal. Completing owner tasks does not authorize live registration or launch.
+
+## Cancel one child or adjust a refund
+
+In **Registrations**, choose **Review booking**. Select only the places that need cancelling and choose **Cancel selected places**. Confirm the number before continuing. For three children, selecting one releases one place; the other two stay unchanged. The original order and payment remain in history.
+
+A refund is a separate owner action on that screen. Check the adopted policy and the agreed amount first. Select the payment and enter the amount. This release supports sandbox requests only. **Requested**, **Processing** and **Completed** have different meanings. If the outcome needs review, use **Check same refund request**; do not start another request for the same adjustment. A partial refund does not automatically cancel a child’s place.
+
+Booked times, venues and prices are locked to protect family agreements. To change them materially, cancel the old date, review every affected family’s refund or expressly agreed alternative, then create a new date. A family is never treated as having accepted an alternative automatically.
+
+## Messages and privacy follow-up
+
+**Messages** lists confirmations, cancellations and refund updates. A booking is confirmed only after verified payment and available places. An email marked **Accepted** has been accepted by the provider; it is not yet proof of delivery. **Review**, **Bounced** or **Suppressed** needs another contact method. **Retry safely** preserves the same message reference and is available only while a retry is safe. Your developer must finish provider setup and testing before customer sending is enabled.
+
+**Privacy review** distinguishes records due for review from records already anonymized. Review outstanding issues and legitimate retention reasons first. Removing personal details preserves financial history and a restricted removal record. It does not erase old backups or the processor’s own records. Ask your developer to maintain the recovery process; do not restore an old backup yourself.

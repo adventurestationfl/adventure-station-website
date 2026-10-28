@@ -2,12 +2,17 @@
 import Public from '../../layouts/Public.astro';
 import { env } from 'cloudflare:workers';
 import { settings, upcoming, money, dateLabel } from '../../lib/data';
+import { ownerSetup } from '../../lib/setup';
 import { paymentConfigured } from '../../lib/square';
 const site = await settings(env.DB),
   session = (await upcoming(env.DB)).find((s) => s.id === Astro.params.id);
 if (!session) Astro.response.status = 404;
 const available = session ? Math.max(0, session.capacity - session.occupied) : 0,
-  ready = paymentConfigured(env) && site.policiesApproved && available > 0;
+  ready =
+    paymentConfigured(env) &&
+    site.policiesApproved &&
+    available > 0 &&
+    (await ownerSetup(env)).registrationAllowed;
 ---
 
 <Public title="Register for a workshop">
@@ -116,11 +121,7 @@ const available = session ? Math.max(0, session.capacity - session.occupied) : 0
                 <input type="checkbox" name="marketing_consent" />
                 Optional: email me about future workshops.
               </label>
-              <label class="check">
-                <input type="checkbox" name="photo_consent" />
-                Optional: I agree to the separate photo permission described in the privacy policy
-                for the children I am registering. Attendance does not depend on this choice.
-              </label>
+              <p class="muted">Identifiable child photographs are not part of this release.</p>
               <p class="muted">
                 Both optional choices are off by default. Card details are entered only on Square’s
                 secure checkout.

@@ -10,7 +10,7 @@ These are practical drafts for adoption, not a guarantee of legal compliance or 
 - Full refunds for family cancellation at least 48 elapsed hours before the class; normally no refund closer to the start unless the place is refilled or a reasonable exception is agreed. **48 hours is a proposed commercial choice, not a statutory deadline or a proven universal industry standard.**
 - Full refund if Adventure Station cancels, cannot supply a paid place, or materially changes the booking and the guardian declines. No forced credit or undisclosed refund deduction.
 - Clear age, materials, respectful participation, accessibility-contact and supervision rules without invented safety certifications or an allergen-free guarantee.
-- Separate optional marketing and photo choices. Proposed photo scope is the business website and business social-media pages, without child names, tags, live location or registration details. Withdrawal applies to future use and removal from channels the business controls, with honest limits for third-party copies.
+- Optional marketing remains separate. Identifiable child photography is deferred (Option B): there is no photo-consent checkbox, new true photo-consent values are rejected, and media uploads require a non-identifying declaration. Use artwork, crafts, materials, venues and non-identifying photographs. This declaration is not automatic image recognition.
 - Minimal registration data, role-limited access, identified providers and an honest 180-day operational privacy review. There is no claim of automatic deletion, US-only hosting or absolute security.
 - No blanket negligence release, mandatory arbitration, indemnification by a parent, automatic renewal or waiver of non-waivable rights is included.
 
@@ -22,7 +22,7 @@ These are practical drafts for adoption, not a guarantee of legal compliance or 
 4. Decide whether COPPA applies to the actual service, audience and data flows under the amended rule; if applicable, complete the required notices and verifiable parental-consent process. A registration checkbox alone is not represented as that process.
 5. Adopt the cancellation window and ability to honor full refunds, confirm applicable Florida tax treatment with an appropriate adviser, and verify the processor's actual fee/refund behavior. No tax exemption, tax-inclusive pricing or fixed bank refund time is assumed here.
 6. Adopt a documented retention schedule for operational details, accounting records, audit records, media permissions and backups, including removal requests after a restore. Assign someone to perform the review. The software currently supports review and anonymization, not automatic end-to-end erasure.
-7. Confirm photo use, consent withdrawal and the process to keep non-consenting children out of published images. Do not activate marketing campaigns without a working compliant opt-out process. There is no automated customer or marketing email service in this release.
+7. Keep identifiable child photography deferred until a separate consent, withdrawal and publication-evidence workflow is adopted. Do not activate marketing campaigns without a working compliant opt-out process. Transactional notification persistence and test-only transport now exist; customer delivery and marketing automation remain disabled.
 8. Review the final wording with a Florida lawyer as needed, particularly before offering drop-off care or introducing a liability waiver. Then approve through Website content after verifying these facts. No production publication has been authorized by this draft work.
 
 ## Sources and what they establish
@@ -35,3 +35,9 @@ These are practical drafts for adoption, not a guarantee of legal compliance or 
 - [Florida Statutes 744.301](https://www.flsenate.gov/Laws/Statutes/2026/744.301): specific limits and formalities for certain minor activity releases. No such release is being generated or represented as enforceable here.
 
 Sources reviewed October 27, 2026. The proposed 48-hour window, parent-present starting model and permission scope are design recommendations requiring adoption; they are not quotations from these sources.
+
+## Continued operating setup
+
+Owner decisions now live in **Setup**. Saving a self-reported operating determination does not create independent regulatory verification. Choosing drop-off invalidates the policy approval and related review fingerprints. Matching drop-off policies and separate external regulatory evidence are required before test-registration readiness can be restored.
+
+The v2 privacy draft defers identifiable child photos and identifies the selected, still-unverified email provider. Migrations replace only the exact unapproved v1 draft (including its frozen CRLF variant), preserving approved or owner-edited text and an earlier version. Existing registration policy snapshots remain unchanged. Loading recommended drafts is an explicit owner action and always returns policies to unapproved status.

@@ -1,44 +1,40 @@
-# Review status — October 27, 2026
+# Review status — October 28, 2026
 
-**Implemented locally; not production-ready, production-deployed or owner-accepted.**
+**Implemented locally; not production-deployed or owner-accepted. Live payments and customer email remain disabled.**
 
-## Implemented
+## Continued implementation
 
-- Responsive Astro public site retaining the original Adventure Station artwork, with catalog/detail pages, upcoming dates, about, FAQ, policies, contact, metadata and organization structured data.
-- Integrated studio desk with reusable workshops, main/gallery images, default values, duplicate workshops, multi-date scheduling, independent session overrides, venues, attendance, content history, media and team roles.
-- Cloudflare Access JWT validation and server-side role enforcement. Local developer authentication is restricted to loopback plus explicit local configuration.
-- Relational D1 migrations; immutable registration facts; capacity guards in SQLite; temporary holds; Square hosted sandbox checkout; signed webhook verification; canonical payment reads; refunds, reconciliation and explicit late-payment resolution.
-- Genuine record-based statistics, separate payment/registration states, payment issue evidence, audit records, retention review count and historical anonymization.
-- Technical, payment, privacy, cost and owner handover documents; protected original source files; CI verification workflow and desktop/mobile browser specifications.
+- Persistent owner Setup checklist: seven real-state tasks, useful task links, saved decisions and notes, confirmation timestamps, revision protection, dashboard summary/minimization, and separate editorial/workshop/registration/production readiness. Infrastructure evidence is developer-maintained, environment-bound, expiring and revocable; an owner checkbox cannot verify a provider or legal requirement. Supervision changes reopen reviews and make policies private.
+- Expanded venues: address, capacity, accessibility and permission. Registration checks the selected venue and confirmed owner essentials. Draft preparation and ordinary editorial publication stay available during setup.
+- Selected-place cancellation for multi-child bookings: cancelled participants release only their places, disappear from attendance, and preserve original seats, order total and payments. Separate owner-only partial sandbox refunds use persisted request IDs, canonical provider checks, one unresolved request per payment and explicit requested/processing/completed/review states. A request is not proof of completion.
+- Transactional outbox: atomic and idempotent confirmation/cancellation/refund events, immutable instructions/contact, no child names in messages, database worker claims, bounded retries, safe resend window, accepted/delivered distinction, canonical feedback, bounce suppression and owner/manager follow-up. Customer sending has no enabled code path; only official Resend test recipients are supported. No customer communications were sent.
+- Photography Option B: no registration photo-consent checkbox; true consent values rejected; public uploads require a non-identifying declaration. No automatic image recognition is claimed. Unapproved exact v1 privacy drafts are updated with history preserved; approved or owner-edited policies are not overwritten.
+- Owner-only privacy review distinguishes due, retained and anonymized records, records a retention reason and next review date, scrubs outbox content/recipients during anonymization, and preserves removal tombstones. A restore helper reapplies prior removals while keeping financial facts.
+- Existing workshop templates/defaults, independent sessions, branding, content history, media protections, roles and payment/capacity safeguards are retained. Booked date/venue/price changes remain locked; cancellation plus an expressly agreed alternative is the supported workflow.
 
 ## Actually verified locally
 
-- All three original production files remain byte-for-byte unchanged.
-- Four versioned local migrations are provided; the latest adds Freeport/Central Time and fills empty policy fields with unapproved drafts while preserving existing text and a previous settings version.
-- **37 operational tests passed locally**, using actual local Miniflare/D1/R2 storage and explicitly mocked Square/JWKS network responses. Includes the previous 34 booking/payment/media/access checks plus Freeport's winter/summer offsets, private draft initialization, owner-only preset loading, preservation of other content, and blocking approval while owner instructions remain unresolved.
-- Astro checks: zero errors, zero warnings, zero hints. Cloudflare-targeted build completed successfully.
-- **13 local HTTP smoke checks passed**, covering public routes, errors, headers, rejected cross-origin writes, invalid webhook signatures and unavailable payment configuration.
-- Browser inspection confirmed the original workshop can be saved/published and appears in the public catalog. At 390 pixels, the mobile menu expands, the page has no horizontal overflow, every image has an alt attribute and buttons have visible names. Desktop/public and owner forms were visually inspected.
-- Dependency audit after updates: zero reported vulnerabilities. This is not a guarantee that all security issues have been excluded.
+- The previous 37 cases remain covered. The complete 52-case operational run passed; one additional concurrent-notification-worker case passed in a focused run, bringing that checkpoint to 53 passing local cases across those runs. A final shared-venue edit regression case is also included. Square, JWT and email responses are explicitly mocked; D1/R2 behavior uses actual local Miniflare storage. No actual provider transaction/delivery verification is claimed.
+- The three-child/$75 case cancels one place, preserves a $75 original order and two active places, and admits exactly the released capacity. Duplicate cancellation, partial refund retry/reference preservation, over-refund rejection, failed/bounced delivery, webhook replay, safe retry expiry, changing setup evidence and role boundaries are covered.
+- An anonymization test simulates personal details returning from an older snapshot, reapplies the retained removal register, and checks that financial facts survive. This is narrower than a complete hosted backup/media restore rehearsal.
+- Astro and TypeScript: zero errors, warnings or hints. Cloudflare build passed. Formatting and baseline integrity passed. Dependency audit reported zero vulnerabilities, including optional dependencies; this is not a guarantee that all vulnerabilities are excluded.
+- 13 local HTTP smoke checks passed. Setup saving and persistence and the 390-pixel setup/messages screens were inspected; no horizontal overflow was observed. No business operating decision was adopted during local review.
+- Nine local migrations are applied. Follow-up exact-draft migrations preserve the already-applied history and handle original policy line endings across Windows/Linux without broad matching or rewriting approved text.
 
-The preceding candidate passed **34 operational tests and 8 desktop/mobile browser tests** in GitHub CI. Browser specifications now also check the Freeport/Central defaults and that unapproved policy text stays off public pages. See the pull request checks for the actual result on its current head; no local Playwright execution is claimed. The baseline check accepts only the two exact frozen Windows-checkout and original Git-blob hashes. These checks do not certify WCAG 2.2 AA or substitute for owner usability review.
+## CI evidence
 
-## Blocked or unverified
+The reviewed starting commit `4dc4a5ef7442f51163575b9040152bfb52c340fc` passed 37 operational and 8 browser tests. The continuation workflow now runs 54 operational and 14 desktop/mobile browser cases, including setup persistence/accessibility, selected-child cancellation and notification/privacy navigation. Refer to draft PR #1 for actual current-head results; a passing current-head result must be recorded before claiming this continuation passed CI. No local Playwright execution is claimed. Targeted axe checks do not certify full WCAG conformance.
 
-| Dependency / criterion         | Exact remaining gate                                                                                                                                                                                                              |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Real staff authentication      | Cloudflare Access is not enabled. Configure the business account and actual policies/audience, then test legitimate login, denial, logout, revocation and instructor access on the deployed hostname.                             |
-| Square account capabilities    | No sandbox token, verified sandbox location, or webhook key was available. No actual Square sandbox checkout, payment, refund or webhook delivery has been verified. All live money movement is rejected by this release.         |
-| Business facts                 | Freeport/Central Time is confirmed. Venue, operator contact details, parent-present operating arrangements, licensing assessment, refund terms and final policy adoption remain open. Proposed drafts are private and unapproved. |
-| Hosted preview                 | No hosted application deployment has been performed. The local configuration intentionally cannot route production traffic; a separate authenticated preview deployment/configuration is required.                                |
-| Scheduled recovery             | Reconciliation code and manual action exist. A deployed scheduled trigger and provider-failure exercise remain to be configured and verified.                                                                                     |
-| Customer notifications         | On-screen receipt is implemented; automatic email/SMS delivery and cancellation notices are not. Staff must contact affected guardians manually.                                                                                  |
-| Recovery                       | Local rollback/transaction behavior is tested. Hosted backups, full restore and cutover/rollback rehearsal remain unexecuted.                                                                                                     |
-| Security/privacy/legal         | Validate actual deployed Access, real provider/webhook behavior, account settings and legal/business applicability; approve policies and retention before accepting real personal information.                                    |
-| Performance/accessibility      | Mobile/desktop inspection and semantic checks completed. Production-like load, remote contention, measured performance budget and a complete WCAG/assistive-technology review remain open.                                        |
-| Production payments/deployment | Require explicit authorization and a reviewed follow-up. No merge, production deployment, DNS modification, live transaction/refund or paid plan activation is authorized by technical test success.                              |
-| Owner acceptance               | Still required after using the configured preview.                                                                                                                                                                                |
+## Hosted and external state
 
-## Next implementation step
+- The connected Adventure Station business account was rechecked. Zero Workers and D1 databases were listed. Access is not enabled (403); R2 requires dashboard activation (403/10042); no workers.dev subdomain exists (404/10007).
+- The billing subscription endpoint cannot be read through this OAuth connection and requires Billing Read/Write token permission. Account-specific quota/billing safety cannot be confirmed. No resources, subscriptions, DNS records or production services were changed. No hosted preview URL or deployment exists.
+- No Square sandbox token/location/webhook setup was available. No actual checkout, payment, refund, webhook replay or provider contention test occurred.
+- Resend is selected and test integration implemented, but no account/sender-domain setup, real test delivery/bounce feedback or provider privacy/terms review occurred. No email DNS was changed and no paid plan was activated.
+- Scheduled recovery code exists. Hosted cron behavior, Access login/denial/revocation/logout/direct-hostname behavior, provider outages and complete database/media recovery remain unverified.
 
-Review the [proposed customer policies](PROPOSED_CUSTOMER_POLICIES.md) and [adoption decisions](POLICY_DRAFTS.md), then configure the isolated preview with Access, dedicated D1/R2 resources and Square sandbox credentials. Complete operator/venue facts and adopt the final policies through the owner interface before exercising external parent checkout and staff attendance/refund journeys. Record actual deployment/version, provider event evidence and restore rehearsal results before considering production cutover.
+## Remaining before owner acceptance or production consideration
+
+The owner completes Setup: verified legal/public contact details, suitable business mailing contact, actual venues/capacities/accessibility/permission, supervision/safety/emergency arrangements, operating/licensing determination, privacy/retention/marketing choices and final policy adoption. Freeport/`America/Chicago` remains configured; parent-present is still only a proposed policy option, not an adopted business model. Drop-off needs additional evidence and matching policies.
+
+A developer completes cost-safe account onboarding and an isolated Access-protected preview, verifies actual Square sandbox and email test journeys, establishes monitored scheduled processing and restricted backups/removal-register handling, and performs a full restore rehearsal. The owner then exercises the configured preview. Production payments/email need reviewed follow-up changes; production cutover, merge and any paid services require explicit authorization. No production-ready claim is made.

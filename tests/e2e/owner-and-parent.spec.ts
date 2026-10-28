@@ -1,5 +1,67 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+
+test('owner setup is persistent, accessible on mobile, and separates external checks', async ({
+  page,
+}, testInfo) => {
+  await page.goto('/admin/setup');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Get Adventure Station ready');
+  await expect(page.getByText('Developer setup needed', { exact: true })).toHaveCount(5);
+  await page
+    .getByLabel('Website review notes', { exact: true })
+    .fill(`E2E editorial review ${testInfo.project.name} — test only`);
+  await page.getByLabel('I have reviewed the website content.', { exact: true }).check();
+  await page.getByLabel('Keep the dashboard setup section minimized.', { exact: true }).check();
+  await page.getByRole('button', { name: 'Save setup progress ↗', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Setup progress saved');
+  await page.reload();
+  await expect(page.getByLabel('Website review notes', { exact: true })).toHaveValue(
+    `E2E editorial review ${testInfo.project.name} — test only`,
+  );
+  await expect(
+    page.getByLabel('Keep the dashboard setup section minimized.', { exact: true }),
+  ).toBeChecked();
+  await expect(page.getByText('Developer setup needed', { exact: true })).toHaveCount(5);
+  const audit = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
+    .analyze();
+  expect(audit.violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('owner-setup.png'), fullPage: true });
+});
+test('owner cancels one selected child without cancelling the other two places', async ({
+  page,
+}, testInfo) => {
+  await page.goto('/admin/registrations');
+  const row = page.getByRole('row').filter({ hasText: `E2E guardian ${testInfo.project.name}` });
+  await row.getByRole('button', { name: 'Review booking', exact: true }).click();
+  await page.getByLabel('Test child A', { exact: true }).check();
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Cancel selected places', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Selected places cancelled');
+  await expect(page.getByLabel('Test child A — cancelled', { exact: true })).toBeDisabled();
+  await expect(page.getByLabel('Test child B', { exact: true })).toBeEnabled();
+  await expect(page.getByLabel('Test child C', { exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: 'Back to registrations', exact: true }).click();
+  await expect(
+    page.getByRole('row').filter({ hasText: `E2E guardian ${testInfo.project.name}` }),
+  ).toContainText('2 active');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+test('owner finds notification follow-up and privacy reviews without technical settings', async ({
+  page,
+}) => {
+  await page.goto('/admin/notifications');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Messages to families');
+  await expect(
+    page.getByText('Development release: customer sending is disabled.', { exact: false }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Check notification updates', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Notification checks complete');
+  await page.goto('/admin/privacy');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Privacy review');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
 test('parents can explore the responsive site and its accessible navigation', async ({
   page,
 }, testInfo) => {
@@ -107,6 +169,7 @@ test('owner can upload an optimized image and edit public text with history', as
       { exact: true },
     )
     .check();
+  await page.getByLabel('This image does not identify a child.', { exact: true }).check();
   await page.getByRole('button', { name: 'Upload image ↗', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Image uploaded');
   await page.goto('/admin/content');
