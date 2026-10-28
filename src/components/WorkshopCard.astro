@@ -1,14 +1,17 @@
 ---
+import { localeOf, t, localPath } from '../lib/i18n';
+const locale = localeOf(Astro.locals.locale),
+  href = (p: string) => localPath(p, locale);
 import { money, dateLabel } from '../lib/data';
 const { workshop: w, sessions = [] } = Astro.props;
 const next = sessions[0];
 ---
 
-<a class="workshop-card" href={`/workshops/${w.slug}`}>
+<a class="workshop-card" href={href(`/workshops/${w.slug}`)}>
   <div class="card-image">
     <img
       src={w.media_id ? `/media/${w.media_id}?w=480` : '/brand/art-480.webp'}
-      alt={w.image_alt ?? 'Adventure Station crafts and arts artwork'}
+      alt={w.image_alt ?? t('Adventure Station crafts and arts artwork', locale)}
       width="480"
       height="480"
       loading="lazy"
@@ -18,25 +21,39 @@ const next = sessions[0];
     <span class="tag">{w.category}</span>
     <h3>{w.name}</h3>
     <p>{w.summary}</p>
+    {locale === 'es-MX' && w.translationIncomplete && (
+      <small>
+        {t(
+          'This workshop copy is awaiting Spanish review. English source content is shown.',
+          locale,
+        )}
+      </small>
+    )}
     <div class="card-facts">
       <p>
-        Ages {w.age_min}–{w.age_max}. {w.duration} minutes.
+        {t('\r\n        Ages ', locale)}
+        {w.age_min}–{w.age_max}. {w.duration}
+        {t(' minutes.\r\n      ', locale)}
       </p>
       {next ? (
         <>
-          <p>{dateLabel(next.starts_at, next.timezone)}</p>
+          <p>{dateLabel(next.starts_at, next.timezone, locale)}</p>
           <p>{next.venue_name}</p>
           <p>
-            <strong>{money(next.price)} per child</strong> ·{' '}
-            {Math.max(0, next.capacity - next.occupied)} places available
+            <strong>
+              {money(next.price, locale)}
+              {t(' per child', locale)}
+            </strong>{' '}
+            · {Math.max(0, next.capacity - next.occupied)}
+            {t(' places available\r\n          ', locale)}
           </p>
         </>
       ) : (
-        <p>New dates will appear here when ready.</p>
+        <p>{t('New dates will appear here when ready.', locale)}</p>
       )}
     </div>
     <div class="card-foot">
-      <span>View workshop</span>
+      <span>{t('View workshop', locale)}</span>
       <span aria-hidden="true">↗</span>
     </div>
   </div>

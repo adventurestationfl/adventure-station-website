@@ -1,3 +1,6 @@
+import { t as translate, localeOf, errorMessage } from '../lib/i18n';
+const locale = localeOf(document.documentElement.lang),
+  t = (v: string) => translate(v, locale);
 const form = document.querySelector<HTMLFormElement>('#registration-form');
 if (form) {
   const quantity = form.querySelector<HTMLSelectElement>('#quantity')!,
@@ -12,7 +15,7 @@ if (form) {
     for (let i = 0; i < Number(quantity.value); i++) {
       const group = document.createElement('fieldset'),
         legend = document.createElement('legend');
-      legend.textContent = `Child ${i + 1}`;
+      legend.textContent = `${t('Child')} ${i + 1}`;
       group.append(legend);
       for (const [key, label, type] of [
         ['first_name', 'First name', 'text'],
@@ -27,7 +30,7 @@ if (form) {
         input.type = type!;
         input.required = true;
         l.htmlFor = input.id;
-        l.textContent = label!;
+        l.textContent = t(label!);
         if (key === 'age') {
           input.min = form!.dataset.ageMin!;
           input.max = form!.dataset.ageMax!;
@@ -42,6 +45,28 @@ if (form) {
       participants.append(group);
     }
   }
+  if (locale === 'es-MX') {
+    form.addEventListener(
+      'invalid',
+      (event) => {
+        const input = event.target as HTMLInputElement;
+        input.setCustomValidity(
+          input.validity.valueMissing
+            ? t('Please complete this field.')
+            : input.validity.typeMismatch
+              ? t('Enter a valid email address.')
+              : t('Choose an allowed value.'),
+        );
+      },
+      true,
+    );
+    form.addEventListener('input', (event) =>
+      (event.target as HTMLInputElement).setCustomValidity?.(''),
+    );
+    form.addEventListener('change', (event) =>
+      (event.target as HTMLInputElement).setCustomValidity?.(''),
+    );
+  }
   quantity.addEventListener('change', renderChildren);
   renderChildren();
   const key = `registration-intent-${form.dataset.session}`;
@@ -53,10 +78,12 @@ if (form) {
     const button = form.querySelector<HTMLButtonElement>('button[type=submit]')!;
     button.disabled = true;
     message.className = 'notice';
-    message.textContent = 'Reserving your places and preparing checkout…';
+    message.textContent = t('Reserving your places and preparing checkout…');
     const data = new FormData(form);
     const payload = {
       session_id: form.dataset.session,
+      locale,
+      policy_version: form.dataset.policyVersion,
       guardian_name: data.get('guardian_name'),
       guardian_email: data.get('guardian_email'),
       guardian_phone: data.get('guardian_phone'),
@@ -72,11 +99,15 @@ if (form) {
     try {
       const response = await fetch('/api/registrations', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': intent },
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': intent,
+          'Accept-Language': locale,
+        },
         body: JSON.stringify(payload),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
+      if (!response.ok) throw new Error(t(result.error));
       const target = new URL(result.checkout_url);
       if (target.hostname !== 'sandbox.square.link')
         throw new Error('The checkout address could not be verified.');
@@ -84,7 +115,10 @@ if (form) {
       window.location.assign(target.href);
     } catch (e) {
       message.className = 'notice error';
-      message.textContent = e instanceof Error ? e.message : 'Please try again.';
+      message.textContent = errorMessage(
+        e instanceof Error ? e.message : 'Please try again.',
+        locale,
+      );
       button.disabled = false;
     }
   });

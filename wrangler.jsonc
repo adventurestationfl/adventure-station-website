@@ -17,6 +17,7 @@
   ],
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "adventure-station-local-media" }],
   "vars": {
+    "MCP_ENABLED": "false",
     "ENVIRONMENT": "local",
     "DEV_AUTH": "false",
     "ACCESS_TEAM_DOMAIN": "",

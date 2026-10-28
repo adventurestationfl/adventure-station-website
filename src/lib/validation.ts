@@ -108,6 +108,8 @@ export const siteSchema = z
       });
   });
 export const registrationSchema = z.object({
+  locale: z.enum(['en-US', 'es-MX']).default('en-US'),
+  policy_version: text(150).optional(),
   session_id: id,
   guardian_name: text(100).min(2),
   guardian_email: z.email().max(254),

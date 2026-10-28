@@ -50,3 +50,7 @@ Owner-only sandbox refund requests take a specific verified payment, integer-cen
 Material booked date/venue/price changes remain locked. Cancel and communicate, then make a new date; alternatives need the guardian’s express agreement. No silent rescheduling is implemented.
 
 Shared venue names, addresses and arrival instructions are also locked while used by a future booked class. Editing the venue record cannot bypass the booked-session location safeguard. Create a new venue and follow the cancellation/explicit-alternative workflow instead.
+
+## Bilingual checkout boundary
+
+Registration stores the chosen language and exact policy version; later edits cannot rewrite them. The Square return URL follows the original registration language. The current CreatePaymentLink/CheckoutOptions contract does not expose an application-controlled checkout locale in the reviewed configuration, so the hosted processor's Spanish presentation remains unverified until actual sandbox testing. Do not claim end-to-end Spanish Square checkout from localized local pages. See [Square checkout options](https://developer.squareup.com/docs/checkout-api/optional-checkout-configurations).

@@ -9,12 +9,14 @@ import {
   requireOrigin,
   sha256,
 } from '../../lib/http';
-import { authenticate } from '../../lib/auth';
+import { authenticate, type Staff } from '../../lib/auth';
+import { audit } from '../../lib/data';
 import { adminApi } from '../../lib/admin';
 import { mediaApi } from '../../lib/media';
 import { register, rateLimit, applyPayment } from '../../lib/registration';
 import { getPayment, square, verifySignature } from '../../lib/square';
 export const ALL: APIRoute = async ({ request, params }) => {
+  let staff: Staff | undefined;
   try {
     const path = params.path ?? '';
     if (path === 'square/webhook' && request.method === 'POST') {
@@ -89,13 +91,36 @@ export const ALL: APIRoute = async ({ request, params }) => {
     }
     if (path.startsWith('admin/')) {
       if (!['GET', 'HEAD'].includes(request.method)) requireOrigin(request);
-      const staff = await authenticate(request, env),
-        action = path.slice(6);
+      staff = await authenticate(request, env);
+      const action = path.slice(6);
       if (action.startsWith('media')) return await mediaApi(request, env, staff, action);
       return await adminApi(request, env, staff, action);
     }
     throw new HttpError(404, 'This request was not found.');
   } catch (error) {
+    if (staff && error instanceof HttpError && error.status === 403) {
+      const category = (params.path ?? '').split('/')[1] ?? '';
+      await audit(
+        env.DB,
+        staff.id,
+        'request.denied',
+        [
+          'team',
+          'setup',
+          'workshops',
+          'sessions',
+          'registrations',
+          'media',
+          'content',
+          'privacy',
+          'connections',
+          'activity',
+        ].includes(category)
+          ? category
+          : 'admin',
+        { outcome: 'denied', correlationId: crypto.randomUUID() },
+      ).run();
+    }
     return errorResponse(error);
   }
 };

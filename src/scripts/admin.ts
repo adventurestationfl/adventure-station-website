@@ -1,7 +1,28 @@
+import { createUI, localeOf, t as translate, errorMessage } from '../lib/i18n';
+import { renderExtra, companionSummary } from './admin-features';
+const locale = localeOf(document.documentElement.lang),
+  { ui, markup: u } = createUI(locale),
+  t = (v: string) => translate(v, locale);
 import { zonedDateTime, wallClock } from '../lib/time';
 const main = document.querySelector<HTMLElement>('#admin-main')!,
   workspace = document.querySelector<HTMLElement>('#workspace')!,
   message = document.querySelector<HTMLElement>('#admin-message')!;
+if (locale === 'es-MX') {
+  document.addEventListener(
+    'invalid',
+    (event) => {
+      const input = event.target as HTMLInputElement;
+      input.setCustomValidity(t('Please review this field.'));
+    },
+    true,
+  );
+  document.addEventListener('input', (event) =>
+    (event.target as HTMLInputElement).setCustomValidity?.(''),
+  );
+  document.addEventListener('change', (event) =>
+    (event.target as HTMLInputElement).setCustomValidity?.(''),
+  );
+}
 const section = main.dataset.section!,
   role = main.dataset.role!;
 const h = (v: unknown) =>
@@ -10,23 +31,24 @@ const h = (v: unknown) =>
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
   );
 const cash = (v: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((v ?? 0) / 100);
+  new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format((v ?? 0) / 100);
 const date = (v: number, tz: string) =>
-  new Intl.DateTimeFormat('en-US', {
+  new Intl.DateTimeFormat(locale, {
     timeZone: tz,
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(v * 1000);
-const status = (v: string) => `<span class="status ${h(v)}">${h(v.replaceAll('_', ' '))}</span>`;
+const status = (v: string) =>
+  ui`<span class="status ${h(v)}">${h(t(v.replaceAll('_', ' ')))}</span>`;
 const button = (label: string, action: string, id = '', style = 'light') =>
-  `<button type="button" class="btn small ${style}" data-action="${h(action)}" data-id="${h(id)}">${h(label)}</button>`;
+  ui`<button type="button" class="btn small ${style}" data-action="${h(action)}" data-id="${h(id)}">${h(t(label))}</button>`;
 function notify(text: string, error = false) {
-  message.textContent = text;
-  message.className = `notice${error ? ' error' : ''}`;
+  message.textContent = error ? errorMessage(text, locale) : t(text);
+  message.className = ui`notice${error ? ' error' : ''}`;
   message.scrollIntoView({ block: 'nearest' });
 }
 async function api(path: string, method = 'GET', data?: unknown) {
-  const response = await fetch(`/api/admin/${path}`, {
+  const response = await fetch(ui`/api/admin/${path}`, {
     method,
     headers: data instanceof FormData ? {} : { 'Content-Type': 'application/json' },
     body: data === undefined ? undefined : data instanceof FormData ? data : JSON.stringify(data),
@@ -36,7 +58,7 @@ async function api(path: string, method = 'GET', data?: unknown) {
   return result;
 }
 const heading = (title: string, subtitle: string, actions = '') =>
-  `<header class="admin-heading"><div><h1>${h(title)}</h1><p>${h(subtitle)}</p></div><div class="inline-actions">${actions}</div></header>`;
+  ui`<header class="admin-heading"><div><h1>${h(t(title))}</h1><p>${h(t(subtitle))}</p></div><div class="inline-actions">${actions}</div></header>`;
 function field(
   label: string,
   name: string,
@@ -45,7 +67,7 @@ function field(
   help = '',
   attrs = '',
 ) {
-  return `<div class="field"><label for="${h(name)}">${h(label)}</label>${type === 'textarea' ? `<textarea id="${h(name)}" name="${h(name)}" ${attrs}>${h(value)}</textarea>` : `<input id="${h(name)}" name="${h(name)}" type="${h(type)}" value="${h(value)}" ${attrs}/>`}${help ? `<small>${h(help)}</small>` : ''}</div>`;
+  return ui`<div class="field"><label for="${h(name)}">${h(t(label))}</label>${type === 'textarea' ? ui`<textarea id="${h(name)}" name="${h(name)}" ${attrs}>${h(value)}</textarea>` : ui`<input id="${h(name)}" name="${h(name)}" type="${h(type)}" value="${h(value)}" ${attrs}/>`}${help ? ui`<small>${h(t(help))}</small>` : ''}</div>`;
 }
 function select(
   label: string,
@@ -54,14 +76,14 @@ function select(
   options: { id: unknown; name: unknown }[],
   attrs = '',
 ) {
-  return `<div class="field"><label for="${h(name)}">${h(label)}</label><select id="${h(name)}" name="${h(name)}" ${attrs}>${options.map((o) => `<option value="${h(o.id)}" ${String(o.id ?? '') === String(value ?? '') ? 'selected' : ''}>${h(o.name)}</option>`).join('')}</select></div>`;
+  return ui`<div class="field"><label for="${h(name)}">${h(t(label))}</label><select id="${h(name)}" name="${h(name)}" ${attrs}>${options.map((o) => ui`<option value="${h(o.id)}" ${String(o.id ?? '') === String(value ?? '') ? 'selected' : ''}>${h(o.name)}</option>`).join('')}</select></div>`;
 }
 const check = (label: string, name: string, value: boolean, disabled = false) =>
-  `<label class="check"><input type="checkbox" name="${h(name)}" ${value ? 'checked' : ''} ${disabled ? 'disabled' : ''}/>${h(label)}</label>`;
+  ui`<label class="check"><input type="checkbox" name="${h(name)}" ${value ? 'checked' : ''} ${disabled ? 'disabled' : ''}/>${h(t(label))}</label>`;
 const saveBar = (label = 'Save changes') =>
-  `<div class="save-bar"><span class="muted">Your changes are saved when you choose “${h(label)}”.</span><button class="btn" type="submit">${h(label)} ↗</button></div>`;
+  ui`<div class="save-bar"><span class="muted">Your changes are saved when you choose “${h(t(label))}”.</span><button class="btn" type="submit">${h(t(label))} ↗</button></div>`;
 const empty = (title: string, detail: string, action = '') =>
-  `<div class="panel empty-admin"><h2>${h(title)}</h2><p>${h(detail)}</p>${action}</div>`;
+  ui`<div class="panel empty-admin"><h2>${h(t(title))}</h2><p>${h(t(detail))}</p>${action}</div>`;
 const formValues = (form: HTMLFormElement) => Object.fromEntries(new FormData(form).entries());
 function onSave(form: HTMLFormElement, save: () => Promise<void>) {
   form.addEventListener('submit', async (event) => {
@@ -111,8 +133,8 @@ function workshopEditor(original?: any, duplicate = false) {
       };
   if (duplicate) {
     w.id = null;
-    w.name = `${w.name} (copy)`;
-    w.slug = `${w.slug}-copy-${crypto.randomUUID().slice(0, 6)}`;
+    w.name = ui`${w.name} (copy)`;
+    w.slug = ui`${w.slug}-copy-${crypto.randomUUID().slice(0, 6)}`;
     w.status = 'draft';
   }
   workspace.innerHTML =
@@ -121,7 +143,7 @@ function workshopEditor(original?: any, duplicate = false) {
       'Describe it once. Add as many class dates as you need.',
       button('Back to workshops', 'back'),
     ) +
-    `<form id="editor"><div class="form-columns"><div class="panel"><h2>The creative idea</h2>${field('Workshop name', 'name', w.name, 'text', '', 'required maxlength="120"')}${field('Page address', 'slug', w.slug, 'text', 'Use lowercase words separated by hyphens.', 'required pattern="[a-z0-9]+(-[a-z0-9]+)*"')}${field('Short description', 'summary', w.summary, 'textarea', 'A sentence or two for the workshop card.', 'maxlength="240"')}${field('Full description', 'description', w.description, 'textarea', '', 'maxlength="8000"')}${field('Category', 'category', w.category)}${select('Workshop image', 'media_id', w.media_id, [{ id: '', name: 'Original Adventure Station artwork' }, ...media.map((m) => ({ id: m.id, name: m.alt }))])}${media.length ? `<fieldset><legend>Workshop gallery (up to 12 images)</legend>${media.map((m) => check(m.alt, 'gallery_ids', (w.gallery_ids ?? []).includes(m.id)).replace('name="gallery_ids"', `name="gallery_ids" value="${h(m.id)}"`)).join('')}</fieldset>` : ''}${field('Included materials', 'materials', w.materials, 'textarea')}${field('Instructions for families', 'instructions', w.instructions, 'textarea')}</div><div><div class="panel"><h2>Defaults for new dates</h2><p class="muted">Change these here to save time later. Existing class dates and registrations keep their details.</p><div class="form-grid">${field('Youngest age', 'age_min', w.age_min, 'number', '', 'required min="1" max="17"')}${field('Oldest age', 'age_max', w.age_max, 'number', '', 'required min="1" max="17"')}${field('Duration (minutes)', 'duration', w.duration, 'number', '', 'required min="15" max="480"')}${field('Places per class', 'capacity', w.capacity, 'number', '', 'required min="1" max="100"')}</div>${field('Price per child ($)', 'price', w.price / 100, 'number', '', 'required min="1" max="1000" step="0.01"')}${select('Usual venue', 'venue_id', w.venue_id, [{ id: '', name: 'Choose when scheduling' }, ...venues.map((v) => ({ id: v.id, name: v.name }))])}</div><div class="panel"><h2>Visibility</h2>${select(
+    ui`<div class="content-language"><span>Content language: English</span>${w.id ? ui`<button class="btn small light" type="button" data-action="translate-workshop" data-id="${h(w.id)}">Español</button>` : ui`<small>${t('Save the English source before adding Spanish content.')}</small>`}</div><form id="editor"><div class="form-columns"><div class="panel"><h2>The creative idea</h2>${field('Workshop name', 'name', w.name, 'text', '', 'required maxlength="120"')}${field('Page address', 'slug', w.slug, 'text', 'Use lowercase words separated by hyphens.', 'required pattern="[a-z0-9]+(-[a-z0-9]+)*"')}${field('Short description', 'summary', w.summary, 'textarea', 'A sentence or two for the workshop card.', 'maxlength="240"')}${field('Full description', 'description', w.description, 'textarea', '', 'maxlength="8000"')}${field('Category', 'category', w.category)}${select('Workshop image', 'media_id', w.media_id, [{ id: '', name: t('Original Adventure Station artwork') }, ...media.map((m) => ({ id: m.id, name: m.alt }))])}${media.length ? ui`<fieldset><legend>Workshop gallery (up to 12 images)</legend>${media.map((m) => check(m.alt, 'gallery_ids', (w.gallery_ids ?? []).includes(m.id)).replace('name="gallery_ids"', ui`name="gallery_ids" value="${h(m.id)}"`)).join('')}</fieldset>` : ''}${field('Included materials', 'materials', w.materials, 'textarea')}${field('Instructions for families', 'instructions', w.instructions, 'textarea')}</div><div><div class="panel"><h2>Defaults for new dates</h2><p class="muted">Change these here to save time later. Existing class dates and registrations keep their details.</p><div class="form-grid">${field('Youngest age', 'age_min', w.age_min, 'number', '', 'required min="1" max="17"')}${field('Oldest age', 'age_max', w.age_max, 'number', '', 'required min="1" max="17"')}${field('Duration (minutes)', 'duration', w.duration, 'number', '', 'required min="15" max="480"')}${field('Places per class', 'capacity', w.capacity, 'number', '', 'required min="1" max="100"')}</div>${field('Price per child ($)', 'price', w.price / 100, 'number', '', 'required min="1" max="1000" step="0.01"')}${select('Usual venue', 'venue_id', w.venue_id, [{ id: '', name: t('Choose when scheduling') }, ...venues.map((v) => ({ id: v.id, name: v.name }))])}</div><div class="panel"><h2>Visibility</h2>${select(
       'Workshop status',
       'status',
       w.status,
@@ -129,7 +151,7 @@ function workshopEditor(original?: any, duplicate = false) {
         id: v,
         name: v[0]!.toUpperCase() + v.slice(1),
       })),
-    )}<p class="muted">Published workshops appear in the catalog. Dates are published separately.</p>${w.id ? `<a class="text-link" href="/workshops/${h(w.slug)}" target="_blank" rel="noopener">Preview published workshop ↗</a>` : ''}</div></div></div>${saveBar('Save workshop')}</form>`;
+    )}<p class="muted">Published workshops appear in the catalog. Dates are published separately.</p>${w.id ? ui`<a class="text-link" href="/workshops/${h(w.slug)}" target="_blank" rel="noopener">Preview published workshop ↗</a>` : ''}</div></div></div>${saveBar('Save workshop')}</form>`;
   const form = document.querySelector<HTMLFormElement>('#editor')!;
   onSave(form, async () => {
     const d: any = formValues(form);
@@ -139,13 +161,19 @@ function workshopEditor(original?: any, duplicate = false) {
     d.media_id = d.media_id || null;
     d.revision = w.revision;
     d.gallery_ids = new FormData(form).getAll('gallery_ids');
-    await api(`workshops${w.id ? `/${w.id}` : ''}`, 'POST', d);
+    await api(ui`workshops${w.id ? ui`/${w.id}` : ''}`, 'POST', d);
     notify('Workshop saved.');
     await renderWorkshops();
   });
 }
 async function renderWorkshops() {
   await lookups();
+  const requestedEdit = new URLSearchParams(location.search).get('edit');
+  if (requestedEdit && workshops.some((w) => w.id === requestedEdit)) {
+    history.replaceState(null, '', location.pathname);
+    workshopEditor(workshops.find((w) => w.id === requestedEdit));
+    return;
+  }
   workspace.innerHTML =
     heading(
       'Workshops',
@@ -153,7 +181,7 @@ async function renderWorkshops() {
       button('+ Create workshop', 'new-workshop', '', ''),
     ) +
     (workshops.length
-      ? `<div class="grid">${workshops.map((w) => `<article class="admin-card"><div class="admin-card-top">${status(w.status)}<h2>${h(w.name)}</h2><span class="muted">Ages ${w.age_min}–${w.age_max} · ${w.duration} minutes</span></div><div class="admin-card-body"><p>${h(w.summary || 'Add a short description to introduce this workshop.')}</p><p>${cash(w.price)} per child · ${w.capacity} places by default</p><div class="inline-actions">${button('Add date ↗', 'add-date', w.id, '')}${button('Edit', 'edit-workshop', w.id)}${button('Duplicate', 'copy-workshop', w.id)}</div></div></article>`).join('')}</div>`
+      ? ui`<div class="grid">${workshops.map((w) => ui`<article class="admin-card"><div class="admin-card-top">${status(w.status)}<h2>${h(w.name)}</h2><span class="muted">Ages ${w.age_min}–${w.age_max} · ${w.duration} minutes</span></div><div class="admin-card-body"><p>${h(w.summary || 'Add a short description to introduce this workshop.')}</p><p>${cash(w.price)} per child · ${w.capacity} places by default</p><div class="inline-actions">${button('Add date ↗', 'add-date', w.id, '')}${button('Edit', 'edit-workshop', w.id)}${button('Duplicate', 'copy-workshop', w.id)}</div></div></article>`).join('')}</div>`
       : empty(
           'Your next great idea starts here.',
           'Create a workshop once, then add new dates whenever you’re ready.',
@@ -191,7 +219,7 @@ function sessionEditor(original?: any, workshopId?: string, duplicate = false) {
       'Start with an existing workshop. Adjust only what changes.',
       button('Back to class dates', 'back'),
     ) +
-    `<form id="editor"><div class="form-columns"><div class="panel"><h2>When & where</h2>${select(
+    ui`<div class="content-language"><span>Content language: English</span><button class="btn small light" type="button" data-action="translate-site">Español</button></div><form id="editor"><div class="form-columns"><div class="panel"><h2>When & where</h2>${select(
       'Workshop',
       'workshop_id',
       s.workshop_id,
@@ -201,12 +229,12 @@ function sessionEditor(original?: any, workshopId?: string, duplicate = false) {
       'timezone',
       s.timezone,
       [
-        { id: '', name: 'Choose after confirming your Florida city' },
-        { id: 'America/New_York', name: 'Eastern Time — America/New_York' },
-        { id: 'America/Chicago', name: 'Central Time — America/Chicago' },
+        { id: '', name: t('Choose after confirming your Florida city') },
+        { id: 'America/New_York', name: t('Eastern Time — America/New_York') },
+        { id: 'America/Chicago', name: t('Central Time — America/Chicago') },
       ],
       'required',
-    )}${select('Venue', 'venue_id', s.venue_id, [{ id: '', name: 'Choose a venue' }, ...venues.filter((v) => !v.archived || v.id === s.venue_id).map((v) => ({ id: v.id, name: `${v.name}${v.verified ? '' : ' — needs verification'}` }))], 'required')}</div><div><div class="panel"><h2>Places & price</h2>${field('Places in this class', 'capacity', s.capacity, 'number', '', 'required min="1" max="100"')}${field('Price per child ($)', 'price', s.price / 100, 'number', '', 'required min="1" max="1000" step="0.01"')}${select('Instructor (optional)', 'instructor_id', s.instructor_id, [{ id: '', name: 'Not assigned yet' }, ...instructors])}</div><div class="panel"><h2>Ready for families?</h2>${select(
+    )}${select('Venue', 'venue_id', s.venue_id, [{ id: '', name: t('Choose a venue') }, ...venues.filter((v) => !v.archived || v.id === s.venue_id).map((v) => ({ id: v.id, name: ui`${v.name}${v.verified ? '' : t(' — needs verification')}` }))], 'required')}</div><div><div class="panel"><h2>Places & price</h2>${field('Places in this class', 'capacity', s.capacity, 'number', '', 'required min="1" max="100"')}${field('Price per child ($)', 'price', s.price / 100, 'number', '', 'required min="1" max="1000" step="0.01"')}${select('Instructor (optional)', 'instructor_id', s.instructor_id, [{ id: '', name: t('Not assigned yet') }, ...instructors])}</div><div class="panel"><h2>Ready for families?</h2>${select(
       'Class status',
       'status',
       s.status,
@@ -236,7 +264,7 @@ function sessionEditor(original?: any, workshopId?: string, duplicate = false) {
       const selected = workshops.find(
         (w) => w.id === (form.elements.namedItem('workshop_id') as HTMLSelectElement).value,
       );
-      const value = new Date(`${start.value}:00Z`).getTime() + (selected?.duration ?? 60) * 60000;
+      const value = new Date(ui`${start.value}:00Z`).getTime() + (selected?.duration ?? 60) * 60000;
       end.value = new Date(value).toISOString().slice(11, 16);
     });
   }
@@ -252,8 +280,8 @@ function sessionEditor(original?: any, workshopId?: string, duplicate = false) {
     if (dates.length > 20) throw new Error('Add up to 20 dates at once.');
     const records = dates.map((day) => ({
       workshop_id: d.workshop_id,
-      starts_at: zonedDateTime(`${day}T${String(d.starts).slice(11)}`, d.timezone),
-      ends_at: zonedDateTime(`${day}T${d.ends}`, d.timezone),
+      starts_at: zonedDateTime(ui`${day}T${String(d.starts).slice(11)}`, d.timezone),
+      ends_at: zonedDateTime(ui`${day}T${d.ends}`, d.timezone),
       timezone: d.timezone,
       venue_id: d.venue_id,
       capacity: Number(d.capacity),
@@ -269,9 +297,9 @@ function sessionEditor(original?: any, workshopId?: string, duplicate = false) {
       )
     )
       return;
-    if (s.id) await api(`sessions/${s.id}`, 'POST', records[0]);
+    if (s.id) await api(ui`sessions/${s.id}`, 'POST', records[0]);
     else await api('sessions/batch', 'POST', { sessions: records });
-    notify(`${records.length} class date${records.length === 1 ? '' : 's'} saved.`);
+    notify(ui`${records.length} class date${records.length === 1 ? '' : 's'} saved.`);
     await renderSessions();
   });
 }
@@ -286,7 +314,7 @@ async function renderSessions() {
       role !== 'instructor' ? button('+ Add a date', 'new-session', '', '') : '',
     ) +
     (sessions.length
-      ? `<div class="panel overflow"><table class="table"><thead><tr><th>Workshop & date</th><th>Status</th><th>Places</th><th>Actions</th></tr></thead><tbody>${sessions.map((s) => `<tr><td><strong>${h(s.workshop_name)}</strong><br/>${h(date(s.starts_at, s.timezone))}<br/><small>${h(s.venue_name)}</small></td><td>${s.starts_at < Date.now() / 1000 && s.status === 'published' ? status('completed') : status(s.status)}</td><td>${s.occupied} / ${s.capacity}<div class="progress"><span style="width:${Math.min(100, (s.occupied / s.capacity) * 100)}%"></span></div></td><td><div class="inline-actions">${button('Attendance', 'roster', s.id)}${role !== 'instructor' ? button('Edit', 'edit-session', s.id) + button('Duplicate', 'copy-session', s.id) : ''}</div></td></tr>`).join('')}</tbody></table></div>`
+      ? ui`<div class="panel overflow"><table class="table"><thead><tr><th>Workshop & date</th><th>Status</th><th>Places</th><th>Actions</th></tr></thead><tbody>${sessions.map((s) => ui`<tr><td><strong>${h(s.workshop_name)}</strong><br/>${h(date(s.starts_at, s.timezone))}<br/><small>${h(s.venue_name)}</small></td><td>${s.starts_at < Date.now() / 1000 && s.status === 'published' ? status('completed') : status(s.status)}</td><td>${s.occupied} / ${s.capacity}<div class="progress"><span style="width:${Math.min(100, (s.occupied / s.capacity) * 100)}%"></span></div></td><td><div class="inline-actions">${button('Attendance', 'roster', s.id)}${role !== 'instructor' ? button('Edit', 'edit-session', s.id) + button('Duplicate', 'copy-session', s.id) : ''}</div></td></tr>`).join('')}</tbody></table></div>`
       : empty(
           'A fresh page in the calendar.',
           'Add a date to an existing workshop. Past dates stay here as history.',
@@ -294,7 +322,7 @@ async function renderSessions() {
         ));
 }
 async function roster(id: string) {
-  const rows = await api(`sessions/${id}/roster`);
+  const rows = await api(ui`sessions/${id}/roster`);
   workspace.innerHTML =
     heading(
       'Attendance',
@@ -302,7 +330,7 @@ async function roster(id: string) {
       button('Back to class dates', 'back'),
     ) +
     (rows.length
-      ? `<div class="panel overflow"><table class="table"><thead><tr><th>Child</th><th>Age</th>${role !== 'instructor' ? '<th>Guardian contact</th>' : ''}<th>Check-in</th></tr></thead><tbody>${rows.map((p: any) => `<tr><td>${h(p.first_name ?? 'Removed for privacy')}</td><td>${h(p.age ?? '—')}</td>${role !== 'instructor' ? `<td>${h(p.guardian_name)}<br/>${h(p.guardian_email)}<br/>${h(p.guardian_phone)}</td>` : ''}<td><label class="check"><input type="checkbox" data-attendance="${h(p.id)}" ${p.attended ? 'checked' : ''}/>Attended</label></td></tr>`).join('')}</tbody></table></div>`
+      ? ui`<div class="panel overflow"><table class="table"><thead><tr><th>Child</th><th>Age</th>${role !== 'instructor' ? u('<th>Guardian contact</th>') : ''}<th>Check-in</th></tr></thead><tbody>${rows.map((p: any) => ui`<tr><td>${h(p.first_name ?? t('Removed for privacy'))}</td><td>${h(p.age ?? '—')}</td>${role !== 'instructor' ? ui`<td>${h(p.guardian_name)}<br/>${h(p.guardian_email)}<br/>${h(p.guardian_phone)}</td>` : ''}<td><label class="check"><input type="checkbox" data-attendance="${h(p.id)}" ${p.attended ? 'checked' : ''}/>Attended</label></td></tr>`).join('')}</tbody></table></div>`
       : empty(
           'No confirmed participants yet.',
           'Only registrations with verified payments appear on the attendance list.',
@@ -311,7 +339,7 @@ async function roster(id: string) {
     box.addEventListener('change', async () => {
       box.disabled = true;
       try {
-        await api(`participants/${box.dataset.attendance}/attendance`, 'POST', {
+        await api(ui`participants/${box.dataset.attendance}/attendance`, 'POST', {
           attended: box.checked,
         });
         notify('Attendance saved.');
@@ -326,7 +354,7 @@ async function roster(id: string) {
 }
 function setupSummary(s: any) {
   const next = s.tasks.find((t: any) => !t.complete);
-  return `<details class="setup-summary" ${s.minimized ? '' : 'open'}><summary>Business setup: ${s.completed} of ${s.total} owner tasks complete</summary><div class="setup-next"><div><strong>${h(next?.title ?? 'Owner setup is complete')}</strong><p>${h(next?.help ?? 'External verification and launch approval remain separate.')}</p></div><a class="btn small" href="${h(next?.href ?? '/admin/setup')}">Continue setup</a></div><a class="text-link" href="/admin/setup">View all setup tasks</a></details>`;
+  return ui`<details class="setup-summary" ${s.minimized ? '' : 'open'}><summary>Business setup: ${s.completed} of ${s.total} owner tasks complete</summary><div class="setup-next"><div><strong>${h(t(next?.title ?? 'Owner setup is complete'))}</strong><p>${h(t(next?.help ?? 'External verification and launch approval remain separate.'))}</p></div><a class="btn small" href="${h(next?.href ?? '/admin/setup')}">Continue setup</a></div><a class="text-link" href="/admin/setup">View all setup tasks</a></details>`;
 }
 let setupRevealCleanup: (() => void) | undefined;
 async function renderSetup() {
@@ -339,33 +367,33 @@ async function renderSetup() {
       'Get Adventure Station ready',
       'Finish a little at a time. Your saved decisions will be here when you return.',
     ) +
-    `<div class="setup-overview"><div><h2>${s.completed} of ${s.total} owner tasks complete</h2><progress value="${s.completed}" max="${s.total}" aria-label="Owner setup progress"></progress><p>${nextTask ? 'Next: ' + h(nextTask.title) : 'Owner tasks complete. External checks remain separate.'}</p>${nextTask ? `<a class="btn" href="${h(nextTask.href)}">Continue setup</a>` : ''}</div><dl class="setup-readiness"><div><dt>Website editing</dt><dd>Available now</dd></div><div><dt>Registration</dt><dd>${s.registrationAllowed ? 'Test setup complete' : 'Setup still needed'}</dd></div><div><dt>Production launch</dt><dd>Separate review required</dd></div></dl></div><ul class="setup-list">${s.tasks.map((t: any) => `<li class="setup-task ${t.complete ? 'complete' : ''}"><div><h2>${h(t.title)}</h2><span class="task-state">${t.complete ? '✓ ' : ''}${h(t.status)}</span><p>${h(t.help)}</p></div><a href="${h(t.href)}">${t.complete ? 'Review' : 'Open task'}</a></li>`).join('')}</ul><h2 class="section-title">Your business decisions</h2><form id="setup-form"><details class="setup-form-section" id="business" open><summary>Business information</summary><div class="setup-form-body">${field('Legal business name', 'legalName', d.legalName)}${field('Business mailing contact', 'mailingContact', d.mailingContact, 'textarea', 'Use an appropriate business contact. Do not enter a private home address unnecessarily.')}<p><a href="/admin/content">Review public email, phone, locality and timezone ↗</a></p>${check('I have checked these business details.', 'confirm-business', false)}</div></details><details class="setup-form-section" id="supervision"><summary>How children participate</summary><div class="setup-form-body">${select(
+    ui`<div class="setup-overview"><div><h2>${s.completed} of ${s.total} owner tasks complete</h2><progress value="${s.completed}" max="${s.total}" aria-label="Owner setup progress"></progress><p>${nextTask ? t('Next: ') + h(t(nextTask.title)) : t('Owner tasks complete. External checks remain separate.')}</p>${nextTask ? ui`<a class="btn" href="${h(nextTask.href)}">Continue setup</a>` : ''}</div><dl class="setup-readiness"><div><dt>Website editing</dt><dd>Available now</dd></div><div><dt>Registration</dt><dd>${t(s.registrationAllowed ? 'Test setup complete' : 'Setup still needed')}</dd></div><div><dt>Production launch</dt><dd>Separate review required</dd></div></dl></div><ul class="setup-list">${s.tasks.map((t: any) => ui`<li class="setup-task ${t.complete ? 'complete' : ''}"><div><h2>${h(translate(t.title, locale))}</h2><span class="task-state">${t.complete ? '✓ ' : ''}${h(translate(t.status, locale))}</span><p>${h(translate(t.help, locale))}</p></div><a href="${h(t.href)}">${translate(t.complete ? 'Review' : 'Open task', locale)}</a></li>`).join('')}</ul><h2 class="section-title">Your business decisions</h2><form id="setup-form"><details class="setup-form-section" id="business" open><summary>Business information</summary><div class="setup-form-body">${field('Legal business name', 'legalName', d.legalName)}${field('Business mailing contact', 'mailingContact', d.mailingContact, 'textarea', 'Use an appropriate business contact. Do not enter a private home address unnecessarily.')}<p><a href="/admin/content">Review public email, phone, locality and timezone ↗</a></p>${check('I have checked these business details.', 'confirm-business', false)}</div></details><details class="setup-form-section" id="supervision"><summary>How children participate</summary><div class="setup-form-body">${select(
       'Supervision arrangement',
       'supervision',
       d.supervision,
       [
-        { id: 'undecided', name: 'I am still deciding' },
-        { id: 'parent_present', name: 'A responsible adult stays throughout' },
-        { id: 'drop_off', name: 'Children attend without their adult' },
+        { id: 'undecided', name: t('I am still deciding') },
+        { id: 'parent_present', name: t('A responsible adult stays throughout') },
+        { id: 'drop_off', name: t('Children attend without their adult') },
       ],
     )}${field('Supervision, ages, arrival and emergency arrangements', 'safetyNotes', d.safetyNotes, 'textarea', 'Record the arrangements you can actually provide. Changing supervision reopens policy and operating reviews.')}<p class="notice">Drop-off needs additional regulatory evidence, safety arrangements and newly reviewed policies. Choosing it does not authorize a drop-off service.</p>${check('I have confirmed these participation arrangements.', 'confirm-supervision', false)}</div></details><details class="setup-form-section" id="licensing"><summary>Operating and licensing review</summary><div class="setup-form-body"><p>Consider the actual Florida requirements with the appropriate authority or adviser. This records your report; it is not independent certification or a finding of exemption.</p>${select(
       'Current review position',
       'licensingOutcome',
       d.licensingOutcome,
       [
-        { id: 'unreviewed', name: 'Not reviewed yet' },
-        { id: 'review_pending', name: 'Waiting for advice or a determination' },
-        { id: 'license_required', name: 'A license or further approval is needed' },
+        { id: 'unreviewed', name: t('Not reviewed yet') },
+        { id: 'review_pending', name: t('Waiting for advice or a determination') },
+        { id: 'license_required', name: t('A license or further approval is needed') },
         {
           id: 'owner_reports_authorized',
-          name: 'I report that the required authorization is in place',
+          name: t('I report that the required authorization is in place'),
         },
         {
           id: 'owner_reports_not_required',
-          name: 'I report a determination that this program does not require it',
+          name: t('I report a determination that this program does not require it'),
         },
       ],
-    )}${field('Determination and supporting notes', 'licensingNotes', d.licensingNotes, 'textarea')}${field('Supporting reference (optional https link)', 'licensingReference', d.licensingReference, 'url')}${check('I have recorded my current determination accurately.', 'confirm-licensing', false)}</div></details><details class="setup-form-section" id="privacy"><summary>Privacy and optional permissions</summary><div class="setup-form-body"><p>For this release, use artwork, crafts, materials, venues and non-identifying photos. Identifiable child photos and their consent workflow are deferred.</p>${field('Data, retention and privacy-request arrangements', 'privacyNotes', d.privacyNotes, 'textarea', 'Record who handles requests and the review/deletion schedule, including backups. Describe optional marketing and its opt-out process, or record that it is not used.')}<p><a href="/admin/privacy">Review historical records ↗</a> · <a href="/admin/content">Review privacy policy and review period ↗</a></p>${check('I have confirmed these privacy arrangements.', 'confirm-privacy', false)}</div></details><details class="setup-form-section" id="editorial"><summary>Website personalization</summary><div class="setup-form-body">${field('Website review notes', 'editorialNotes', d.editorialNotes, 'textarea', 'Review the homepage, About, FAQ, permitted images and contact details. This task can wait while you prepare drafts.')}${check('I have reviewed the website content.', 'confirm-editorial', false)}${check('Keep the dashboard setup section minimized.', 'minimized', s.minimized)}</div></details>${saveBar('Save setup progress')}</form><details class="setup-form-section" id="integrations"><summary>External checks: help from your developer</summary><div class="setup-form-body"><p>These checks need real external tests. You do not need to enter passwords, keys or technical settings here.</p>${s.integrations.map((i: any) => `<article class="setup-item"><h3>${h(i.title)}</h3>${status(i.status)}<p>${h(i.help)}</p></article>`).join('')}<p>Owner-reported operating review: ${h(d.licensingOutcome.replaceAll('_', ' '))}. Independent regulatory evidence: ${s.external.find((e: any) => e.kind === 'regulatory')?.verified ? 'Recorded for the current arrangements' : 'Not recorded'}.</p></div></details>`;
+    )}${field('Determination and supporting notes', 'licensingNotes', d.licensingNotes, 'textarea')}${field('Supporting reference (optional https link)', 'licensingReference', d.licensingReference, 'url')}${check('I have recorded my current determination accurately.', 'confirm-licensing', false)}</div></details><details class="setup-form-section" id="privacy"><summary>Privacy and optional permissions</summary><div class="setup-form-body"><p>For this release, use artwork, crafts, materials, venues and non-identifying photos. Identifiable child photos and their consent workflow are deferred.</p>${field('Data, retention and privacy-request arrangements', 'privacyNotes', d.privacyNotes, 'textarea', 'Record who handles requests and the review/deletion schedule, including backups. Describe optional marketing and its opt-out process, or record that it is not used.')}<p><a href="/admin/privacy">Review historical records ↗</a> · <a href="/admin/content">Review privacy policy and review period ↗</a></p>${check('I have confirmed these privacy arrangements.', 'confirm-privacy', false)}</div></details><details class="setup-form-section" id="editorial"><summary>Website personalization</summary><div class="setup-form-body">${field('Website review notes', 'editorialNotes', d.editorialNotes, 'textarea', 'Review the homepage, About, FAQ, permitted images and contact details. This task can wait while you prepare drafts.')}${check('I have reviewed the website content.', 'confirm-editorial', false)}${check('Keep the dashboard setup section minimized.', 'minimized', s.minimized)}</div></details>${saveBar('Save setup progress')}</form><details class="setup-form-section" id="integrations"><summary>External checks: help from your developer</summary><div class="setup-form-body"><p>These checks need real external tests. You do not need to enter passwords, keys or technical settings here.</p>${s.integrations.map((i: any) => ui`<article class="setup-item"><h3>${h(i.title)}</h3>${status(i.status)}<p>${h(i.help)}</p></article>`).join('')}<p>Owner-reported operating review: ${h(d.licensingOutcome.replaceAll('_', ' '))}. Independent regulatory evidence: ${s.external.find((e: any) => e.kind === 'regulatory')?.verified ? 'Recorded for the current arrangements' : 'Not recorded'}.</p></div></details>`;
   const reveal = () => {
     const id = location.hash.slice(1),
       target = document.getElementById(id);
@@ -383,7 +411,7 @@ async function renderSetup() {
     const value: any = formValues(form);
     value.minimized = (form.elements.namedItem('minimized') as HTMLInputElement).checked;
     value.confirm = ['business', 'supervision', 'licensing', 'privacy', 'editorial'].filter(
-      (k) => (form.elements.namedItem(`confirm-${k}`) as HTMLInputElement).checked,
+      (k) => (form.elements.namedItem(ui`confirm-${k}`) as HTMLInputElement).checked,
     );
     value.revision = s.revision;
     await api('setup', 'POST', value);
@@ -399,9 +427,9 @@ async function renderNotifications() {
       'Booking and payment records stay correct even when a message needs follow-up.',
       button('Check notification updates', 'check-notifications'),
     ) +
-    `<div class="notice">Development release: customer sending is disabled. Configured tests go only to the email provider’s test addresses. Accepted means accepted by the provider; it does not mean delivered.</div>` +
+    ui`<div class="notice">Development release: customer sending is disabled. Configured tests go only to the email provider’s test addresses. Accepted means accepted by the provider; it does not mean delivered.</div>` +
     (rows.length
-      ? `<div class="message-list">${rows.map((n: any) => `<article class="panel"><h2>${h(n.subject)}</h2>${status(n.state)}<p>Reference: ${h(n.registration_id)}</p><p>${h(n.last_error)}</p><p>${n.attempts} attempt(s). ${h(new Date(n.updated_at * 1000).toLocaleString())}</p>${n.state === 'queued' ? button('Retry safely', 'retry-notice', n.id) : ''}${['review', 'bounced', 'failed', 'suppressed'].includes(n.state) ? '<p>Check the outcome and contact the guardian another way. Do not send a duplicate blindly.</p>' : ''}</article>`).join('')}</div>`
+      ? ui`<div class="message-list">${rows.map((n: any) => ui`<article class="panel"><h2>${h(n.subject)}</h2>${status(n.state)}<p>Reference: ${h(n.registration_id)}</p><p>${h(n.last_error)}</p><p>${n.attempts} attempt(s). ${h(new Date(n.updated_at * 1000).toLocaleString())}</p>${n.state === 'queued' ? button('Retry safely', 'retry-notice', n.id) : ''}${['review', 'bounced', 'failed', 'suppressed'].includes(n.state) ? u('<p>Check the outcome and contact the guardian another way. Do not send a duplicate blindly.</p>') : ''}</article>`).join('')}</div>`
       : empty(
           'No booking messages yet.',
           'Verified confirmations, cancellations and refund updates will appear here.',
@@ -414,20 +442,20 @@ function retentionEditor(id: string) {
       'Keep only what is still needed, and choose when to review it again.',
       button('Back to privacy review', 'back'),
     ) +
-    `<form id="retention-form" class="panel">${select(
+    ui`<form id="retention-form" class="panel">${select(
       'Why are details still needed?',
       'reason',
       'operational_followup',
       [
-        { id: 'operational_followup', name: 'Unfinished booking follow-up' },
-        { id: 'unresolved_dispute', name: 'An unresolved dispute' },
-        { id: 'legal_obligation', name: 'A documented legal recordkeeping obligation' },
+        { id: 'operational_followup', name: t('Unfinished booking follow-up') },
+        { id: 'unresolved_dispute', name: t('An unresolved dispute') },
+        { id: 'legal_obligation', name: t('A documented legal recordkeeping obligation') },
       ],
     )}${field('Review again in this many days', 'days', 30, 'number', 'Choose 1–365 days. Keep any supporting legal advice securely; do not enter personal or medical details here.', 'required min="1" max="365"')}<p>This records a reason for temporary retention, not a legal determination.</p>${saveBar('Save retention review')}</form>`;
   const form = document.querySelector<HTMLFormElement>('#retention-form')!;
   onSave(form, async () => {
     const v = formValues(form);
-    await api(`privacy-review/${id}`, 'POST', {
+    await api(ui`privacy-review/${id}`, 'POST', {
       reason: v.reason,
       reviewAfter: Math.floor(Date.now() / 1000) + Number(v.days) * 86400,
     });
@@ -442,46 +470,46 @@ async function renderPrivacy() {
       'Privacy review',
       'Review due records, unresolved follow-up and reasons for retaining information.',
     ) +
-    `<div class="panel"><p>A due date is a reminder, not automatic deletion. Financial facts and a removal record are preserved. Historical backups and payment-provider records need their own review.</p><a href="/admin/registrations">Open registration records ↗</a></div>` +
+    ui`<div class="panel"><p>A due date is a reminder, not automatic deletion. Financial facts and a removal record are preserved. Historical backups and payment-provider records need their own review.</p><a href="/admin/registrations">Open registration records ↗</a></div>` +
     (rows.length
-      ? `<div class="grid">${rows.map((r: any) => `<article class="panel"><h2>${h(r.workshop_name)}</h2>${status(r.review_state)}<p>${h(r.id)}</p><p>Booking: ${h(r.status)}</p>${!r.anonymized_at ? button('Record retention review', 'retain-record', r.id) : ''}${r.review_after ? `<p>Review again ${h(new Date(r.review_after * 1000).toLocaleDateString())} · ${h(r.reason.replaceAll('_', ' '))}</p>` : ''}${!r.anonymized_at && !['pending', 'payment_review'].includes(r.status) ? button('Remove personal details', 'anonymize', r.id) : ''}</article>`).join('')}</div>`
+      ? ui`<div class="grid">${rows.map((r: any) => ui`<article class="panel"><h2>${h(r.workshop_name)}</h2>${status(r.review_state)}<p>${h(r.id)}</p><p>Booking: ${h(r.status)}</p>${!r.anonymized_at ? button('Record retention review', 'retain-record', r.id) : ''}${r.review_after ? ui`<p>Review again ${h(new Date(r.review_after * 1000).toLocaleDateString())} · ${h(r.reason.replaceAll('_', ' '))}</p>` : ''}${!r.anonymized_at && !['pending', 'payment_review'].includes(r.status) ? button('Remove personal details', 'anonymize', r.id) : ''}</article>`).join('')}</div>`
       : empty(
           'Nothing due yet.',
           'Historical registrations will be listed here after their class.',
         ));
 }
 async function registrationDetails(id: string) {
-  const d = await api(`registrations/${id}/details`);
+  const d = await api(ui`registrations/${id}/details`);
   workspace.innerHTML =
     heading(
       'Review a family booking',
       'Cancel selected places and handle refunds as separate, recorded actions.',
       button('Back to registrations', 'back'),
     ) +
-    `<div class="panel"><p>Reference: ${h(id)}</p><p>Cancelling places releases only those places. It does not issue a refund. The original order and payment history stay intact.</p><form id="cancel-places"><fieldset><legend>Places on this booking</legend>${d.participants.map((p: any) => check(`${p.first_name ?? 'Personal details removed'}${p.cancelled_at ? ' — cancelled' : ''}`, 'participantIds', false, !!p.cancelled_at).replace('name="participantIds"', `name="participantIds" value="${h(p.id)}"`)).join('')}</fieldset><button class="btn small" type="submit">Cancel selected places</button></form></div>${
+    ui`<div class="panel"><p>Reference: ${h(id)}</p><p>Cancelling places releases only those places. It does not issue a refund. The original order and payment history stay intact.</p><form id="cancel-places"><fieldset><legend>Places on this booking</legend>${d.participants.map((p: any) => check(ui`${p.first_name ?? 'Personal details removed'}${p.cancelled_at ? ' — cancelled' : ''}`, 'participantIds', false, !!p.cancelled_at).replace('name="participantIds"', ui`name="participantIds" value="${h(p.id)}"`)).join('')}</fieldset><button class="btn small" type="submit">Cancel selected places</button></form></div>${
       role === 'owner'
-        ? `<form id="refund-form" class="panel"><h2>Request a sandbox refund</h2><p>Review the adopted policy and agreed adjustment first. This does not cancel places or prove that a refund is complete.</p>${select(
+        ? ui`<form id="refund-form" class="panel"><h2>Request a sandbox refund</h2><p>Review the adopted policy and agreed adjustment first. This does not cancel places or prove that a refund is complete.</p>${select(
             'Verified payment',
             'paymentId',
             '',
             d.payments.map((p: any) => ({
               id: p.id,
-              name: `${p.id} · ${cash(p.amount - p.refunded)} remaining`,
+              name: ui`${p.id} · ${cash(p.amount - p.refunded)} remaining`,
             })),
           )}${field('Refund amount ($)', 'refundAmount', '', 'number', '', 'required min="0.01" step="0.01"')}<button class="btn small" type="submit">Request sandbox refund</button></form>`
         : ''
-    }<div class="panel"><h2>Refund follow-up</h2>${d.refunds.map((r: any) => `<article><p>${cash(r.amount)} · ${status(r.state)}</p><small>Request ${h(r.id)}</small>${r.state === 'review' ? button('Check same refund request', 'retry-refund', r.id) : ''}</article>`).join('') || '<p>No refund requests recorded.</p>'}</div>`;
+    }<div class="panel"><h2>Refund follow-up</h2>${d.refunds.map((r: any) => ui`<article><p>${cash(r.amount)} · ${status(r.state)}</p><small>Request ${h(r.id)}</small>${r.state === 'review' ? button('Check same refund request', 'retry-refund', r.id) : ''}</article>`).join('') || u('<p>No refund requests recorded.</p>')}</div>`;
   const form = document.querySelector<HTMLFormElement>('#cancel-places')!;
   onSave(form, async () => {
     const participantIds = new FormData(form).getAll('participantIds');
     if (!participantIds.length) throw new Error('Select at least one active place.');
     if (
       !confirm(
-        `Cancel ${participantIds.length} selected place(s)? Other places stay unchanged. Refunds are handled separately.`,
+        ui`Cancel ${participantIds.length} selected place(s)? Other places stay unchanged. Refunds are handled separately.`,
       )
     )
       return;
-    await api(`registrations/${id}/cancel-places`, 'POST', { participantIds });
+    await api(ui`registrations/${id}/cancel-places`, 'POST', { participantIds });
     await registrationDetails(id);
     notify('Selected places cancelled. Review any refund and message follow-up.');
   });
@@ -492,11 +520,11 @@ async function registrationDetails(id: string) {
       const v = formValues(refund);
       if (
         !confirm(
-          `Request ${cash(Math.round(Number(v.refundAmount) * 100))} as a sandbox refund? Places do not change.`,
+          ui`Request ${cash(Math.round(Number(v.refundAmount) * 100))} as a sandbox refund? Places do not change.`,
         )
       )
         return;
-      await api(`registrations/${id}/refund`, 'POST', {
+      await api(ui`registrations/${id}/refund`, 'POST', {
         requestId,
         paymentId: v.paymentId,
         amount: Math.round(Number(v.refundAmount) * 100),
@@ -508,7 +536,7 @@ async function registrationDetails(id: string) {
     b.addEventListener('click', async () => {
       try {
         const r = d.refunds.find((r: any) => r.id === b.dataset.id);
-        await api(`registrations/${id}/refund`, 'POST', {
+        await api(ui`registrations/${id}/refund`, 'POST', {
           requestId: r.id,
           paymentId: r.payment_id,
           amount: r.amount,
@@ -529,25 +557,26 @@ async function renderDashboard() {
     heading(
       'Overview',
       'Your workshops, your families, your next adventure.',
-      `<a class="btn small" href="/admin/workshops">Manage workshops ↗</a>`,
+      ui`<a class="btn small" href="/admin/workshops">Manage workshops ↗</a>`,
     ) +
     (role === 'owner' ? setupSummary(await api('setup')) : '') +
-    `<form id="range" class="toolbar">${field('From', 'from', from.toISOString().slice(0, 10), 'date')}${field('Through', 'to', to.toISOString().slice(0, 10), 'date')}<button class="btn small" type="submit">Update overview</button></form><div id="dashboard-data" class="loading">Loading your records…</div>`;
+    ui`<form id="range" class="toolbar">${field('From', 'from', from.toISOString().slice(0, 10), 'date')}${field('Through', 'to', to.toISOString().slice(0, 10), 'date')}<button class="btn small" type="submit">Update overview</button></form><div id="dashboard-data" class="loading">Loading your records…</div><div id="companion-summary"></div>`;
   const form = document.querySelector<HTMLFormElement>('#range')!;
   const load = async () => {
     const v = formValues(form);
     const d = await api(
-      `dashboard?from=${Date.parse(`${v.from}T00:00:00Z`) / 1000}&to=${Date.parse(`${v.to}T00:00:00Z`) / 1000 + 86400}`,
+      ui`dashboard?from=${Date.parse(ui`${v.from}T00:00:00Z`) / 1000}&to=${Date.parse(ui`${v.to}T00:00:00Z`) / 1000 + 86400}`,
     );
     const confirmed = d.registrations.find((r: any) => r.status === 'confirmed');
     document.querySelector('#dashboard-data')!.innerHTML =
-      `<div class="dashboard-layout"><div class="panel"><h2>Your next class dates</h2>${d.upcoming.length ? d.upcoming.map((s: any) => `<div class="session-row"><div><strong>${h(s.name)}</strong><p>${h(date(s.starts_at, s.timezone))}</p></div><span>${s.confirmed} confirmed · ${s.capacity - s.confirmed} remaining before holds</span><a class="text-link" href="/admin/sessions">Review dates ↗</a></div>`).join('') : '<p class="muted">No upcoming class dates. Create a workshop, then add its first date.</p>'}</div><div class="panel"><h2>Needs attention</h2><p>${d.notifications?.attention ?? 0} messages need follow-up · ${d.notifications?.pending ?? 0} waiting to send. <a href="/admin/notifications">Review messages ↗</a></p>${d.attention.length ? `<ul class="attention-list">${d.attention.map((r: any) => `<li>${h(r.workshop_name)} · ${status(r.status)} · <a href="/admin/registrations">Review registration</a></li>`).join('')}</ul>` : '<p class="muted">No registrations flagged for payment follow-up.</p>'}</div></div><h2 class="section-title">Activity in your selected period</h2><p class="muted">Payment and registration activity in the chosen date range (UTC calendar dates).</p><div class="stats"><div class="stat"><small>Gross verified sales</small><span class="value money">${cash(d.financial.gross)}</span><small>${d.financial.payments} verified payment${d.financial.payments === 1 ? '' : 's'} · Before refunds and fees</small></div><div class="stat"><small>Refunds verified</small><span class="value money">${cash(d.financial.refunds)}</span><small>Refunds on payments made in this period</small></div><div class="stat"><small>Confirmed children</small><span class="value">${confirmed?.children ?? 0}</span><small>${confirmed?.orders ?? 0} confirmed registrations created in this period</small></div></div><div class="panel"><h2>Workshop popularity</h2>${d.popular.length ? d.popular.map((p: any) => `<p>${h(p.workshop_name)} — ${p.children} confirmed children</p>`).join('') : '<p class="muted">Confirmed registrations will build this picture over time.</p>'}</div>${role === 'owner' ? `<div class="panel"><h2>Privacy review</h2><p>${d.privacy?.count ?? 0} historical registrations are due for a personal-data review. Open Registrations to remove personal details when appropriate.</p></div>` : ''}<div class="panel"><h2>Registration states</h2>${d.registrations.length ? d.registrations.map((r: any) => `<p>${status(r.status)} ${r.orders} registrations · ${r.children} children</p>`).join('') : '<p class="muted">No registrations in this date range.</p>'}</div>`;
+      ui`<div class="dashboard-layout"><div class="panel"><h2>Your next class dates</h2>${d.upcoming.length ? d.upcoming.map((s: any) => ui`<div class="session-row"><div><strong>${h(s.name)}</strong><p>${h(date(s.starts_at, s.timezone))}</p></div><span>${s.confirmed} confirmed · ${s.capacity - s.confirmed} remaining before holds</span><a class="text-link" href="/admin/sessions">Review dates ↗</a></div>`).join('') : u('<p class="muted">No upcoming class dates. Create a workshop, then add its first date.</p>')}</div><div class="panel"><h2>Needs attention</h2><p>${d.notifications?.attention ?? 0} messages need follow-up · ${d.notifications?.pending ?? 0} waiting to send. <a href="/admin/notifications">Review messages ↗</a></p>${d.attention.length ? ui`<ul class="attention-list">${d.attention.map((r: any) => ui`<li>${h(r.workshop_name)} · ${status(r.status)} · <a href="/admin/registrations">Review registration</a></li>`).join('')}</ul>` : u('<p class="muted">No registrations flagged for payment follow-up.</p>')}</div></div><h2 class="section-title">Activity in your selected period</h2><p class="muted">Payment and registration activity in the chosen date range (UTC calendar dates).</p><div class="stats"><div class="stat"><small>Gross verified sales</small><span class="value money">${cash(d.financial.gross)}</span><small>${d.financial.payments} verified payment${d.financial.payments === 1 ? '' : 's'} · Before refunds and fees</small></div><div class="stat"><small>Refunds verified</small><span class="value money">${cash(d.financial.refunds)}</span><small>Refunds on payments made in this period</small></div><div class="stat"><small>Confirmed children</small><span class="value">${confirmed?.children ?? 0}</span><small>${confirmed?.orders ?? 0} confirmed registrations created in this period</small></div></div><div class="panel"><h2>Workshop popularity</h2>${d.popular.length ? d.popular.map((p: any) => ui`<p>${h(p.workshop_name)} — ${p.children} confirmed children</p>`).join('') : u('<p class="muted">Confirmed registrations will build this picture over time.</p>')}</div>${role === 'owner' ? ui`<div class="panel"><h2>Privacy review</h2><p>${d.privacy?.count ?? 0} historical registrations are due for a personal-data review. Open Registrations to remove personal details when appropriate.</p></div>` : ''}<div class="panel"><h2>Registration states</h2>${d.registrations.length ? d.registrations.map((r: any) => ui`<p>${status(r.status)} ${r.orders} registrations · ${r.children} children</p>`).join('') : u('<p class="muted">No registrations in this date range.</p>')}</div>`;
   };
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     load().catch((e) => notify(e.message, true));
   });
   await load();
+  await companionSummary(document.querySelector<HTMLElement>('#companion-summary')!, api);
 }
 async function renderContent() {
   [content, media] = await Promise.all([api('content'), api('media')]);
@@ -556,25 +585,25 @@ async function renderContent() {
     heading(
       'Website content',
       'Edit the words and images. The design takes care of itself.',
-      `<a class="btn small light" href="/" target="_blank" rel="noopener">View website ↗</a>`,
+      ui`<a class="btn small light" href="/" target="_blank" rel="noopener">View website ↗</a>`,
     ) +
-    `<form id="editor"><div class="form-columns"><div><div class="panel"><h2>Your homepage</h2>${field('Main headline', 'headline', content.headline, 'textarea', '', 'required maxlength="140"')}${field('Welcome text', 'intro', content.intro, 'textarea')}${field('Promotional heading', 'promotion', content.promotion)}${select('Homepage image', 'heroMediaId', content.heroMediaId, [{ id: '', name: 'Original Adventure Station artwork' }, ...media.map((m) => ({ id: m.id, name: m.alt }))])}${select(
+    ui`<div class="content-language"><span>Content language: English</span><button class="btn small light" type="button" data-action="translate-site">Español</button></div><form id="editor"><div class="form-columns"><div><div class="panel"><h2>Your homepage</h2>${field('Main headline', 'headline', content.headline, 'textarea', '', 'required maxlength="140"')}${field('Welcome text', 'intro', content.intro, 'textarea')}${field('Promotional heading', 'promotion', content.promotion)}${select('Homepage image', 'heroMediaId', content.heroMediaId, [{ id: '', name: t('Original Adventure Station artwork') }, ...media.map((m) => ({ id: m.id, name: m.alt }))])}${select(
       'Accent color',
       'accent',
       content.accent,
       [
-        { id: 'coral', name: 'Warm coral' },
-        { id: 'blue', name: 'Creative blue' },
-        { id: 'green', name: 'Garden green' },
+        { id: 'coral', name: t('Warm coral') },
+        { id: 'blue', name: t('Creative blue') },
+        { id: 'green', name: t('Garden green') },
       ],
     )}</div><div class="panel"><h2>Our story</h2>${field('Business description', 'about', content.about, 'textarea')}</div><div class="panel"><h2>Frequently asked questions</h2><div id="faq-fields"></div>${button('+ Add a question', 'add-faq')}</div></div><div><div class="panel"><h2>Say hello</h2>${field('Contact email', 'email', content.email, 'email', '', 'required')}${field('Contact phone (optional)', 'phone', content.phone)}${field('Florida city / locality', 'locality', content.locality, 'text', 'Confirm the actual business location.', owner ? '' : 'disabled')}${select(
       'Business timezone',
       'timezone',
       content.timezone,
       [
-        { id: '', name: 'Awaiting location confirmation' },
-        { id: 'America/New_York', name: 'Eastern Time' },
-        { id: 'America/Chicago', name: 'Central Time' },
+        { id: '', name: t('Awaiting location confirmation') },
+        { id: 'America/New_York', name: t('Eastern Time') },
+        { id: 'America/Chicago', name: t('Central Time') },
       ],
       owner ? '' : 'disabled',
     )}</div><div class="panel"><h2>Workshop & privacy policies</h2>${owner ? button('Load recommended policy drafts', 'load-policy-drafts') : ''}<p class="muted">Recommended drafts use parent-present workshops. Confirm operating arrangements and complete every [OWNER: ...] item before approval. Draft text stays private until approved.</p><p class="muted">Only publish policies the owner has confirmed. These are also saved with each registration.</p>${field('Cancellations & refunds', 'refundPolicy', content.refundPolicy, 'textarea', '', owner ? '' : 'disabled')}${field('Guardian supervision', 'supervisionPolicy', content.supervisionPolicy, 'textarea', '', owner ? '' : 'disabled')}${field('Drop-off & pickup', 'pickupPolicy', content.pickupPolicy, 'textarea', '', owner ? '' : 'disabled')}${field('Privacy & registration information', 'privacyPolicy', content.privacyPolicy, 'textarea', '', owner ? '' : 'disabled')}${check('I confirm these policies, the location and timezone are accurate and approved for families.', 'policiesApproved', content.policiesApproved, !owner)}${field('Privacy review after this many days', 'retentionDays', content.retentionDays, 'number', 'Review historical personal details for removal after this period. Financial facts are retained.', owner ? 'min="30" max="730"' : 'disabled')}</div></div></div>${saveBar('Publish website changes')}</form><div class="panel"><h2>Earlier versions</h2><p>Restore earlier text into the form, review it, then publish to apply it.</p><div id="history-list"></div></div>`;
@@ -583,14 +612,14 @@ async function renderContent() {
     document.querySelector('#faq-fields')!.innerHTML = faqs
       .map(
         (f, i) =>
-          `<fieldset><legend>Question ${i + 1}</legend>${field('Question', `faq-q-${i}`, f.question)}${field('Answer', `faq-a-${i}`, f.answer, 'textarea')}${button('Remove question', 'remove-faq', String(i))}</fieldset>`,
+          ui`<fieldset><legend>Question ${i + 1}</legend>${field('Question', ui`faq-q-${i}`, f.question)}${field('Answer', ui`faq-a-${i}`, f.answer, 'textarea')}${button('Remove question', 'remove-faq', String(i))}</fieldset>`,
       )
       .join('');
   }
   function captureFaqs() {
     faqs.forEach((f, i) => {
-      f.question = (document.querySelector(`[name=faq-q-${i}]`) as HTMLInputElement)?.value ?? '';
-      f.answer = (document.querySelector(`[name=faq-a-${i}]`) as HTMLInputElement)?.value ?? '';
+      f.question = (document.querySelector(ui`[name=faq-q-${i}]`) as HTMLInputElement)?.value ?? '';
+      f.answer = (document.querySelector(ui`[name=faq-a-${i}]`) as HTMLInputElement)?.value ?? '';
     });
   }
   renderFaqs();
@@ -631,10 +660,10 @@ async function renderContent() {
     ? history
         .map(
           (r: any) =>
-            `<p>${h(new Date(r.created_at * 1000).toLocaleString())} ${button('Restore into form', 'restore-content', r.id)}</p>`,
+            ui`<p>${h(new Date(r.created_at * 1000).toLocaleString())} ${button('Restore into form', 'restore-content', r.id)}</p>`,
         )
         .join('')
-    : '<p class="muted">Your previous version will be kept each time you publish.</p>';
+    : u('<p class="muted">Your previous version will be kept each time you publish.</p>');
   document.querySelector('#history-list')!.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-action=restore-content]');
     if (!b) return;
@@ -659,7 +688,7 @@ async function renderVenues() {
       button('+ Add venue', 'new-venue', '', ''),
     ) +
     (venues.length
-      ? `<div class="grid">${venues.map((v) => `<article class="panel"><h2>${h(v.name)}</h2>${status(v.archived ? 'archived' : v.verified ? 'verified' : 'needs verification')}<p>${h(v.address)}</p><p>${h(v.instructions)}</p>${button('Edit venue', 'edit-venue', v.id)}</article>`).join('')}</div>`
+      ? ui`<div class="grid">${venues.map((v) => ui`<article class="panel"><h2>${h(v.name)}</h2>${status(v.archived ? 'archived' : v.verified ? 'verified' : 'needs verification')}<p>${h(v.address)}</p><p>${h(v.instructions)}</p>${button('Edit venue', 'edit-venue', v.id)}</article>`).join('')}</div>`
       : empty(
           'A place for the next adventure.',
           'Add and verify a venue before you publish dates.',
@@ -674,7 +703,7 @@ function venueEditor(
       'Use verified business information.',
       button('Back', 'back'),
     ) +
-    `<form id="editor" class="panel">${field('Venue name', 'name', v.name, 'text', '', 'required')}${field('Full address', 'address', v.address, 'textarea')}${field('Arrival instructions', 'instructions', v.instructions, 'textarea')}${field('Venue capacity', 'capacity', v.capacity ?? '', 'number', 'Maximum children permitted for these activities.', 'min="1" max="100"')}${field('Accessibility information', 'accessibility', v.accessibility ?? '', 'textarea')}${check('Permission to hold workshops here is confirmed.', 'permission_confirmed', !!v.permission_confirmed)}${check('I have verified this address and the venue details.', 'verified', !!v.verified)}${check('Archive this venue (keep it in history).', 'archived', !!v.archived)}${saveBar('Save venue')}</form>`;
+    ui`${v.id ? ui`<div class="content-language"><span>Content language: English</span><button class="btn small light" type="button" data-action="translate-venue" data-id="${h(v.id)}">Español</button></div>` : ''}<form id="editor" class="panel">${field('Venue name', 'name', v.name, 'text', '', 'required')}${field('Full address', 'address', v.address, 'textarea')}${field('Arrival instructions', 'instructions', v.instructions, 'textarea')}${field('Venue capacity', 'capacity', v.capacity ?? '', 'number', 'Maximum children permitted for these activities.', 'min="1" max="100"')}${field('Accessibility information', 'accessibility', v.accessibility ?? '', 'textarea')}${check('Permission to hold workshops here is confirmed.', 'permission_confirmed', !!v.permission_confirmed)}${check('I have verified this address and the venue details.', 'verified', !!v.verified)}${check('Archive this venue (keep it in history).', 'archived', !!v.archived)}${saveBar('Save venue')}</form>`;
   const form = document.querySelector<HTMLFormElement>('#editor')!;
   onSave(form, async () => {
     const d: any = formValues(form);
@@ -684,7 +713,7 @@ function venueEditor(
     ).checked;
     d.verified = (form.elements.namedItem('verified') as HTMLInputElement).checked;
     d.archived = (form.elements.namedItem('archived') as HTMLInputElement).checked;
-    await api(`venues${v.id ? `/${v.id}` : ''}`, 'POST', d);
+    await api(ui`venues${v.id ? ui`/${v.id}` : ''}`, 'POST', d);
     notify('Venue saved.');
     await renderVenues();
   });
@@ -697,7 +726,7 @@ async function renderRegistrations() {
       'Payment and registration states are shown separately.',
       button('Check payment updates', 'reconcile'),
     ) +
-    `<div class="panel"><div class="field"><label for="registration-search">Find a registration</label><input id="registration-search" type="search" placeholder="Guardian, workshop, or reference"/></div><div class="overflow"><table class="table registrations-table"><thead><tr><th>Workshop / guardian</th><th>Places</th><th>Registration</th><th>Verified payment</th><th>Actions</th></tr></thead><tbody>${rows.map((r: any) => `<tr data-search="${h(`${r.guardian_name} ${r.guardian_email} ${r.workshop_name} ${r.id}`.toLowerCase())}"><td data-label="Workshop and guardian"><strong>${h(r.workshop_name)}</strong><br/>${h(r.guardian_name ?? 'Personal details removed')}<br/><small>${h(r.guardian_email)}<br/>${h(r.id)}</small></td><td data-label="Places">${r.seats - r.cancelled_seats} active<br/><small>${r.seats} originally booked</small></td><td data-label="Registration">${status(r.status)}${r.needs_attention ? '<br/><small>Follow-up needed</small>' : ''}</td><td data-label="Verified payment">${cash(r.paid)} received<br/>${(r.payment_issues ?? []).map((i: any) => `<strong>Needs review: ${h(i.amount / 100)} ${h(i.currency)}</strong><br/>`).join('')}${cash(r.refunded)} refunded<br/><small>Order total ${cash(r.total)}</small></td><td data-label="Actions">${button('Review booking', 'booking-details', r.id)}<div class="inline-actions">${r.status === 'payment_review' && r.paid - r.refunded >= r.total ? button('Confirm available places', 'confirm-review', r.id) : ''}${r.needs_attention && !['pending', 'payment_review'].includes(r.status) ? button('Follow-up complete', 'complete-review', r.id) : ''}</div>${role === 'owner' ? `<div class="inline-actions">${r.paid > r.refunded || (r.payment_issues ?? []).some((i: any) => i.refunded < i.amount) ? button('Review refund', 'booking-details', r.id) : ''}${r.ends_at < Date.now() / 1000 && !r.anonymized_at ? button('Remove personal details', 'anonymize', r.id) : ''}</div>` : ''}</td></tr>`).join('')}</tbody></table></div>${!rows.length ? '<p class="muted">Registrations will appear here when a family starts checkout.</p>' : ''}</div>`;
+    ui`<div class="panel"><div class="field"><label for="registration-search">Find a registration</label><input id="registration-search" type="search" placeholder="Guardian, workshop, or reference"/></div><div class="overflow"><table class="table registrations-table"><thead><tr><th>Workshop / guardian</th><th>Places</th><th>Registration</th><th>Verified payment</th><th>Actions</th></tr></thead><tbody>${rows.map((r: any) => ui`<tr data-search="${h(ui`${r.guardian_name} ${r.guardian_email} ${r.workshop_name} ${r.id}`.toLowerCase())}"><td data-label="Workshop and guardian"><strong>${h(r.workshop_name)}</strong><br/>${h(r.guardian_name ?? t('Personal details removed'))}<br/><small>${h(r.guardian_email)}<br/>${h(r.id)}</small></td><td data-label="Places">${r.seats - r.cancelled_seats} active<br/><small>${r.seats} originally booked</small></td><td data-label="Registration">${status(r.status)}${r.needs_attention ? u('<br/><small>Follow-up needed</small>') : ''}</td><td data-label="Verified payment">${cash(r.paid)} received<br/>${(r.payment_issues ?? []).map((i: any) => ui`<strong>Needs review: ${h(i.amount / 100)} ${h(i.currency)}</strong><br/>`).join('')}${cash(r.refunded)} refunded<br/><small>Order total ${cash(r.total)}</small></td><td data-label="Actions">${button('Review booking', 'booking-details', r.id)}<div class="inline-actions">${r.status === 'payment_review' && r.paid - r.refunded >= r.total ? button('Confirm available places', 'confirm-review', r.id) : ''}${r.needs_attention && !['pending', 'payment_review'].includes(r.status) ? button('Follow-up complete', 'complete-review', r.id) : ''}</div>${role === 'owner' ? ui`<div class="inline-actions">${r.paid > r.refunded || (r.payment_issues ?? []).some((i: any) => i.refunded < i.amount) ? button('Review refund', 'booking-details', r.id) : ''}${r.ends_at < Date.now() / 1000 && !r.anonymized_at ? button('Remove personal details', 'anonymize', r.id) : ''}</div>` : ''}</td></tr>`).join('')}</tbody></table></div>${!rows.length ? u('<p class="muted">Registrations will appear here when a family starts checkout.</p>') : ''}</div>`;
   workspace
     .querySelector<HTMLInputElement>('#registration-search')!
     .addEventListener('input', (event) => {
@@ -733,7 +762,7 @@ async function renderMedia() {
   media = await api('media');
   workspace.innerHTML =
     heading('Your creative library.', 'Images here can be used on the website and in workshops.') +
-    `<form id="upload" class="panel"><h2>Add an image</h2><p class="muted">Upload a JPEG, PNG or WebP. Images are optimized and metadata is removed before publication. Use only images you have permission to publish; this is a public website image library.</p>${field('Choose image', 'image', '', 'file', '', 'accept="image/jpeg,image/png,image/webp" required')}${field('Describe the image', 'alt', '', 'text', 'Used for accessibility and to help you find it later.', 'required maxlength="300"')}${check('I have permission to publish this image, including any required photo permissions.', 'rights', false)}${check('This image does not identify a child.', 'non_identifying', false)}<p>Use brand artwork, craft projects, materials, venues or non-identifying photos. Identifiable child photos are deferred.</p><button class="btn" type="submit">Upload image ↗</button></form><div class="media-grid">${media.map((m) => `<article class="media-item"><img src="/media/${h(m.id)}?w=480" width="480" height="480" alt="${h(m.alt)}"/><p>${h(m.alt)}</p><small>${m.width} × ${m.height} · ${Math.ceil(m.bytes / 1024)} KB (all sizes)</small><div class="inline-actions">${button('Edit description', 'alt-media', m.id)}${button('Remove unused image', 'delete-media', m.id)}</div></article>`).join('')}</div>`;
+    ui`<form id="upload" class="panel"><h2>Add an image</h2><p class="muted">Upload a JPEG, PNG or WebP. Images are optimized and metadata is removed before publication. Use only images you have permission to publish; this is a public website image library.</p>${field('Choose image', 'image', '', 'file', '', 'accept="image/jpeg,image/png,image/webp" required')}${field('Describe the image', 'alt', '', 'text', 'Used for accessibility and to help you find it later.', 'required maxlength="300"')}${check('I have permission to publish this image, including any required photo permissions.', 'rights', false)}${check('This image does not identify a child.', 'non_identifying', false)}<p>Use brand artwork, craft projects, materials, venues or non-identifying photos. Identifiable child photos are deferred.</p><button class="btn" type="submit">Upload image ↗</button></form><div class="media-grid">${media.map((m) => ui`<article class="media-item"><img src="/media/${h(m.id)}?w=480" width="480" height="480" alt="${h(m.alt)}"/><p>${h(m.alt)}</p><small>${m.width} × ${m.height} · ${Math.ceil(m.bytes / 1024)} KB (all sizes)</small><div class="inline-actions">${button('Edit description', 'alt-media', m.id)}${button('Remove unused image', 'delete-media', m.id)}</div></article>`).join('')}</div>`;
   const form = document.querySelector<HTMLFormElement>('#upload')!;
   onSave(form, async () => {
     const data = new FormData(form),
@@ -743,7 +772,8 @@ async function renderMedia() {
     payload.set('alt', String(data.get('alt')));
     payload.set('non_identifying', String(data.get('non_identifying') === 'on'));
     payload.set('rights', String(data.get('rights') === 'on'));
-    for (const w of [1600, 960, 480]) payload.set(String(w), await optimized(file, w), `${w}.jpg`);
+    for (const w of [1600, 960, 480])
+      payload.set(String(w), await optimized(file, w), ui`${w}.jpg`);
     await api('media', 'POST', payload);
     notify('Image uploaded. Choose it from a workshop or the website content page.');
     await renderMedia();
@@ -757,7 +787,7 @@ async function renderTeam() {
       'Give each person only the access they need.',
       button('+ Add team member', 'new-team', '', ''),
     ) +
-    `<div class="panel overflow"><table class="table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Access</th><th></th></tr></thead><tbody>${team.map((s: any) => `<tr><td>${h(s.name)}</td><td>${h(s.email)}</td><td>${h(s.role)}</td><td>${status(s.active ? 'active' : 'disabled')}</td><td>${button('Edit access', 'edit-team', s.id)}</td></tr>`).join('')}</tbody></table></div>`;
+    ui`<div class="panel overflow"><table class="table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Access</th><th></th></tr></thead><tbody>${team.map((s: any) => ui`<tr><td>${h(s.name)}</td><td>${h(s.email)}</td><td>${h(t(s.role))}</td><td>${status(s.active ? 'active' : 'disabled')}</td><td>${button('Edit access', 'edit-team', s.id)}</td></tr>`).join('')}</tbody></table></div>`;
   workspace
     .querySelectorAll('[data-action=edit-team]')
     .forEach((b) =>
@@ -773,23 +803,31 @@ function teamEditor(s: any = { name: '', email: '', role: 'instructor', active: 
       'Staff sign in using the email allowed here. No separate password to manage.',
       button('Back', 'back'),
     ) +
-    `<form id="editor" class="panel">${field('Name', 'name', s.name, 'text', '', 'required')}${field('Sign-in email', 'email', s.email, 'email', '', 'required')}${select(
+    ui`<form id="editor" class="panel">${field('Name', 'name', s.name, 'text', '', 'required')}${field('Sign-in email', 'email', s.email, 'email', '', 'required')}${select(
       'Role',
       'role',
-      s.role,
+      s.base_role ?? s.role,
       [
-        { id: 'instructor', name: 'Instructor — assigned attendance only' },
-        { id: 'manager', name: 'Manager — workshops, content and registrations' },
-        { id: 'owner', name: 'Owner — full access including team and payments' },
+        { id: 'instructor', name: t('Instructor — assigned attendance only') },
+        { id: 'manager', name: t('Manager — workshops, content and registrations') },
+        { id: 'owner', name: t('Owner — full access including team and payments') },
       ],
-    )}${check('Allow this person to sign in.', 'active', !!s.active)}${saveBar('Save team access')}</form>`;
+    )}${check('Allow this person to sign in.', 'active', !!s.active)}${saveBar('Save team access')}</form>${role === 'owner' && s.id && s.base_role !== 'owner' ? ui`<section class="panel"><h2>Godmin technical access</h2><p>Requires a verified sign-in and explicit owner confirmation. Business, financial and policy approvals stay with the owner.</p>${s.identity_bound ? button(s.role === 'godmin' ? 'Revoke Godmin access' : 'Grant Godmin access', 'godmin-change', s.id) : ui`<p>Waiting for this person to sign in with their invited identity.</p>`}</section>` : ''}`;
+  workspace.querySelector('[data-action=godmin-change]')?.addEventListener('click', async () => {
+    if (!confirm(t('Confirm this change to verified technical access?'))) return;
+    try {
+      await api('team/' + s.id + '/godmin', 'POST', { grant: s.role !== 'godmin', confirm: true });
+      await renderTeam();
+    } catch (error) {
+      notify((error as Error).message, true);
+    }
+  });
   const form = document.querySelector<HTMLFormElement>('#editor')!;
   onSave(form, async () => {
     const d = formValues(form);
     await api('team', 'POST', {
       ...d,
       id: s.id,
-      subject: s.subject ?? null,
       active: (form.elements.namedItem('active') as HTMLInputElement).checked,
     });
     notify('Team access saved. Cloudflare Access must also allow this person to sign in.');
@@ -797,6 +835,7 @@ function teamEditor(s: any = { name: '', email: '', role: 'instructor', active: 
   });
 }
 async function render() {
+  if (await renderExtra(section, role, workspace, api, notify)) return;
   if (role === 'instructor') {
     await renderSessions();
     return;
@@ -861,7 +900,7 @@ workspace.addEventListener('click', async (event) => {
         notify('Notification checks complete. Review any follow-up.');
         break;
       case 'retry-notice':
-        await api(`notifications/${key}/retry`, 'POST', {});
+        await api(ui`notifications/${key}/retry`, 'POST', {});
         await renderNotifications();
         break;
       case 'load-policy-drafts':
@@ -929,13 +968,13 @@ workspace.addEventListener('click', async (event) => {
             'Confirm these paid places? Contact the guardian to explain the outcome. Availability is checked again when saving.',
           )
         ) {
-          await api(`registrations/${key}/review`, 'POST', { action: 'confirm' });
+          await api(ui`registrations/${key}/review`, 'POST', { action: 'confirm' });
           notify('Places confirmed. Please inform the guardian.');
           await renderRegistrations();
         }
         break;
       case 'complete-review':
-        await api(`registrations/${key}/review`, 'POST', { action: 'complete' });
+        await api(ui`registrations/${key}/review`, 'POST', { action: 'complete' });
         notify('Follow-up marked complete.');
         await renderRegistrations();
         break;
@@ -945,7 +984,7 @@ workspace.addEventListener('click', async (event) => {
             'Permanently remove guardian and child personal details from this historical registration? Financial records will remain.',
           )
         ) {
-          await api(`registrations/${key}/anonymize`, 'POST', {});
+          await api(ui`registrations/${key}/anonymize`, 'POST', {});
           notify('Personal details removed. Financial history preserved.');
           if (section === 'privacy') await renderPrivacy();
           else await renderRegistrations();
@@ -957,7 +996,7 @@ workspace.addEventListener('click', async (event) => {
             'Remove this unused image? Images referenced by workshops or saved page versions are protected.',
           )
         ) {
-          await api(`media/${key}`, 'DELETE');
+          await api(ui`media/${key}`, 'DELETE');
           notify('Unused image removed.');
           await renderMedia();
         }
@@ -966,12 +1005,21 @@ workspace.addEventListener('click', async (event) => {
         const current = media.find((m) => m.id === key),
           alt = prompt('Describe this image for accessibility:', current.alt);
         if (alt) {
-          await api(`media/${key}`, 'POST', { alt });
+          await api(ui`media/${key}`, 'POST', { alt });
           notify('Image description saved.');
           await renderMedia();
         }
         break;
       }
+      case 'translate-workshop':
+        await translationEditor('workshop', key);
+        break;
+      case 'translate-venue':
+        await translationEditor('venue', key);
+        break;
+      case 'translate-site':
+        await translationEditor('site', 'site');
+        break;
       case 'new-team':
         teamEditor();
         break;
@@ -990,3 +1038,82 @@ render().catch((e) => {
   );
   notify(e.message, true);
 });
+
+async function translationEditor(type: 'workshop' | 'site' | 'venue', id: string) {
+  const data = await api(ui`translations/${type}/${id}`),
+    value = data.value;
+  const keys =
+    type === 'workshop'
+      ? ['name', 'summary', 'description', 'category', 'materials', 'instructions']
+      : type === 'venue'
+        ? ['instructions', 'accessibility']
+        : [
+            'headline',
+            'intro',
+            'about',
+            'promotion',
+            'refundPolicy',
+            'supervisionPolicy',
+            'pickupPolicy',
+            'privacyPolicy',
+          ];
+  const labels: Record<string, string> = {
+    name: t('Workshop name'),
+    summary: 'Short description',
+    description: 'Full description',
+    category: 'Category',
+    materials: 'Materials',
+    instructions: 'Instructions',
+    accessibility: 'Accessibility',
+    headline: 'Main headline',
+    intro: 'Welcome text',
+    about: 'Business description',
+    promotion: 'Promotional heading',
+    refundPolicy: 'Cancellations & refunds',
+    supervisionPolicy: 'Guardian supervision',
+    pickupPolicy: 'Drop-off & pickup',
+    privacyPolicy: 'Privacy & registration information',
+  };
+  workspace.innerHTML =
+    heading(
+      'Spanish content',
+      'One shared record. Dates, prices, capacity and registrations stay unchanged.',
+      button('Back', 'back'),
+    ) +
+    ui`<p class="notice">${t('Save English changes before switching content language. Policy translations require separate owner approval.')}</p><form id="translation-editor" class="panel">${keys.map((k) => field(labels[k]!, k, value[k] ?? '', ['name', 'category', 'headline', 'promotion'].includes(k) ? 'text' : 'textarea')).join('')}${type === 'site' ? ui`${data.proposedPolicies ? ui`<button class="btn light" type="button" id="load-spanish-policies">${t('Load proposed Spanish policy drafts')}</button><p>${t('Drafts need comparison with your English policies and owner review. Loading does not approve or save them.')}</p>` : ''}<h2>${t('Frequently asked questions')}</h2><div id="translated-faqs">${(value.faqs ?? []).map((f: any, i: number) => ui`<fieldset>${field('Question', 'question-' + i, f.question)}${field('Answer', 'answer-' + i, f.answer, 'textarea')}</fieldset>`).join('')}</div><button type="button" class="btn light" id="translation-add-faq">${t('Add a question')}</button>${check('I have reviewed and approve these Spanish policy translations.', 'approved', data.approved, role !== 'owner')}` : ''}${saveBar('Save Spanish content')}</form><details class="panel"><summary>${t('English source for reference')}</summary>${keys.map((k) => ui`<h3>${h(t(labels[k]!))}</h3><p class="prose">${h(data.source[k])}</p>`).join('')}</details>`;
+  const form = document.querySelector<HTMLFormElement>('#translation-editor')!;
+  document.querySelector('#load-spanish-policies')?.addEventListener('click', () => {
+    if (!confirm(t('Replace these unsaved policy fields with proposed drafts?'))) return;
+    for (const [key, value] of Object.entries(data.proposedPolicies.policies))
+      (form.elements.namedItem(key) as HTMLTextAreaElement).value = String(value);
+    (form.elements.namedItem('approved') as HTMLInputElement).checked = false;
+  });
+  document.querySelector('#translation-add-faq')?.addEventListener('click', () => {
+    const list = document.querySelector('#translated-faqs')!,
+      i = list.children.length;
+    list.insertAdjacentHTML(
+      'beforeend',
+      ui`<fieldset>${field('Question', 'question-' + i)}${field('Answer', 'answer-' + i, '', 'textarea')}</fieldset>`,
+    );
+  });
+  onSave(form, async () => {
+    const values = formValues(form);
+    const result: Record<string, unknown> = Object.fromEntries(
+      keys.map((k) => [k, values[k] ?? '']),
+    );
+    if (type === 'site')
+      result.faqs = [...form.querySelectorAll('#translated-faqs fieldset')].map((_, i) => ({
+        question: values['question-' + i],
+        answer: values['answer-' + i],
+      }));
+    await api(ui`translations/${type}/${id}`, 'POST', {
+      value: result,
+      revision: data.revision,
+      sourceRevision: data.sourceRevision,
+      approved:
+        type === 'site' ? (form.elements.namedItem('approved') as HTMLInputElement).checked : false,
+    });
+    notify('Spanish content saved. Policy approval remains separate.');
+    await translationEditor(type, id);
+  });
+}

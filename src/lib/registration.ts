@@ -1,7 +1,8 @@
 import { registrationSchema } from './validation';
 import { HttpError, sha256, now } from './http';
-import { settings, audit } from './data';
+import { audit } from './data';
 import { ownerSetup } from './setup';
+import { localizedSite, localizedBookingCopy } from './translations';
 import {
   createCheckout,
   paymentConfigured,
@@ -23,6 +24,7 @@ export type Registration = {
   checkout_url: string | null;
   request_hash: string;
   receipt_hash: string;
+  locale?: import('./i18n').Locale;
 };
 export async function receiptToken(env: Cloudflare.Env, id: string) {
   const key = await crypto.subtle.importKey(
@@ -61,11 +63,19 @@ export async function register(env: Cloudflare.Env, input: unknown, intent: stri
   if (!/^[a-f0-9-]{36}$/.test(intent))
     throw new HttpError(400, 'Refresh this page before registering.');
   const data = registrationSchema.parse(input),
-    site = await settings(env.DB);
+    site = await localizedSite(env.DB, data.locale);
   if (!site.policiesApproved || !site.timezone || !site.locality)
     throw new HttpError(
       503,
       'Registration information is being finalized. Please contact Adventure Station.',
+    );
+  if (
+    (data.locale === 'es-MX' && !data.policy_version) ||
+    (data.policy_version && data.policy_version !== site.policyVersion)
+  )
+    throw new HttpError(
+      409,
+      'The policy version changed. Reload and review the policies before registering.',
     );
   const requestHash = await sha256(JSON.stringify(data));
   if (!(await ownerSetup(env)).registrationAllowed)
@@ -93,11 +103,19 @@ export async function register(env: Cloudflare.Env, input: unknown, intent: stri
     if (!s) throw new HttpError(404, 'This class date is unavailable.');
     if (data.participants.some((p) => p.age < s.age_min || p.age > s.age_max))
       throw new HttpError(400, `This workshop is for ages ${s.age_min}–${s.age_max}.`);
+    const copy = await localizedBookingCopy(env.DB, data.session_id, data.locale);
+    if (!copy) throw new HttpError(404, 'This class date is unavailable.');
+    const { workshop: localized, venueInstructions } = copy;
+    if (copy.translationIncomplete)
+      throw new HttpError(
+        503,
+        'Spanish workshop instructions need review before registration. English registration remains separate.',
+      );
     try {
       await env.DB.batch([
         env.DB.prepare(
-          `INSERT INTO registrations(id,intent_key,request_hash,receipt_hash,session_id,seats,guardian_name,guardian_email,guardian_phone,marketing_consent,photo_consent,status,hold_until,total,workshop_name,starts_at,ends_at,timezone,venue_name,venue_address,policy_snapshot,age_min,age_max,instructions_snapshot,contact_snapshot)
-    SELECT ?,?,?,?,s.id,?,?,?,?,?,?,'pending',?,s.price*?,w.name,s.starts_at,s.ends_at,s.timezone,v.name,v.address,?,w.age_min,w.age_max,w.instructions||char(10)||v.instructions,?
+          `INSERT INTO registrations(id,intent_key,request_hash,receipt_hash,session_id,seats,guardian_name,guardian_email,guardian_phone,marketing_consent,photo_consent,status,hold_until,total,workshop_name,starts_at,ends_at,timezone,venue_name,venue_address,policy_snapshot,age_min,age_max,instructions_snapshot,contact_snapshot,locale,policy_version)
+    SELECT ?,?,?,?,s.id,?,?,?,?,?,?,'pending',?,s.price*?,?,s.starts_at,s.ends_at,s.timezone,v.name,v.address,?,w.age_min,w.age_max,?,?,?,?
     FROM sessions s JOIN workshops w ON w.id=s.workshop_id JOIN venues v ON v.id=s.venue_id WHERE s.id=? AND v.verified=1 AND v.archived=0 AND v.permission_confirmed=1 AND v.accessibility<>'' AND v.capacity>=s.capacity AND w.age_min=? AND w.age_max=?`,
         ).bind(
           sid,
@@ -112,13 +130,17 @@ export async function register(env: Cloudflare.Env, input: unknown, intent: stri
           Number(data.photo_consent),
           now() + 900,
           data.participants.length,
+          localized.name,
           JSON.stringify({
             refund: site.refundPolicy,
             supervision: site.supervisionPolicy,
             pickup: site.pickupPolicy,
             privacy: site.privacyPolicy,
           }),
+          `${localized.instructions}\n${venueInstructions}`,
           `${site.email}${site.phone ? ' · ' + site.phone : ''}`,
+          data.locale,
+          site.policyVersion,
           data.session_id,
           s.age_min,
           s.age_max,

@@ -1,16 +1,20 @@
 ---
+import { localeOf, t, localPath } from '../lib/i18n';
+import { localizedSite } from '../lib/translations';
+const locale = localeOf(Astro.locals.locale);
+const href = (p: string) => localPath(p, locale);
 import Public from '../layouts/Public.astro';
 import { env } from 'cloudflare:workers';
-import { settings } from '../lib/data';
 const page = Astro.params.page,
-  site = await settings(env.DB);
+  site = await localizedSite(env.DB, locale);
 const titles: Record<string, string> = {
   about: 'A place for big little ideas.',
   faq: 'A few good things to know.',
   policies: 'Privacy & workshop policies.',
   contact: 'Let’s make a connection.',
 };
-const title = titles[page ?? ''];
+const rawTitle = titles[page ?? ''];
+const title = rawTitle ? t(rawTitle, locale) : undefined;
 if (!title) {
   Astro.response.status = 404;
 }
@@ -24,17 +28,22 @@ const venues = (
 <Public title={title ?? 'Page not found'}>
   <div class="wrap">
     <div class="page-heading">
-      <div class="eyebrow">Adventure Station</div>
-      <h1>{title ?? 'This page wandered off.'}</h1>
+      <div class="eyebrow">{t('Adventure Station', locale)}</div>
+      <h1>{title ?? t('This page wandered off.', locale)}</h1>
     </div>
     <section class="section prose">
       {page === 'about' && (
         <>
-          <h2>For the joy of making.</h2>
+          <h2>{t('For the joy of making.', locale)}</h2>
           <p>{site.about}</p>
-          <p>Seasonal inspiration. Hands-on exploration. A chance to make something special.</p>
-          <a class="btn" href="/workshops">
-            Explore workshops ↗
+          <p>
+            {t(
+              'Seasonal inspiration. Hands-on exploration. A chance to make something special.',
+              locale,
+            )}
+          </p>
+          <a class="btn" href={href('/workshops')}>
+            {t('\r\n            Explore workshops ↗\r\n          ', locale)}
           </a>
         </>
       )}
@@ -50,11 +59,13 @@ const venues = (
               ))}
             </>
           )}
-          <h2>Before you register</h2>
+          <h2>{t('Before you register', locale)}</h2>
           {!site.policiesApproved && (
             <div class="policy-pending">
-              Workshop policies are awaiting owner confirmation. Please contact us before making
-              plans.
+              {t(
+                '\r\n              Workshop policies are awaiting owner confirmation. Please contact us before making\r\n              plans.\r\n            ',
+                locale,
+              )}
             </div>
           )}
           {[
@@ -64,12 +75,12 @@ const venues = (
             ['Privacy & your information', site.privacyPolicy],
           ].map(([heading, value]) => (
             <article>
-              <h3>{heading}</h3>
+              <h3>{t(heading!, locale)}</h3>
               <p>
                 {(site.policiesApproved ? value : '') ||
                   (site.policiesApproved
-                    ? 'Please contact us for details.'
-                    : 'Awaiting owner confirmation.')}
+                    ? t('Please contact us for details.', locale)
+                    : t('Awaiting owner confirmation.', locale))}
               </p>
             </article>
           ))}
@@ -78,14 +89,17 @@ const venues = (
       {page === 'contact' && (
         <>
           <p>
-            Questions about workshops, upcoming dates, or joining in? We’d love to hear from you.
+            {t(
+              '\r\n            Questions about workshops, upcoming dates, or joining in? We’d love to hear from you.\r\n          ',
+              locale,
+            )}
           </p>
-          <h2>Say hello.</h2>
+          <h2>{t('Say hello.', locale)}</h2>
           <p>
             <a href={`mailto:${site.email}`}>{site.email}</a>
           </p>
           {site.phone && <p>{site.phone}</p>}
-          <h2>Where we create.</h2>
+          <h2>{t('Where we create.', locale)}</h2>
           {site.locality && <p>{site.locality}</p>}
           {venues.length ? (
             venues.map((v) => (
@@ -97,17 +111,19 @@ const venues = (
             ))
           ) : (
             <p>
-              Venue details will be shared with each published workshop date. Please contact us to
-              confirm the location.
+              {t(
+                '\r\n              Venue details will be shared with each published workshop date. Please contact us to\r\n              confirm the location.\r\n            ',
+                locale,
+              )}
             </p>
           )}
         </>
       )}
       {!title && (
         <>
-          <p>Let’s get you back to something creative.</p>
-          <a class="btn" href="/">
-            Back to home
+          <p>{t('Let’s get you back to something creative.', locale)}</p>
+          <a class="btn" href={href('/')}>
+            {t('\r\n            Back to home\r\n          ', locale)}
           </a>
         </>
       )}

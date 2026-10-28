@@ -1,0 +1,12 @@
+---
+const path = Astro.params.path || '';
+if (
+  !/^(?:|about|faq|contact|policies|404|workshops(?:\/[a-z0-9-]+)?|register\/[\w-]+|registration\/[\w-]+)$/.test(
+    path,
+  )
+)
+  return new Response('No se encontró la página.', { status: 404 });
+Astro.locals.locale = 'es-MX';
+Astro.locals.publicPath = '/es/' + path;
+return Astro.rewrite('/' + path);
+---

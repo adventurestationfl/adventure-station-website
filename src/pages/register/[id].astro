@@ -1,74 +1,93 @@
 ---
+import { localeOf, t, localPath } from '../../lib/i18n';
+import { localizedSite, publicUpcoming, localizedBookingCopy } from '../../lib/translations';
+const locale = localeOf(Astro.locals.locale);
+const href = (p: string) => localPath(p, locale);
 import Public from '../../layouts/Public.astro';
 import { env } from 'cloudflare:workers';
-import { settings, upcoming, money, dateLabel } from '../../lib/data';
+import { money, dateLabel } from '../../lib/data';
 import { ownerSetup } from '../../lib/setup';
 import { paymentConfigured } from '../../lib/square';
-const site = await settings(env.DB),
-  session = (await upcoming(env.DB)).find((s) => s.id === Astro.params.id);
+const site = await localizedSite(env.DB, locale),
+  session = (await publicUpcoming(env.DB, locale)).find((s) => s.id === Astro.params.id);
 if (!session) Astro.response.status = 404;
+const copyReady =
+  !session ||
+  locale === 'en-US' ||
+  !(await localizedBookingCopy(env.DB, session.id, locale))?.translationIncomplete;
 const available = session ? Math.max(0, session.capacity - session.occupied) : 0,
   ready =
     paymentConfigured(env) &&
     site.policiesApproved &&
+    copyReady &&
     available > 0 &&
     (await ownerSetup(env)).registrationAllowed;
 ---
 
-<Public title="Register for a workshop">
+<Public title={t('Register for a workshop', locale)}>
   <div class="wrap">
     <div class="breadcrumb">
-      <a href="/workshops">Workshops</a> / Registration
+      <a href={href('/workshops')}>{t('Workshops', locale)}</a>
+      {t(' / Registration\r\n    ', locale)}
     </div>
     <div class="page-heading">
-      <div class="eyebrow">A little adventure awaits</div>
+      <div class="eyebrow">{t('A little adventure awaits', locale)}</div>
       <h1>
-        Save their place
+        {t('\r\n        Save their place\r\n        ', locale)}
         <br />
-        at the table.
+        {t('\r\n        at the table.\r\n      ', locale)}
       </h1>
     </div>
     <section class="section split" style="align-items:start">
       {session ? (
         <>
           <aside class="form-panel">
-            <span class="tag">For parents & guardians</span>
+            <span class="tag">{t('For parents & guardians', locale)}</span>
             <h2 style="font-size:2.2rem">{session.workshop_name}</h2>
-            <p>{dateLabel(session.starts_at, session.timezone)}</p>
+            <p>{dateLabel(session.starts_at, session.timezone, locale)}</p>
             <p>
               {session.venue_name}
               <br />
-              Ages {session.age_min}–{session.age_max}
+              {t('\r\n              Ages ', locale)}
+              {session.age_min}–{session.age_max}
             </p>
             <hr class="divider" />
             <p>
-              <strong>{money(session.price)} per child</strong>
+              <strong>
+                {money(session.price, locale)}
+                {t(' per child', locale)}
+              </strong>
               <br />
-              {available} places currently available
+              {available}
+              {t(' places currently available\r\n            ', locale)}
             </p>
             <p class="muted">
-              Your places are held for 15 minutes once checkout starts. Registration is confirmed
-              only after payment is verified. A late payment may need our help to resolve
-              availability.
+              {t(
+                '\r\n              Your places are held for 15 minutes once checkout starts. Registration is confirmed\r\n              only after payment is verified. A late payment may need our help to resolve\r\n              availability.\r\n            ',
+                locale,
+              )}
             </p>
-            <a href="/policies">Read workshop & privacy policies</a>
+            <a href={href('/policies')}>{t('Read workshop & privacy policies', locale)}</a>
           </aside>
           {ready ? (
             <form
               id="registration-form"
               class="form-panel"
               data-session={session.id}
+              data-policy-version={site.policyVersion}
               data-age-min={session.age_min}
               data-age-max={session.age_max}
             >
-              <h2 style="font-size:2rem">Who’s joining the adventure?</h2>
+              <h2 style="font-size:2rem">{t('Who’s joining the adventure?', locale)}</h2>
               <p class="muted">
-                A parent or guardian must complete this form. Please use children’s first names
-                only.
+                {t(
+                  '\r\n                A parent or guardian must complete this form. Please use children’s first names\r\n                only.\r\n              ',
+                  locale,
+                )}
               </p>
               <div id="form-message" class="notice" role="status" aria-live="polite"></div>
               <div class="field">
-                <label for="guardian-name">Parent or guardian’s name</label>
+                <label for="guardian-name">{t('Parent or guardian’s name', locale)}</label>
                 <input
                   id="guardian-name"
                   name="guardian_name"
@@ -78,7 +97,7 @@ const available = session ? Math.max(0, session.capacity - session.occupied) : 0
                 />
               </div>
               <div class="field">
-                <label for="guardian-email">Email</label>
+                <label for="guardian-email">{t('Email', locale)}</label>
                 <input
                   id="guardian-email"
                   name="guardian_email"
@@ -89,7 +108,7 @@ const available = session ? Math.max(0, session.capacity - session.occupied) : 0
                 />
               </div>
               <div class="field">
-                <label for="guardian-phone">Contact phone</label>
+                <label for="guardian-phone">{t('Contact phone', locale)}</label>
                 <input
                   id="guardian-phone"
                   name="guardian_phone"
@@ -101,7 +120,7 @@ const available = session ? Math.max(0, session.capacity - session.occupied) : 0
                 />
               </div>
               <div class="field">
-                <label for="quantity">Number of children</label>
+                <label for="quantity">{t('Number of children', locale)}</label>
                 <select id="quantity" name="quantity">
                   {Array.from({ length: Math.min(12, available) }, (_, i) => (
                     <option value={i + 1}>{i + 1}</option>
@@ -110,53 +129,75 @@ const available = session ? Math.max(0, session.capacity - session.occupied) : 0
               </div>
               <div id="participants"></div>
               <label class="check">
-                <input type="checkbox" name="guardian_attestation" required />I am a parent or
-                guardian registering these children.
+                <input type="checkbox" name="guardian_attestation" required />
+                {t(
+                  'I am a parent or\r\n                guardian registering these children.\r\n              ',
+                  locale,
+                )}
               </label>
               <label class="check">
-                <input type="checkbox" name="policy_agreement" required />I have read and agree to
-                the workshop and privacy policies linked above.
+                <input type="checkbox" name="policy_agreement" required />
+                {t(
+                  'I have read and agree to\r\n                the workshop and privacy policies linked above.\r\n              ',
+                  locale,
+                )}
               </label>
               <label class="check">
                 <input type="checkbox" name="marketing_consent" />
-                Optional: email me about future workshops.
+                {t(
+                  '\r\n                Optional: email me about future workshops.\r\n              ',
+                  locale,
+                )}
               </label>
-              <p class="muted">Identifiable child photographs are not part of this release.</p>
               <p class="muted">
-                Both optional choices are off by default. Card details are entered only on Square’s
-                secure checkout.
+                {t('Identifiable child photographs are not part of this release.', locale)}
+              </p>
+              <p class="muted">
+                {t(
+                  '\r\n                Both optional choices are off by default. Card details are entered only on Square’s\r\n                secure checkout.\r\n              ',
+                  locale,
+                )}
               </p>
               <button class="btn coral" type="submit">
-                Continue to secure checkout ↗
+                {t('\r\n                Continue to secure checkout ↗\r\n              ', locale)}
               </button>
               <p>
                 <small>
-                  Sandbox registration. Do not enter real children’s information in this preview.
+                  {t(
+                    '\r\n                  Sandbox registration. Do not enter real children’s information in this preview.\r\n                ',
+                    locale,
+                  )}
                 </small>
               </p>
             </form>
           ) : (
             <div class="empty">
               <h2 style="font-size:2rem">
-                {available === 0 ? 'This class is full.' : 'Registration is not open yet.'}
+                {t(
+                  available === 0 ? 'This class is full.' : 'Registration is not open yet.',
+                  locale,
+                )}
               </h2>
               <p>
                 {available === 0
-                  ? 'Please explore another date.'
-                  : 'We’re finalizing the registration details. Please contact us for help.'}
+                  ? t('Please explore another date.', locale)
+                  : t(
+                      'We’re finalizing the registration details. Please contact us for help.',
+                      locale,
+                    )}
               </p>
-              <a class="btn" href="/contact">
-                Contact Adventure Station ↗
+              <a class="btn" href={href('/contact')}>
+                {t('\r\n                Contact Adventure Station ↗\r\n              ', locale)}
               </a>
             </div>
           )}
         </>
       ) : (
         <div class="empty">
-          <h2>This class date is unavailable.</h2>
-          <p>It may have ended, filled up, or been cancelled.</p>
-          <a class="btn" href="/workshops#dates">
-            Explore available dates ↗
+          <h2>{t('This class date is unavailable.', locale)}</h2>
+          <p>{t('It may have ended, filled up, or been cancelled.', locale)}</p>
+          <a class="btn" href={href('/workshops#dates')}>
+            {t('\r\n            Explore available dates ↗\r\n          ', locale)}
           </a>
         </div>
       )}

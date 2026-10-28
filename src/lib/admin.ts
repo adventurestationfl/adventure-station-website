@@ -1,5 +1,8 @@
 import { workshopSchema, sessionSchema, siteSchema, venueSchema, id } from './validation';
-import { settings, audit } from './data';
+import { settings, audit, type AuditContext } from './data';
+import { companionApi, technicalApi } from './companion';
+import { translationsApi } from './translations';
+import { connectionsApi } from './mcp';
 import { authorize, type Staff } from './auth';
 import { HttpError, bodyJson, json, now } from './http';
 import { reconcile } from './registration';
@@ -7,11 +10,31 @@ import { policyDrafts } from './policy-drafts';
 import { ownerSetup, saveSetup } from './setup';
 import { deliverNotifications, retryNotification } from './notifications';
 import { cancelPlaces, requestRefund, reconcileRefunds } from './booking-operations';
-export async function adminApi(request: Request, env: Cloudflare.Env, staff: Staff, path: string) {
+export async function adminApi(
+  request: Request,
+  env: Cloudflare.Env,
+  staff: Staff,
+  path: string,
+  auditContext: AuditContext = {},
+) {
   const db = env.DB,
     url = new URL(request.url),
     method = request.method;
-  if (path === 'me' && method === 'GET') return json(staff);
+  if (path === 'me' && method === 'GET')
+    return json({
+      id: staff.id,
+      name: staff.name,
+      role: staff.role,
+      locale: staff.locale ?? 'en-US',
+    });
+  const extension =
+    (await companionApi(request, env, staff, path, auditContext)) ??
+    (await technicalApi(request, env, staff, path)) ??
+    (await translationsApi(request, env, staff, path, auditContext)) ??
+    (await connectionsApi(request, env, staff, path));
+  if (extension) return extension;
+  const event = (action: string, entity: string) =>
+    audit(db, staff.id, action, entity, auditContext);
   if (path === 'sessions' && method === 'GET') {
     const rows = await db
       .prepare(
@@ -55,16 +78,19 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
           attendance[1],
           ...(staff.role === 'instructor' ? [staff.id] : []),
         ),
-      audit(db, staff.id, 'attendance.updated', attendance[1]!),
+      event('attendance.updated', attendance[1]!),
     ]);
     if (!result[0]?.results.length)
       throw new HttpError(403, 'This participant is not available to your account.');
     return json({ saved: true });
   }
-  authorize(staff, ['owner', 'manager']);
+  authorize(staff, ['owner', 'manager', 'godmin']);
   if (path === 'setup') {
-    authorize(staff, ['owner']);
-    if (method === 'POST') await saveSetup(env, staff, await bodyJson(request));
+    authorize(staff, ['owner', 'godmin']);
+    if (method === 'POST') {
+      authorize(staff, ['owner']);
+      await saveSetup(env, staff, await bodyJson(request));
+    }
     return json(await ownerSetup(env));
   }
   if (path === 'notifications' && method === 'GET')
@@ -104,7 +130,7 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
           'INSERT INTO privacy_reviews(registration_id,reason,review_after,actor) SELECT id,?,?,? FROM registrations WHERE id=? AND anonymized_at IS NULL ON CONFLICT(registration_id) DO UPDATE SET reason=excluded.reason,review_after=excluded.review_after,actor=excluded.actor,updated_at=unixepoch() RETURNING registration_id',
         )
         .bind(v.reason, v.reviewAfter, staff.id, retain[1]),
-      audit(db, staff.id, 'privacy.retention.reviewed', retain[1]!),
+      event('privacy.retention.reviewed', retain[1]!),
     ]);
     if (!result[0]?.results.length)
       throw new HttpError(400, 'This record is already anonymized or unavailable.');
@@ -300,7 +326,7 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
               .bind(data.heroMediaId),
           ]
         : []),
-      audit(db, staff.id, 'content.published', 'site'),
+      event('content.published', 'site'),
     ]);
     if (!result[2]?.results.length)
       throw new HttpError(409, 'Someone has changed this page. Reload before saving.');
@@ -338,7 +364,7 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
       ...Array.from(new Set(gallery_ids)).map((mid) =>
         db.prepare('INSERT INTO workshop_gallery(workshop_id,media_id) VALUES(?,?)').bind(key, mid),
       ),
-      audit(db, staff.id, 'workshop.saved', key),
+      event('workshop.saved', key),
     ]);
     if (!result[0]?.results.length)
       throw new HttpError(409, 'This workshop has changed. Reload before saving.');
@@ -396,7 +422,7 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
             `INSERT INTO sessions(id,${cols.join(',')}) VALUES(?,${cols.map(() => '?').join(',')})`,
           )
           .bind(key, ...Object.values(fields)),
-        audit(db, staff.id, 'session.created', key),
+        event('session.created', key),
       );
     }
     await db.batch(statements);
@@ -464,7 +490,7 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
             `INSERT INTO sessions(id,${cols.join(',')}) VALUES(?,${cols.map(() => '?').join(',')}) RETURNING id`,
           )
           .bind(key, ...vals);
-    const statements = [query, audit(db, staff.id, 'session.saved', key)];
+    const statements = [query, event('session.saved', key)];
     if (data.status === 'cancelled')
       statements.push(
         db
@@ -507,7 +533,7 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
     await db.batch([
       db
         .prepare(
-          'INSERT INTO venues(id,name,address,instructions,verified,archived,capacity,accessibility,permission_confirmed) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,address=excluded.address,instructions=excluded.instructions,verified=excluded.verified,archived=excluded.archived,capacity=excluded.capacity,accessibility=excluded.accessibility,permission_confirmed=excluded.permission_confirmed',
+          'INSERT INTO venues(id,name,address,instructions,verified,archived,capacity,accessibility,permission_confirmed) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,address=excluded.address,instructions=excluded.instructions,verified=excluded.verified,archived=excluded.archived,capacity=excluded.capacity,accessibility=excluded.accessibility,permission_confirmed=excluded.permission_confirmed,revision=venues.revision+1',
         )
         .bind(
           key,
@@ -520,7 +546,7 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
           data.accessibility,
           Number(data.permission_confirmed),
         ),
-      audit(db, staff.id, 'venue.saved', key),
+      event('venue.saved', key),
     ]);
     return json({ id: key });
   }
@@ -569,7 +595,7 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
             "UPDATE registrations SET status='confirmed',needs_attention=0 WHERE id=? AND status='payment_review' AND NOT EXISTS(SELECT 1 FROM payment_issues WHERE registration_id=registrations.id AND resolved=0) AND (SELECT COALESCE(SUM(amount-refunded),0) FROM payments WHERE registration_id=registrations.id)>=total RETURNING id",
           )
           .bind(key),
-        audit(db, staff.id, 'registration.review.confirmed', key),
+        event('registration.review.confirmed', key),
       ]);
       if (!result[0]?.results.length)
         throw new HttpError(409, 'The payment or registration changed. Refresh before confirming.');
@@ -580,7 +606,7 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
             "UPDATE registrations SET needs_attention=0 WHERE id=? AND status NOT IN('pending','payment_review') AND NOT EXISTS(SELECT 1 FROM payment_issues WHERE registration_id=registrations.id AND resolved=0) AND NOT EXISTS(SELECT 1 FROM refund_requests WHERE registration_id=registrations.id AND state IN('requested','processing','review')) RETURNING id",
           )
           .bind(key),
-        audit(db, staff.id, 'registration.review.completed', key),
+        event('registration.review.completed', key),
       ]);
       if (!result[0]?.results.length)
         throw new HttpError(
@@ -659,7 +685,7 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
           'INSERT INTO staff(id,email,subject,name,role,active) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET email=excluded.email,subject=CASE WHEN staff.email=excluded.email THEN staff.subject ELSE NULL END,name=excluded.name,role=excluded.role,active=excluded.active',
         )
         .bind(key, email, subject || null, name, v.role, Number(v.active)),
-      audit(db, staff.id, 'team.saved', key),
+      event('team.saved', key),
     ]);
     return json({ id: key });
   }
@@ -703,7 +729,7 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
       db
         .prepare('UPDATE participants SET first_name=NULL,age=NULL WHERE registration_id=?')
         .bind(erase[1]),
-      audit(db, staff.id, 'registration.anonymized', erase[1]!),
+      event('registration.anonymized', erase[1]!),
     ]);
     return json({ saved: true });
   }

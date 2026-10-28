@@ -28,20 +28,55 @@ export async function upcoming(db: D1Database, workshopId?: string) {
       .all<Session & { slug: string; age_min: number; age_max: number }>()
   ).results;
 }
-export const money = (cents: number) =>
-  new Intl.NumberFormat('en-US', {
+export const money = (cents: number, locale: import('./i18n').Locale = 'en-US') =>
+  new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: 2,
   }).format(cents / 100);
-export const dateLabel = (seconds: number, timezone: string) =>
-  new Intl.DateTimeFormat('en-US', {
+export const dateLabel = (
+  seconds: number,
+  timezone: string,
+  locale: import('./i18n').Locale = 'en-US',
+) =>
+  new Intl.DateTimeFormat(locale, {
     timeZone: timezone,
     dateStyle: 'full',
     timeStyle: 'short',
   }).format(seconds * 1000);
-export function audit(db: D1Database, actor: string, action: string, entity: string) {
+export type AuditContext = {
+  source?: 'dashboard' | 'mcp' | 'system' | 'scheduled';
+  outcome?: 'success' | 'denied' | 'failed';
+  correlationId?: string;
+  clientId?: string;
+  tool?: string;
+};
+export function audit(
+  db: D1Database,
+  actor: string,
+  action: string,
+  entity: string,
+  context: AuditContext = {},
+) {
   return db
-    .prepare('INSERT INTO audit(id,actor,action,entity_id) VALUES(?,?,?,?)')
-    .bind(crypto.randomUUID(), actor, action, entity);
+    .prepare(
+      "INSERT INTO audit(id,actor,action,entity_id,actor_role,source,outcome,correlation_id,client_id,tool_name) VALUES(?,?,?,?,COALESCE((SELECT CASE WHEN EXISTS(SELECT 1 FROM technical_grants g WHERE g.staff_id=s.id AND g.verified_subject=s.subject) THEN 'godmin' ELSE s.role END FROM staff s WHERE s.id=?),'system'),?,?,?,?,?)",
+    )
+    .bind(
+      crypto.randomUUID(),
+      actor,
+      action,
+      entity,
+      actor,
+      context.source ??
+        (actor === 'scheduled'
+          ? 'scheduled'
+          : ['square', 'system'].includes(actor)
+            ? 'system'
+            : 'dashboard'),
+      context.outcome ?? 'success',
+      context.correlationId ?? crypto.randomUUID(),
+      context.clientId ?? '',
+      context.tool ?? '',
+    );
 }

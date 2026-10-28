@@ -1,23 +1,29 @@
 ---
+import { localeOf, t, localPath } from '../../lib/i18n';
+import { publicCatalog, publicUpcoming } from '../../lib/translations';
+const locale = localeOf(Astro.locals.locale);
+const href = (p: string) => localPath(p, locale);
 import Public from '../../layouts/Public.astro';
 import WorkshopCard from '../../components/WorkshopCard.astro';
 import SessionList from '../../components/SessionList.astro';
 import { env } from 'cloudflare:workers';
-import { catalog, upcoming } from '../../lib/data';
-const workshops = await catalog(env.DB),
-  sessions = await upcoming(env.DB);
+
+const workshops = await publicCatalog(env.DB, locale),
+  sessions = await publicUpcoming(env.DB, locale);
 ---
 
-<Public title="Creative workshops">
+<Public title={t('Creative workshops', locale)}>
   <div class="wrap">
     <div class="page-heading">
-      <div class="eyebrow">Make something wonderful</div>
+      <div class="eyebrow">{t('Make something wonderful', locale)}</div>
       <h1>
-        A little adventure.
+        {t('\r\n        A little adventure.\r\n        ', locale)}
         <br />
-        All their own.
+        {t('\r\n        All their own.\r\n      ', locale)}
       </h1>
-      <p>Explore the workshops, find a date that fits, and make space for imagination.</p>
+      <p>
+        {t('Explore the workshops, find a date that fits, and make space for imagination.', locale)}
+      </p>
     </div>
     <section class="section">
       {workshops.length ? (
@@ -28,16 +34,17 @@ const workshops = await catalog(env.DB),
         </div>
       ) : (
         <div class="empty">
-          <h2>New ideas are on the way.</h2>
+          <h2>{t('New ideas are on the way.', locale)}</h2>
           <p>
-            Our workshop catalog will be here soon. <a href="/contact">Contact us</a> for more
-            information.
+            {t('\r\n            Our workshop catalog will be here soon. ', locale)}
+            <a href={href('/contact')}>{t('Contact us', locale)}</a>
+            {t(' for more\r\n            information.\r\n          ', locale)}
           </p>
         </div>
       )}
     </section>
     <section class="upcoming" id="dates">
-      <h2>Find your next date.</h2>
+      <h2>{t('Find your next date.', locale)}</h2>
       <SessionList sessions={sessions} />
     </section>
   </div>

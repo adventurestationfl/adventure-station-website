@@ -2,11 +2,21 @@
 import '../../styles/global.css';
 import '../../styles/admin.css';
 import { env } from 'cloudflare:workers';
+import { localeOf, t } from '../../lib/i18n';
 const staff = Astro.locals.staff!,
   section = Astro.params.section || 'dashboard';
+const locale = localeOf(staff.locale);
 const groups =
   staff.role === 'instructor'
-    ? [{ name: 'Daily work', items: [['sessions', 'My class dates']] }]
+    ? [
+        {
+          name: 'Daily work',
+          items: [
+            ['sessions', 'My class dates'],
+            ['settings', 'Settings'],
+          ],
+        },
+      ]
     : [
         {
           name: 'Daily work',
@@ -16,6 +26,7 @@ const groups =
             ['sessions', 'Class dates'],
             ['registrations', 'Registrations'],
             ['notifications', 'Messages'],
+            ['creative', 'Creative Spark'],
           ],
         },
         {
@@ -36,6 +47,9 @@ const groups =
                   ['team', 'Team access'],
                 ]
               : []),
+            ...(staff.role === 'godmin' ? [['team', 'Team access']] : []),
+            ...(['owner', 'godmin'].includes(staff.role) ? [['activity', 'Activity History']] : []),
+            ['settings', 'Settings'],
           ],
         },
       ];
@@ -51,43 +65,47 @@ const icons: Record<string, string> = {
   setup: 'M4 3h16v18H4z m4 9 3 3 5-6',
   privacy: 'm12 2 9 4v6c0 5-9 10-9 10S3 17 3 12V6z m-4 10 3 3 5-6',
   team: 'M16 21v-3a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v3 M9 3a4 4 0 1 0 0 8 4 4 0 1 0 0-8 M17 4a4 4 0 0 1 0 7 M22 21v-3a4 4 0 0 0-3-4',
+  creative: 'M12 3v4 M3 12h4 M17 12h4 M12 17v4 M7 7l3 3 M17 7l-3 3 M7 17l3-3 M17 17l-3-3',
+  activity: 'M4 3h16v18H4z M8 7h8 M8 12h8 M8 17h5',
+  settings: 'M4 6h16 M4 12h16 M4 18h16 M8 3v6 M16 9v6 M10 15v6',
 };
 const sectionLabel =
   groups.flatMap((g) => g.items).find((i) => i[0] === section)?.[1] || 'Studio desk';
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={locale}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Studio desk | Adventure Station</title>
+    <title>{t("Studio desk | Adventure Station",locale)}</title>
     <meta name="robots" content="noindex,nofollow" />
   </head>
   <body>
     <a href="#admin-main" class="skip">
-      Skip to workspace
+      {t('\n      Skip to workspace\n    ', locale)}
     </a>
     <div class="admin-shell">
       <aside class="sidebar">
         <a class="brand" href="/admin">
           <img src="/brand/logo-96.webp" width="44" height="44" alt="" />
           <span>
-            Adventure Station<small>Studio desk</small>
+            {t('\n            Adventure Station', locale)}
+            <small>{t('Studio desk', locale)}</small>
           </span>
         </a>
         <button
           class="admin-menu-toggle"
-          aria-label="Workspace menu"
+          aria-label={t('Workspace menu', locale)}
           aria-controls="staff-menu"
           aria-expanded="false"
         >
-          Menu
+          {t('\n          Menu\n        ', locale)}
         </button>
-        <nav class="staff-menu" id="staff-menu" aria-label="Staff navigation">
+        <nav class="staff-menu" id="staff-menu" aria-label={t('Staff navigation', locale)}>
           {groups.map((group) => (
             <div class="nav-group">
-              <p class="nav-group-title">{group.name}</p>
+              <p class="nav-group-title">{t(group.name, locale)}</p>
               <div class="admin-nav">
                 {group.items.map(([slug, label]) => (
                   <a href={`/admin/${slug}`} aria-current={section === slug ? 'page' : undefined}>
@@ -102,7 +120,7 @@ const sectionLabel =
                     >
                       <path d={icons[slug!]} />
                     </svg>
-                    {label}
+                    {t(label!, locale)}
                   </a>
                 ))}
               </div>
@@ -112,28 +130,40 @@ const sectionLabel =
         <div class="sidebar-bottom">
           <strong>{staff.name}</strong>
           <small>{staff.role}</small>
-          <a href="/cdn-cgi/access/logout">Sign out</a>
+          <a href="/cdn-cgi/access/logout">{t('Sign out', locale)}</a>
         </div>
       </aside>
       <div class="admin-body">
         {env.ENVIRONMENT !== 'production' && (
           <div class="preview-note">
-            Preview workspace. Use synthetic information only. Live payments and customer emails are
-            disabled.
+            {t(
+              '\n            Preview workspace. Use synthetic information only. Live payments and customer emails are\n            disabled.\n          ',
+              locale,
+            )}
           </div>
         )}
         <header class="admin-top">
-          <span>Studio desk / {sectionLabel}</span>
+          <span>
+            {t('Studio desk / ', locale)}
+            {t(sectionLabel, locale)}
+          </span>
           <a href="/" target="_blank" rel="noopener">
-            View website
+            {t('\n            View website\n          ', locale)}
           </a>
         </header>
-        <main id="admin-main" class="admin-main" data-section={section} data-role={staff.role}>
+        <main
+          id="admin-main"
+          class="admin-main"
+          data-section={section}
+          data-role={staff.role}
+          data-locale={locale}
+        >
           <div id="admin-message" role="status" aria-live="polite" class="notice"></div>
           <div id="workspace">
-            <div class="loading">Opening your workspace…</div>
+            <div class="loading">{t('Opening your workspace…', locale)}</div>
           </div>
         </main>
+        <footer class="admin-signature">Made with love by your Bro · 2026</footer>
       </div>
     </div>
     <script>

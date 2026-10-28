@@ -27,6 +27,7 @@
     },
   ],
   "vars": {
+    "MCP_ENABLED": "false",
     "ENVIRONMENT": "preview",
     "DEV_AUTH": "false",
     "ACCESS_TEAM_DOMAIN": "REPLACE_WITH_TEAM.cloudflareaccess.com",

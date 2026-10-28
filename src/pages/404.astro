@@ -1,14 +1,17 @@
 ---
+import { localeOf, t, localPath } from '../lib/i18n';
+const locale = localeOf(Astro.locals.locale),
+  href = (p: string) => localPath(p, locale);
 import Public from '../layouts/Public.astro';
 Astro.response.status = 404;
 ---
 
-<Public title="Page not found">
+<Public title={t('Page not found', locale)}>
   <div class="wrap section">
-    <h1>This page wandered off.</h1>
-    <p>Let’s get you back to something creative.</p>
-    <a class="btn" href="/workshops">
-      Explore workshops ↗
+    <h1>{t('This page wandered off.', locale)}</h1>
+    <p>{t('Let’s get you back to something creative.', locale)}</p>
+    <a class="btn" href={href('/workshops')}>
+      {t('\n      Explore workshops ↗\n    ', locale)}
     </a>
   </div>
 </Public>

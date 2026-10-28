@@ -90,4 +90,14 @@ Restore first into a new isolated database/bucket with checkout, sending, cron a
 
 ## Current hosted preview
 
-The October 28 owner onboarding update resolved the initial Workers/R2/Access blockers. The dedicated preview is deployed and its public paths, negative Access checks and scheduled execution are verified. [PREVIEW.md](PREVIEW.md) records actual resources, transport limitations, rollback version and remaining owner/provider/recovery gates. Successful owner login is still pending; do not mark the authentication integration verified on the strength of a redirect alone.
+The October 28 owner onboarding update resolved the initial Workers/R2/Access blockers. The dedicated preview is deployed and its public paths, negative Access checks and scheduled execution are verified. [PREVIEW.md](PREVIEW.md) records actual resources, transport limitations, rollback version and remaining owner/provider/recovery gates. Owner and invited technical sign-ins now have verified bound identities. Complete hosted CMS and authorization/lifecycle checks remain separate; do not equate a redirect or SQL identity binding with those workflows.
+
+## Companion operations
+
+Migrations 0010–0011 are additive. Existing `staff.role` values and references are preserved; `technical_grants` provides the verified Godmin overlay. Policy translations are versioned independently and tied to their source. Registration locale/policy version are immutable. The audit table is append-only and snapshots effective actor role/source/outcome plus MCP attribution. Review restricted audit archival after 365 days; no ordinary UI/API deletion is offered. Do not archive unresolved operational or legally necessary evidence without review.
+
+Daily encouragement requires no cron or API. Creative Spark selects on demand for the configured business day, with persistent personal preference/recent history. The existing 15-minute processing cron is retained for booking/outbox work. It does not call an AI model or send customer emails. All-dismissed libraries show a restore path rather than failing the dashboard.
+
+MCP is a separately disabled interface. Keep `MCP_ENABLED=false` until the [client verification checklist](MCP.md) passes. Browser sessions are not machine tokens. Revoking/deactivating a person/client or grant prevents later token use; proposal application rechecks the grant, person, client, expiry and draft state. A failed or interrupted write is not retried automatically; inspect the resulting draft/request before taking further action. Do not expose individual registration data through future tools.
+
+The hosted recovery rehearsal is recorded in [PREVIEW.md](PREVIEW.md), with SQL/media checksum and privacy-removal checks. Isolated restored databases remain unbound. Retain backup/removal registers privately and recheck canonical providers before any operational recovery. Neither the recorded rehearsal nor local tests authorize restoring over an active database.

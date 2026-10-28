@@ -1,8 +1,12 @@
 ---
 import '../styles/global.css';
 import { env } from 'cloudflare:workers';
-import { settings } from '../lib/data';
-const site = await settings(env.DB);
+import { localizedSite } from '../lib/translations';
+import { localeOf, t, localPath } from '../lib/i18n';
+const locale = localeOf(Astro.locals.locale),
+  site = await localizedSite(env.DB, locale);
+const path = Astro.locals.publicPath || Astro.url.pathname;
+const href = (p: string) => localPath(p, locale);
 const {
   title = 'A little mess. A lot of imagination.',
   description = 'Hands-on arts and crafts for curious kids. Explore workshops and upcoming dates at Adventure Station.',
@@ -15,56 +19,94 @@ const organization = JSON.stringify({
   url: origin,
   email: site.email,
   logo: `${origin}/brand/logo-96.webp`,
+  inLanguage: locale,
 }).replace(/</g, '\\u003c');
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={locale}>
   <head>
     <script type="application/ld+json" set:html={organization} />
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>{title} | Adventure Station</title>
-    <meta name="description" content={description} />
+    <title>{t(title,locale)}{t(" | Adventure Station",locale)}</title>
+    <meta name="description" content={t(description, locale)} />
     <meta name="theme-color" content="#155e75" />
     <link rel="icon" type="image/webp" href="/brand/logo-96.webp" />
-    <meta property="og:title" content={`${title} | Adventure Station`} />
-    <meta property="og:description" content={description} />
+    <meta property="og:title" content={`${t(title, locale)} | Adventure Station`} />
+    <meta property="og:description" content={t(description, locale)} />
     <meta property="og:type" content="website" />
     <meta property="og:image" content={`${origin}/brand/art-960.webp`} />
-    <meta property="og:url" content={new URL(Astro.url.pathname, origin).href} />
-    <link rel="canonical" href={new URL(Astro.url.pathname, origin).href} />
+    <meta property="og:url" content={new URL(path, origin).href} />
+    <link rel="canonical" href={new URL(path, origin).href} />
+    <link rel="alternate" hreflang="en-US" href={new URL(localPath(path, 'en-US'), origin).href} />
+    <link rel="alternate" hreflang="es-MX" href={new URL(localPath(path, 'es-MX'), origin).href} />
+    <link
+      rel="alternate"
+      hreflang="x-default"
+      href={new URL(localPath(path, 'en-US'), origin).href}
+    />
   </head>
   <body
     style={`--coral:${site.accent === 'blue' ? '#21629a' : site.accent === 'green' ? '#346541' : '#b63e35'}`}
   >
     <a class="skip" href="#main">
-      Skip to content
+      {t('\r\n      Skip to content\r\n    ', locale)}
     </a>
     {env.ENVIRONMENT === 'preview' && (
       <div class="preview-public">
-        <strong>Preview</strong> Synthetic workshop examples. No real bookings, payments or customer
-        emails.
+        <strong>{t('Preview', locale)}</strong>
+        {t(
+          ' Synthetic workshop examples. No real bookings, payments or customer\r\n        emails.\r\n      ',
+          locale,
+        )}
       </div>
     )}
-    <div class="topline">Little hands. Big ideas. Endless possibilities.</div>
+    <div class="topline">{t('Little hands. Big ideas. Endless possibilities.', locale)}</div>
+    <nav class="language-choice wrap" aria-label={t('Language', locale)}>
+      <a
+        href={localPath(path, 'en-US')}
+        lang="en-US"
+        aria-current={locale === 'en-US' ? 'true' : undefined}
+      >
+        {t('English', locale)}
+      </a>
+      <span aria-hidden="true"> | </span>
+      <a
+        href={localPath(path, 'es-MX')}
+        lang="es-MX"
+        aria-current={locale === 'es-MX' ? 'true' : undefined}
+      >
+        {t('Español', locale)}
+      </a>
+    </nav>
+    {locale === 'es-MX' && site.translationIncomplete && (
+      <p class="translation-notice wrap">
+        {t(
+          'Parte del contenido del negocio aún aparece en inglés. Las políticas en español requieren aprobación por separado.',
+          locale,
+        )}
+      </p>
+    )}
     <header class="header wrap">
-      <a class="brand" href="/" aria-label="Adventure Station home">
+      <a class="brand" href={href('/')} aria-label={t('Adventure Station home', locale)}>
         <img src="/brand/logo-96.webp" alt="" width="62" height="62" />
         <span>
-          Adventure Station<small>Crafts & arts for kids</small>
+          {t('\r\n          Adventure Station', locale)}
+          <small>{t('Crafts & arts for kids', locale)}</small>
         </span>
       </a>
       <button class="mobile-menu" aria-expanded="false" aria-controls="main-nav">
-        Menu
+        {t('\r\n        Menu\r\n      ', locale)}
       </button>
-      <nav class="nav" id="main-nav" aria-label="Main navigation">
-        <a href="/workshops">Workshops</a>
-        <a href="/about">Our story</a>
-        <a href="/faq">Good to know</a>
-        <a href="/contact">Contact</a>
-        <a class="btn small" href="/workshops#dates">
-          Find a workshop <span aria-hidden="true">↗</span>
+      <nav class="nav" id="main-nav" aria-label={t('Main navigation', locale)}>
+        <a href={href('/workshops')}>{t('Workshops', locale)}</a>
+        <a href={href('/about')}>{t('Our story', locale)}</a>
+        <a href={href('/faq')}>{t('Good to know', locale)}</a>
+        <a href={href('/contact')}>{t('Contact', locale)}</a>
+        <a class="btn small" href={href('/workshops#dates')}>
+          {t('\r\n          Find a workshop ', locale)}
+          <span aria-hidden="true">↗</span>
         </a>
       </nav>
     </header>
@@ -75,34 +117,40 @@ const organization = JSON.stringify({
       <div class="wrap">
         <div class="footer-main">
           <div>
-            <a class="brand" href="/">
-              Adventure Station
+            <a class="brand" href={href('/')}>
+              {t('\r\n              Adventure Station\r\n            ', locale)}
             </a>
             <p>
-              A place for curious minds, colorful ideas,
+              {t(
+                '\r\n              A place for curious minds, colorful ideas,\r\n              ',
+                locale,
+              )}
               <br />
-              and the joy of making something.
+              {t('\r\n              and the joy of making something.\r\n            ', locale)}
             </p>
           </div>
           <div class="footer-links">
             <div>
-              <strong>Explore</strong>
-              <a href="/workshops">Workshops</a>
-              <a href="/about">Our story</a>
-              <a href="/faq">FAQ & policies</a>
+              <strong>{t('Explore', locale)}</strong>
+              <a href={href('/workshops')}>{t('Workshops', locale)}</a>
+              <a href={href('/about')}>{t('Our story', locale)}</a>
+              <a href={href('/faq')}>{t('FAQ & policies', locale)}</a>
             </div>
             <div>
-              <strong>Say hello</strong>
-              <a href={`mailto:${site.email}`}>Email us</a>
-              <a href="/contact">Contact information</a>
-              <a href="/admin">Staff sign-in</a>
+              <strong>{t('Say hello', locale)}</strong>
+              <a href={`mailto:${site.email}`}>{t('Email us', locale)}</a>
+              <a href={href('/contact')}>{t('Contact information', locale)}</a>
+              <a href="/admin">{t('Staff sign-in', locale)}</a>
             </div>
           </div>
         </div>
         <div class="footer-bottom">
-          <span>© {new Date().getFullYear()} Adventure Station</span>
-          <a href="/policies">Privacy & workshop policies</a>
-          <span>Made for a little more wonder.</span>
+          <span>
+            © {new Date().getFullYear()}
+            {t(' Adventure Station', locale)}
+          </span>
+          <a href={href('/policies')}>{t('Privacy & workshop policies', locale)}</a>
+          <span>{t('Made for a little more wonder.', locale)}</span>
         </div>
       </div>
     </footer>

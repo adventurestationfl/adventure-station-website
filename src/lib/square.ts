@@ -56,7 +56,13 @@ export async function square<T>(
 }
 export async function createCheckout(
   env: Cloudflare.Env,
-  r: { id: string; total: number; seats: number; workshop_name: string },
+  r: {
+    id: string;
+    total: number;
+    seats: number;
+    workshop_name: string;
+    locale?: import('./i18n').Locale;
+  },
 ) {
   const data = await square<{ payment_link: { id: string; order_id: string; url: string } }>(
     env,
@@ -78,7 +84,7 @@ export async function createCheckout(
       checkout_options: {
         allow_tipping: false,
         ask_for_shipping_address: false,
-        redirect_url: `${env.PUBLIC_ORIGIN}/registration/${r.id}`,
+        redirect_url: `${env.PUBLIC_ORIGIN}${r.locale === 'es-MX' ? '/es' : ''}/registration/${r.id}`,
       },
     },
   );

@@ -1,0 +1,82 @@
+---
+import { env } from 'cloudflare:workers';
+import { beginConsent, finishConsent } from '../../lib/mcp';
+import { errorResponse } from '../../lib/http';
+import { localeOf, t } from '../../lib/i18n';
+import '../../styles/global.css';
+const staff = Astro.locals.staff!,
+  locale = localeOf(staff.locale);
+if (Astro.request.method === 'POST') {
+  try {
+    return await finishConsent(Astro.request, env, staff);
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+let consent;
+try {
+  consent = await beginConsent(env, staff, Astro.url.searchParams);
+} catch (error) {
+  return errorResponse(error);
+}
+Astro.response.headers.set('Cache-Control', 'no-store');
+Astro.response.headers.set(
+  'Set-Cookie',
+  `mcp_consent=${consent.nonce}; HttpOnly; Secure; SameSite=Lax; Path=/admin/mcp-authorize; Max-Age=300`,
+);
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>{t('Authorize AI connection',locale)} | Adventure Station</title>
+  </head>
+  <body>
+    <main class="wrap section prose">
+      <h1>{t('Authorize AI connection', locale)}</h1>
+      <p>{consent.data.clientName}</p>
+      <p>
+        {t(
+          'This client requests limited access to your studio. It cannot read children’s records, move money, change roles, adopt policies or publish workshops.',
+          locale,
+        )}
+      </p>
+      <p>
+        {t('Confirm the client and callback address before continuing:', locale)}{' '}
+        <code>{consent.data.redirect_uri}</code>
+      </p>
+      <form method="post">
+        <input type="hidden" name="nonce" value={consent.nonce} />
+        {consent.data.scope.split(' ').map((scope) => (
+          <label class="check">
+            <input type="checkbox" name="scope" value={scope} checked={scope === 'studio:read'} />
+            {t(
+              scope === 'studio:read'
+                ? 'Read non-sensitive studio information'
+                : 'Prepare draft requests for my review in the studio desk',
+              locale,
+            )}
+          </label>
+        ))}
+        <p>
+          {t(
+            'Access tokens expire after 15 minutes; this authorization lasts up to one hour. You can disconnect it in AI Connections.',
+            locale,
+          )}
+        </p>
+        <div class="inline-actions">
+          <button class="btn" name="decision" value="approve">
+            {t('Authorize selected permissions', locale)}
+          </button>
+          <button class="btn light" name="decision" value="deny">
+            {t('Cancel', locale)}
+          </button>
+        </div>
+      </form>
+    </main>
+    <footer class="admin-signature">Made with love by your Bro · 2026</footer>
+  </body>
+</html>

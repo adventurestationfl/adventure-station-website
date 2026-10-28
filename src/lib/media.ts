@@ -47,7 +47,7 @@ export function sanitizeJpeg(input: Uint8Array) {
   return { bytes, width, height };
 }
 export async function mediaApi(request: Request, env: Cloudflare.Env, staff: Staff, path: string) {
-  authorize(staff, ['owner', 'manager']);
+  authorize(staff, ['owner', 'manager', 'godmin']);
   if (path === 'media' && request.method === 'GET')
     return json(
       (await env.DB.prepare('SELECT * FROM media ORDER BY created_at DESC').all()).results,

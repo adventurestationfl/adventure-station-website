@@ -70,7 +70,7 @@ export async function integrationFingerprint(env: Cloudflare.Env, kind: string) 
       d.licensingReference,
       s.locality,
     ],
-    recovery: [env.ENVIRONMENT, env.PUBLIC_ORIGIN, 'schema-0009'],
+    recovery: [env.ENVIRONMENT, env.PUBLIC_ORIGIN, 'schema-0011'],
     acceptance: [env.ENVIRONMENT, env.PUBLIC_ORIGIN, s, d],
   };
   return sha256(JSON.stringify(configuration[kind] ?? null));

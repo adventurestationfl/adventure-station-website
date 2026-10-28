@@ -1,11 +1,15 @@
 ---
+import { localeOf, t, localPath } from '../../lib/i18n';
+import { publicCatalog, publicUpcoming } from '../../lib/translations';
+const locale = localeOf(Astro.locals.locale);
+const href = (p: string) => localPath(p, locale);
 import Public from '../../layouts/Public.astro';
 import SessionList from '../../components/SessionList.astro';
 import { env } from 'cloudflare:workers';
-import { catalog, upcoming } from '../../lib/data';
-const w = (await catalog(env.DB)).find((w) => w.slug === Astro.params.slug);
+
+const w = (await publicCatalog(env.DB, locale)).find((w) => w.slug === Astro.params.slug);
 if (!w) return Astro.redirect('/404');
-const sessions = await upcoming(env.DB, w.id);
+const sessions = await publicUpcoming(env.DB, locale, w.id);
 const gallery = (
   await env.DB.prepare(
     'SELECT m.* FROM media m JOIN workshop_gallery g ON g.media_id=m.id WHERE g.workshop_id=? ORDER BY m.created_at',
@@ -18,37 +22,47 @@ const gallery = (
 <Public title={w.name} description={w.summary}>
   <div class="wrap">
     <div class="breadcrumb">
-      <a href="/workshops">All workshops</a> / {w.name}
+      <a href={href('/workshops')}>{t('All workshops', locale)}</a> / {w.name}
     </div>
     <section class="section split">
       <div>
         <div class="eyebrow">{w.category}</div>
         <h1>{w.name}</h1>
+        {locale === 'es-MX' && w.translationIncomplete && (
+          <p class="notice">
+            {t(
+              'This workshop copy is awaiting Spanish review. English source content is shown.',
+              locale,
+            )}
+          </p>
+        )}
         <p>{w.summary}</p>
         <span class="tag">
-          Ages {w.age_min}–{w.age_max} · {w.duration} minutes
+          {t('\r\n          Ages ', locale)}
+          {w.age_min}–{w.age_max} · {w.duration}
+          {t(' minutes\r\n        ', locale)}
         </span>
         <p class="prose">{w.description}</p>
         {w.materials && (
           <>
-            <h3>Materials</h3>
+            <h3>{t('Materials', locale)}</h3>
             <p>{w.materials}</p>
           </>
         )}
         {w.instructions && (
           <>
-            <h3>Before you come</h3>
+            <h3>{t('Before you come', locale)}</h3>
             <p>{w.instructions}</p>
           </>
         )}
         <a class="btn coral" href="#dates">
-          Find a date ↗
+          {t('\r\n          Find a date ↗\r\n        ', locale)}
         </a>
       </div>
       <div class="hero-art">
         <img
           src={w.media_id ? `/media/${w.media_id}?w=960` : '/brand/art-960.webp'}
-          alt={w.image_alt ?? 'Adventure Station arts and crafts artwork'}
+          alt={w.image_alt ?? t('Adventure Station crafts and arts artwork', locale)}
           width="960"
           height="960"
         />
@@ -56,7 +70,7 @@ const gallery = (
     </section>
     {gallery.length > 0 && (
       <section class="section">
-        <h2>A closer look.</h2>
+        <h2>{t('A closer look.', locale)}</h2>
         <div class="grid">
           {gallery.map((m) => (
             <img
@@ -71,7 +85,7 @@ const gallery = (
       </section>
     )}
     <section id="dates" class="upcoming">
-      <h2>Let’s make a date.</h2>
+      <h2>{t('Let’s make a date.', locale)}</h2>
       <SessionList sessions={sessions} />
     </section>
   </div>

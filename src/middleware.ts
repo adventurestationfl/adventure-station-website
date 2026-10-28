@@ -2,11 +2,18 @@ import { defineMiddleware } from 'astro:middleware';
 import { env } from 'cloudflare:workers';
 import { authenticate } from './lib/auth';
 import { errorResponse, HttpError } from './lib/http';
+import { localeOf } from './lib/i18n';
 export const onRequest = defineMiddleware(async (context, next) => {
+  context.locals.publicPath ??= context.url.pathname;
+  context.locals.locale ??=
+    context.url.pathname === '/es' || context.url.pathname.startsWith('/es/') ? 'es-MX' : 'en-US';
+  if (/^\/es\/(admin|api|oauth|mcp|media|brand|_astro)(?:\/|$)/.test(context.url.pathname))
+    return new Response('Not found', { status: 404 });
   let response;
   try {
     if (context.url.pathname.startsWith('/admin'))
       context.locals.staff = await authenticate(context.request, env);
+    if (context.locals.staff) context.locals.locale = localeOf(context.locals.staff.locale);
     response = await next();
   } catch (error) {
     if (context.url.pathname.startsWith('/admin'))

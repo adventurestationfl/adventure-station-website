@@ -1,6 +1,8 @@
 import { dateLabel, money, audit } from './data';
+import { t, localeOf, type Locale } from './i18n';
 import { HttpError, now, sha256, readBody } from './http';
 type Notice = {
+  locale?: Locale;
   id: string;
   registration_id: string;
   kind: string;
@@ -15,7 +17,9 @@ type Notice = {
 };
 const MAX_ATTEMPTS = 5,
   RETRY_WINDOW = 22 * 3600;
-export function notificationText(n: Pick<Notice, 'kind' | 'message'>) {
+export function notificationText(n: Pick<Notice, 'kind' | 'message' | 'locale'>) {
+  const locale = localeOf(n.locale),
+    tr = (value: string) => t(value, locale);
   const p = JSON.parse(n.message);
   const intro: Record<string, string> = {
     confirmation: 'Your payment and places have been verified. Your booking is confirmed.',
@@ -31,22 +35,33 @@ export function notificationText(n: Pick<Notice, 'kind' | 'message'>) {
   };
   return [
     'Adventure Station',
-    intro[n.kind] ?? 'Please contact Adventure Station about your booking.',
+    tr(intro[n.kind] ?? 'Please contact Adventure Station about your booking.'),
     p.workshop,
     p.starts
-      ? `${dateLabel(p.starts, p.timezone)} (${p.timezone})${p.ends ? ' to ' + dateLabel(p.ends, p.timezone) : ''}`
+      ? `${dateLabel(p.starts, p.timezone, locale)} (${p.timezone})${p.ends ? ' ' + tr('to') + ' ' + dateLabel(p.ends, p.timezone, locale) : ''}`
       : '',
-    p.venue ? `Venue: ${p.venue}${p.address ? ' — ' + p.address : ''}` : '',
-    p.places ? `Places: ${p.places}` : '',
-    p.amount ? `Amount: ${money(p.amount)}` : '',
-    `Booking reference: ${p.reference}`,
+    p.venue ? `${tr('Venue:')} ${p.venue}${p.address ? ' — ' + p.address : ''}` : '',
+    p.places ? `${tr('Places:')} ${p.places}` : '',
+    p.amount ? `${tr('Amount:')} ${money(p.amount, locale)}` : '',
+    `${tr('Booking reference:')} ${p.reference}`,
     p.instructions ?? '',
     p.contact
-      ? `Contact: ${p.contact}`
-      : 'Contact Adventure Station through the contact details on your booking.',
+      ? `${tr('Contact:')} ${p.contact}`
+      : tr('Contact Adventure Station through the contact details on your booking.'),
   ]
     .filter(Boolean)
     .join('\n\n');
+}
+export function notificationHtml(n: Pick<Notice, 'kind' | 'message' | 'locale'>) {
+  const escape = (value: string) =>
+    value.replace(
+      /[&<>"']/g,
+      (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
+    );
+  return `<html lang="${localeOf(n.locale)}"><body>${notificationText(n)
+    .split('\n\n')
+    .map((p) => `<p>${escape(p).replaceAll('\n', '<br/>')}</p>`)
+    .join('')}</body></html>`;
 }
 async function transportHash(env: Cloudflare.Env) {
   return sha256(
@@ -121,8 +136,9 @@ export async function deliverNotifications(env: Cloudflare.Env) {
         body: JSON.stringify({
           from: env.EMAIL_FROM,
           to: [env.EMAIL_TEST_RECIPIENT],
-          subject: `[TEST] ${n.subject}`,
+          subject: `[TEST] ${t(n.subject, localeOf(n.locale))}`,
           text: notificationText(n),
+          html: notificationHtml(n),
         }),
         signal: AbortSignal.timeout(15000),
       });

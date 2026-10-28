@@ -25,6 +25,27 @@
 body {
   margin: 0;
 }
+.language-choice {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+.language-choice a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 5px;
+}
+.language-choice [aria-current='true'] {
+  font-weight: 700;
+  text-decoration-thickness: 2px;
+}
+.translation-notice {
+  padding: 12px 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
 a {
   color: inherit;
   text-underline-offset: 4px;

@@ -10,6 +10,15 @@ for (const path of [
   '/faq',
   '/contact',
   '/policies',
+  '/es/',
+  '/es/workshops',
+  '/es/workshops/paper-garden-preview',
+  '/es/register/preview-paper-1',
+  '/es/about',
+  '/es/faq',
+  '/es/contact',
+  '/es/policies',
+  '/media/f4b9a252-77e2-4e1c-9e51-15e95c7f6a48?w=480',
   '/brand/art-480.webp',
   '/api/receipts/no-such-registration',
   '/admin',
@@ -32,7 +41,11 @@ for (const path of [
     r.status === expected &&
     (expected === 302
       ? redirectHost?.endsWith('.cloudflareaccess.com')
-      : r.headers.get('x-robots-tag')?.includes('noindex'));
+      : r.headers.get('x-robots-tag')?.includes('noindex')) &&
+    (!path.startsWith('/es/') || body.includes('lang="es-MX"')) &&
+    (path.startsWith('/admin') ||
+      path.startsWith('/api/admin') ||
+      !body.includes('Made with love by your Bro'));
   results.push({
     path,
     status: r.status,
@@ -71,6 +84,16 @@ for (const [name, path, headers, expected] of [
     body: '{}',
   });
   results.push({ name, status: r.status, expected, passed: r.status === expected });
+}
+for (const [path, expected] of [
+  ['/mcp', 503],
+  ['/.well-known/oauth-authorization-server', 503],
+  ['/.well-known/oauth-protected-resource/mcp', 503],
+  ['/es/admin/settings', 404],
+  ['/es/api/admin/me', 404],
+]) {
+  const response = await fetch(origin + path, { redirect: 'manual' });
+  results.push({ path, status: response.status, expected, passed: response.status === expected });
 }
 console.log(JSON.stringify({ checkedAt: new Date().toISOString(), origin, results }, null, 2));
 if (results.some((r) => !r.passed)) process.exitCode = 1;

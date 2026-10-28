@@ -4,7 +4,7 @@ This guide describes the new system. It is a development preview until your sign
 
 ## Sign in
 
-Open [preview Setup](https://adventure-station-preview.adventurestationfl.workers.dev/admin/setup). The preview currently allows only the business owner through the existing Cloudflare account sign-in. Enter passwords and verification codes only on Cloudflare's page. Successful hosted sign-in is still awaiting your test. Sign in with the email on your team invitation. You do not need a new website password. If you see “Staff sign-in is not configured yet,” setup is still needed; contact the person helping with the website.
+Open [preview Setup](https://adventure-station-preview.adventurestationfl.workers.dev/admin/setup). The preview allows the business owner and the specifically invited technical account. Choose the existing Cloudflare sign-in or the email-code option shown on Cloudflare. Enter passwords and verification codes only on Cloudflare's page. Both invited identities have successfully signed in. Sign in with the email on your team invitation. You do not need a new website password. If you see “Staff sign-in is not configured yet,” setup is still needed; contact the person helping with the website.
 
 ## Find your way around
 
@@ -110,3 +110,31 @@ Booked times, venues and prices are locked to protect family agreements. To chan
 **Messages** lists confirmations, cancellations and refund updates. A booking is confirmed only after verified payment and available places. An email marked **Accepted** has been accepted by the provider; it is not yet proof of delivery. **Review**, **Bounced** or **Suppressed** needs another contact method. **Retry safely** preserves the same message reference and is available only while a retry is safe. Your developer must finish provider setup and testing before customer sending is enabled.
 
 **Privacy review** distinguishes records due for review from records already anonymized. Review outstanding issues and legitimate retention reasons first. Removing personal details preserves financial history and a restricted removal record. It does not erase old backups or the processor’s own records. Ask your developer to maintain the recovery process; do not restore an old backup yourself.
+
+## Daily encouragement and Creative Spark
+
+Overview offers a small original encouragement each day, using Freeport local time. In **Settings**, choose shown, minimized or disabled; this changes only your account. Choose English or Español for your interface there too.
+
+**Creative Spark** offers a detailed starting point for a workshop. Read preparation, safety, accessibility, materials, cleanup and cost notes. Adapt them to the children, location and actual materials. Save useful ideas, dismiss unsuitable ones, restore dismissed ideas or ask for another. **Create workshop draft** creates an editable English/Spanish draft. Check its suggested price, age range and capacity. It does not schedule or publish a class. Repeating the same idea opens its existing draft.
+
+The current ideas are curated and seasonal/evergreen. They are not researched popularity claims. No paid AI generation is enabled. Connecting a chat account is different from buying API generation credits.
+
+## English and Spanish content
+
+Public pages start in English; **Español** opens the equivalent page. In a workshop, venue or Website content editor, save the English source first, then use the content-language button to edit Spanish copy. Shared dates, prices and places are the same in both languages. Source changes can require another translation review. Optional missing copy is identified as awaiting review; critical Spanish registration instructions and policies cannot silently use English.
+
+The owner reviews policies separately in each language. Proposed Spanish drafts can be loaded into the form, compared with the English source and edited. Loading them does not approve or save them. Complete every owner placeholder and confirm actual operating arrangements before approval. A material English policy change reopens Spanish review. Existing bookings keep their original policy/language snapshots.
+
+## Team access, Godmin and activity
+
+Godmin is the technical support role. First invite the intended email and let that person sign in. Then the business owner opens **Team access**, chooses that verified person and selects **Grant Godmin access**. Confirm the named change. The invitation initially shows only class dates and personal settings. The current technical account has completed verified sign-in and the owner-confirmed grant; refresh to load Godmin access. Email alone, an AI request or the invited person cannot grant Godmin. To remove it, the owner uses **Revoke Godmin access**. The last active owner cannot be removed.
+
+Owner and Godmin can inspect **Activity History** by person, category and Freeport-local dates. It records important application changes and AI activity without participant details or message bodies. Sign-in history is separate in Cloudflare Access. This is not a record of every page viewed by visitors.
+
+## AI Connections
+
+In **Settings → AI Connections**, an owner or Godmin can prepare the preferred ChatGPT or Claude connection. The current preview clearly shows connection testing disabled. Neither client is yet verified; a configured callback is not a connected account. Eligibility depends on the actual account/workspace.
+
+When testing is enabled by the technical manager, copy the exact callback from the client's setup, register it and use the returned client ID. Sign in through Cloudflare and approve only the requested permissions. Read access covers workshop content, schedules, capacity, public business settings and aggregate statistics. Optional writing creates draft requests for your review in this panel. Inspect each request, apply it explicitly or reject it. Nothing is automatically published or scheduled. The client cannot access children's/guardians' records, move money, change roles or adopt policies. **Disconnect** stops subsequent access and prevents outstanding requests being applied. No chat password or API key belongs in this panel.
+
+[Guía en español mexicano](OWNER_GUIDE.es-MX.md)

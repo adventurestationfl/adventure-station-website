@@ -1,3 +1,5 @@
+import { localizedSite, policyFingerprint } from '../src/lib/translations';
+import { sqlStatements } from './sql-statements';
 import { ownerSetup, saveSetup, integrationFingerprint } from '../src/lib/setup';
 import { deliverNotifications, notificationText } from '../src/lib/notifications';
 import { cancelPlaces, requestRefund } from '../src/lib/booking-operations';
@@ -103,15 +105,14 @@ beforeEach(async () => {
     '0007_photo_draft_line_endings.sql',
     '0008_privacy_review.sql',
     '0009_exact_draft_encoding.sql',
+    '0010_companion_locales_and_technical_access.sql',
+    '0011_spanish_starter_copy.sql',
+    '0012_starter_copy_source_review.sql',
   ]
     .map((f) => readFileSync(`migrations/${f}`, 'utf8'))
     .join('\n');
   // D1 exec splits on newlines; batch each complete statement, preserving trigger bodies.
-  const cleaned = sql.replace(/--[^\n]*/g, '');
-  const chunks = cleaned
-    .split(/;\s*(?=(?:CREATE|INSERT|PRAGMA|ALTER|UPDATE|DROP)\b)/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const chunks = sqlStatements(sql);
   for (const chunk of chunks) await db.prepare(chunk.endsWith(';') ? chunk : chunk + ';').run();
   sessionStart = Math.floor(Date.now() / 1000) + 86400 * 7;
   await db.batch([
@@ -1186,4 +1187,95 @@ describe('Owner operations and access boundaries', () => {
     expect(() => zonedDateTime('2026-11-01T01:30', 'America/New_York')).toThrow('ambiguous');
     expect(() => zonedDateTime('2026-03-08T02:30', 'America/New_York')).toThrow('unavailable');
   });
+});
+
+async function spanishBookingCopy() {
+  const site = await settings(db),
+    revision = (await db
+      .prepare("SELECT revision FROM settings WHERE key='site'")
+      .first<{ revision: number }>())!.revision;
+  const value = {
+    ...site,
+    headline: 'Prueba creativa',
+    intro: 'Introducción de prueba',
+    about: 'Información de prueba',
+    promotion: 'Promoción de prueba',
+    refundPolicy: 'Reembolso de prueba aprobado',
+    supervisionPolicy: 'Supervisión de prueba aprobada',
+    pickupPolicy: 'Recogida de prueba aprobada',
+    privacyPolicy: 'Privacidad de prueba aprobada',
+    policySourceFingerprint: await policyFingerprint(site),
+  };
+  await db
+    .prepare(
+      "UPDATE content_translations SET value=?,source_revision=?,approved=1 WHERE entity_type='site'",
+    )
+    .bind(JSON.stringify(value), revision)
+    .run();
+  await db
+    .prepare(
+      "INSERT INTO content_translations(entity_type,entity_id,locale,value,source_revision,actor) VALUES('workshop','workshop','es-MX',?,1,'owner')",
+    )
+    .bind(
+      JSON.stringify({
+        name: 'Taller de prueba',
+        summary: 'Resumen de prueba',
+        description: 'Descripción de prueba',
+        category: 'Arte',
+        materials: 'Papel',
+        instructions: 'Supervisión de prueba',
+      }),
+    )
+    .run();
+  await db
+    .prepare(
+      "INSERT INTO content_translations(entity_type,entity_id,locale,value,source_revision,actor) VALUES('venue','venue','es-MX',?,1,'owner')",
+    )
+    .bind(JSON.stringify({ instructions: 'Llegada de prueba', accessibility: 'Acceso de prueba' }))
+    .run();
+  return { locale: 'es-MX', policy_version: (await localizedSite(db, 'es-MX')).policyVersion };
+}
+it('keeps Spanish booking facts, policy acceptance and notification language immutable', async () => {
+  mockSquare();
+  const locale = await spanishBookingCopy(),
+    r = await register(env, { ...input(), ...locale }, crypto.randomUUID());
+  expect(
+    await db
+      .prepare(
+        'SELECT locale,policy_version,workshop_name,instructions_snapshot FROM registrations WHERE id=?',
+      )
+      .bind(r.id)
+      .first(),
+  ).toMatchObject({ ...locale, workshop_name: 'Taller de prueba' });
+  await applyPayment(env, pay(r));
+  expect(
+    await db
+      .prepare(
+        "SELECT locale FROM notification_outbox WHERE registration_id=? AND kind='confirmation'",
+      )
+      .bind(r.id)
+      .first(),
+  ).toEqual({ locale: 'es-MX' });
+  await expect(
+    db.prepare("UPDATE registrations SET locale='en-US' WHERE id=?").bind(r.id).run(),
+  ).rejects.toThrow('HISTORICAL_REGISTRATION_LANGUAGE');
+});
+it('rejects missing, stale or empty critical Spanish venue guidance and stale policy versions', async () => {
+  mockSquare();
+  const locale = await spanishBookingCopy();
+  await db.prepare("UPDATE venues SET revision=revision+1 WHERE id='venue'").run();
+  await expect(register(env, { ...input(), ...locale }, crypto.randomUUID())).rejects.toThrow(
+    'Spanish workshop instructions',
+  );
+  await db
+    .prepare(
+      "UPDATE content_translations SET source_revision=2,value=json_set(value,'$.accessibility','') WHERE entity_type='venue'",
+    )
+    .run();
+  await expect(register(env, { ...input(), ...locale }, crypto.randomUUID())).rejects.toThrow(
+    'Spanish workshop instructions',
+  );
+  await expect(
+    register(env, { ...input(), ...locale, policy_version: 'old-version' }, crypto.randomUUID()),
+  ).rejects.toThrow('policy version');
 });
