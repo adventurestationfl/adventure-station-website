@@ -4,6 +4,7 @@ import { authorize, type Staff } from './auth';
 import { HttpError, bodyJson, json, now } from './http';
 import { reconcile, applyPayment } from './registration';
 import { getPayment, square } from './square';
+import { policyDrafts } from './policy-drafts';
 export async function adminApi(request: Request, env: Cloudflare.Env, staff: Staff, path: string) {
   const db = env.DB,
     url = new URL(request.url),
@@ -131,6 +132,28 @@ export async function adminApi(request: Request, env: Cloudflare.Env, staff: Sta
       (await db.prepare('SELECT * FROM content_versions ORDER BY created_at DESC LIMIT 20').all())
         .results,
     );
+  if (path === 'content/policy-drafts' && method === 'POST') {
+    authorize(staff, ['owner']);
+    const input = await bodyJson(request);
+    if (!Number.isInteger(input.revision))
+      throw new HttpError(400, 'Reload the page before loading policy drafts.');
+    const current = await settings(db);
+    return adminApi(
+      new Request(request.url, {
+        method: 'POST',
+        headers: request.headers,
+        body: JSON.stringify({
+          ...current,
+          ...policyDrafts.policies,
+          policiesApproved: false,
+          revision: input.revision,
+        }),
+      }),
+      env,
+      staff,
+      'content',
+    );
+  }
   if (path === 'content' && method === 'POST') {
     const input = await bodyJson(request),
       data = siteSchema.parse(input);

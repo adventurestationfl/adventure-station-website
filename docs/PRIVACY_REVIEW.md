@@ -16,7 +16,7 @@ This is an implementation and review record, not a finalized legal policy or a d
 
 ## Matters requiring confirmation
 
-1. Actual Florida locality and IANA timezone. Florida has more than one timezone.
+1. Locality confirmed by the user: Freeport, Florida. Central Time is verified against official Walton County sources and configured as `America/Chicago`; historical session/registration timezones remain unchanged.
 2. Confirmed venue, supervision, drop-off/pickup arrangements, refund policy, business identity and contact details.
 3. The appropriate privacy notice, retention period, parental review/deletion request process, marketing practice and photo permission scope.
 4. Whether the audience, artwork, actual visitors and collection practices bring any part of the service within COPPA, including the amended rule. Parent-submitted information alone is not used as an exemption determination; a guardian checkbox is not represented as legally sufficient verifiable parental consent.
@@ -30,4 +30,4 @@ Relevant primary sources checked October 27, 2026:
 - [FTC compliance plan](https://www.ftc.gov/business-guidance/resources/childrens-online-privacy-protection-rule-six-step-compliance-plan-your-business)
 - [Florida Statutes 501.1735, including its defined scope](https://www.leg.state.fl.us/statutes/index.cfm?App_mode=Display_Statute&URL=0500-0599/0501/Sections/0501.1735.html)
 
-Until these decisions are made, the application's policy text remains explicitly awaiting owner confirmation, and new session publication and registration are blocked. Do not import real records into a preview.
+The proposed wording is in [customer policy drafts](PROPOSED_CUSTOMER_POLICIES.md), with [operating assumptions and sources](POLICY_DRAFTS.md). Drafts are preloaded privately in the CMS and remain unapproved. Public policy pages suppress their text, and unresolved `[OWNER: ...]` instructions prevent approval. New session publication and registration remain blocked by policy approval and the other existing safeguards. Do not import real records into a preview.

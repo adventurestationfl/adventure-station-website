@@ -72,6 +72,17 @@ export const siteSchema = z
     retentionDays: z.number().int().min(30).max(730),
   })
   .superRefine((v, ctx) => {
+    if (
+      v.policiesApproved &&
+      [v.refundPolicy, v.supervisionPolicy, v.pickupPolicy, v.privacyPolicy].some((value) =>
+        value.includes('[OWNER:'),
+      )
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Complete every [OWNER: ...] item in the policy drafts before approving them.',
+      });
+    }
     if (v.timezone) {
       try {
         new Intl.DateTimeFormat('en', { timeZone: v.timezone });

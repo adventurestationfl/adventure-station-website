@@ -42,6 +42,8 @@ Open **Website content**. Edit the headline, welcome text, story, contact detail
 
 Only the owner can confirm the city, timezone and policies. Do not approve policy text until it accurately describes the business. Earlier versions are kept at the bottom of the page: restore one into the form, review it, and publish it to apply the change.
 
+Freeport is configured for Central Time. Recommended policies are preloaded as private drafts. **Load recommended policy drafts** restores the current suggested wording and leaves approval off. It replaces saved policy text, keeps the previous saved version in history, and discards unsaved form edits after you confirm. Complete every **[OWNER: ...]** instruction and review the proposed parent-present model and refund terms before checking the approval box. The public website does not display unapproved policy text.
+
 ## Review registrations and attendance
 
 Choose **Registrations** to search for a guardian, workshop or registration reference. Look at both the registration state and the verified payment information.

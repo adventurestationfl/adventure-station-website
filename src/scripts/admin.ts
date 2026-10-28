@@ -379,7 +379,7 @@ async function renderContent() {
         { id: 'America/Chicago', name: 'Central Time' },
       ],
       owner ? '' : 'disabled',
-    )}</div><div class="panel"><h2>Workshop & privacy policies</h2><p class="muted">Only publish policies the owner has confirmed. These are also saved with each registration.</p>${field('Cancellations & refunds', 'refundPolicy', content.refundPolicy, 'textarea', '', owner ? '' : 'disabled')}${field('Guardian supervision', 'supervisionPolicy', content.supervisionPolicy, 'textarea', '', owner ? '' : 'disabled')}${field('Drop-off & pickup', 'pickupPolicy', content.pickupPolicy, 'textarea', '', owner ? '' : 'disabled')}${field('Privacy & registration information', 'privacyPolicy', content.privacyPolicy, 'textarea', '', owner ? '' : 'disabled')}${check('I confirm these policies, the location and timezone are accurate and approved for families.', 'policiesApproved', content.policiesApproved, !owner)}${field('Privacy review after this many days', 'retentionDays', content.retentionDays, 'number', 'Review historical personal details for removal after this period. Financial facts are retained.', owner ? 'min="30" max="730"' : 'disabled')}</div></div></div>${saveBar('Publish website changes')}</form><div class="panel"><h2>Earlier versions</h2><p>Restore earlier text into the form, review it, then publish to apply it.</p><div id="history-list"></div></div>`;
+    )}</div><div class="panel"><h2>Workshop & privacy policies</h2>${owner ? button('Load recommended policy drafts', 'load-policy-drafts') : ''}<p class="muted">Recommended drafts use parent-present workshops. Confirm operating arrangements and complete every [OWNER: ...] item before approval. Draft text stays private until approved.</p><p class="muted">Only publish policies the owner has confirmed. These are also saved with each registration.</p>${field('Cancellations & refunds', 'refundPolicy', content.refundPolicy, 'textarea', '', owner ? '' : 'disabled')}${field('Guardian supervision', 'supervisionPolicy', content.supervisionPolicy, 'textarea', '', owner ? '' : 'disabled')}${field('Drop-off & pickup', 'pickupPolicy', content.pickupPolicy, 'textarea', '', owner ? '' : 'disabled')}${field('Privacy & registration information', 'privacyPolicy', content.privacyPolicy, 'textarea', '', owner ? '' : 'disabled')}${check('I confirm these policies, the location and timezone are accurate and approved for families.', 'policiesApproved', content.policiesApproved, !owner)}${field('Privacy review after this many days', 'retentionDays', content.retentionDays, 'number', 'Review historical personal details for removal after this period. Financial facts are retained.', owner ? 'min="30" max="730"' : 'disabled')}</div></div></div>${saveBar('Publish website changes')}</form><div class="panel"><h2>Earlier versions</h2><p>Restore earlier text into the form, review it, then publish to apply it.</p><div id="history-list"></div></div>`;
   const faqs: any[] = content.faqs.map((v: any) => ({ ...v }));
   function renderFaqs() {
     document.querySelector('#faq-fields')!.innerHTML = faqs
@@ -637,6 +637,19 @@ workspace.addEventListener('click', async (event) => {
     action = b.dataset.action;
   try {
     switch (action) {
+      case 'load-policy-drafts':
+        if (
+          confirm(
+            'Replace the saved policy text with recommended drafts? Earlier saved text stays in history. Unsaved form changes will be discarded. Registration will remain closed until the owner completes and approves the policies.',
+          )
+        ) {
+          await api('content/policy-drafts', 'POST', { revision: content.revision });
+          await renderContent();
+          notify(
+            'Recommended policy drafts loaded. Complete the owner items and review before approval.',
+          );
+        }
+        break;
       case 'back':
         await render();
         break;

@@ -1,0 +1,68 @@
+# Adventure Station — proposed customer policies
+
+**DRAFT 2026-10-27-draft-1 — not adopted or published.**
+
+Prepared for Freeport, Florida. All times use Central Time. The owner must confirm the operating arrangements, replace each [OWNER: ...] instruction, and approve the final text. These drafts are not a legal-compliance certification.
+
+## Registration, cancellations and refunds
+
+Booking and confirmation
+A parent or legal guardian must register each child. Check the activity, age range, date, location and total price before paying. All class times are Freeport, Florida local time: Central Time, with daylight-saving changes where applicable. A checkout attempt or payment screenshot does not confirm a place. Your place is confirmed when Adventure Station verifies payment and confirms availability.
+
+Changes requested by a family
+Email adventurestationfl@gmail.com with your registration reference. Requests received at least 48 hours before the published start time qualify for a full refund of the amount paid for the cancelled places. Within 48 hours, cancellations and missed classes are normally non-refundable because places and materials have been reserved. If the cancelled places are filled by another paid booking, we will refund those places in full. Please contact us about illness or an emergency so we can consider a reasonable exception. Do not include medical records. These time limits use actual elapsed hours before the class start.
+
+Changes or cancellation by Adventure Station
+If we cancel a class, cannot provide a paid place, or need to make a material change to its date, time or venue that you do not accept, you may choose a full refund. An alternative date is optional and must be agreed with you; you do not have to accept credit instead of a refund. If a payment arrives after its reservation expires and no place is available, we will contact you to arrange a full refund or an alternative you expressly accept. Do not pay again while a payment is being investigated.
+
+Refunds and transfers
+Approved refunds are returned to the original payment method through the payment processor. We do not deduct an undisclosed administration fee. Bank and processor processing times can vary. Places cannot be transferred or rescheduled automatically; contact us before making other arrangements. Any replacement participant must meet the workshop requirements and be confirmed by Adventure Station. This policy does not limit rights or remedies that cannot lawfully be excluded.
+
+## Guardian supervision and participation
+
+Parent-present workshops
+A parent or responsible adult authorized by the registering guardian must stay with each child in the workshop area for the entire session. The accompanying adult remains responsible for the child's personal care, toileting, belongings and safe arrival and departure. Instructors lead the activity and give instructions for the materials and tools. This parent-present policy does not remove Adventure Station's responsibility to exercise reasonable care. Unattended drop-off and care before or after a class are not offered under this policy.
+
+Participation and materials
+Follow the published age range and activity instructions. Keep children with their accompanying adult and within the designated activity area. Use tools and materials only as instructed. Do not bring an unregistered child into an activity or use another child's place without staff confirmation. Paint, glue, small parts and age-appropriate tools may present risks, and clothing can become marked. Read the specific workshop description and ask about materials before booking. We do not promise an allergen-free environment or a risk-free activity.
+
+Help, health and accessibility
+Contact us before booking if your child may need an adjustment or if materials could affect their participation. Share only the information needed to discuss participation, using a communication method agreed with us; do not place diagnoses or medical records in the registration form. Stay home if illness would make participation unsafe for your child or others, and contact us about the booking. Tell an instructor promptly about an incident or safety concern. For an emergency, contact emergency services immediately.
+
+Respectful participation
+Children and adults must treat other participants, staff and property respectfully. If participation becomes unsafe, staff may pause the activity and ask the accompanying adult to help or leave with the child. Any booking adjustment will be considered fairly in the circumstances. Agreement to these instructions is not a blanket release of liability or a waiver of rights that cannot lawfully be waived.
+
+## Arrival, accompaniment and departure
+
+Arrival and departure
+Plan to arrive about five minutes before the published start time and check in with the instructor. Show your registration reference if asked. The accompanying adult must remain in the workshop area throughout the class and leave with the child at the end. Arriving early does not include childcare before the scheduled activity, and arriving late does not extend the end time.
+
+No unattended drop-off
+Do not leave a child with staff, outside a venue or with another family unless a responsible adult authorized by the guardian is present and accompanying that child. Tell staff before changing the accompanying adult. An unfamiliar adult must not remove a child without the guardian's confirmation. Staff may ask for identification or contact the registering guardian if there is uncertainty.
+
+If arrangements change
+Contact Adventure Station immediately if an accompanying adult cannot remain or if there is a problem with departure. Do not assume transport, waiting care or a late-pickup service is available. Any future drop-off program would need separate, expressly confirmed arrangements and operating requirements; this policy does not authorize one.
+
+## Registration privacy and optional permissions
+
+Who to contact
+Adventure Station operates children's arts and crafts workshops in Freeport, Florida. For registration privacy questions, optional permissions, or requests to review, correct or remove information, contact adventurestationfl@gmail.com. [OWNER: add the verified legal business name, business mailing contact and phone contact before approving this notice.]
+
+For parents and guardians
+Registration is intended to be completed by a parent or legal guardian, not by a child. We do not provide child accounts. The guardian is asked to provide their name, email and contact phone, each participating child's first name and age, and the selected workshop date. Please do not submit birth dates, home addresses, medical details, government identifiers or card details through the registration form. If a child submits information directly, contact us so we can assess and address it.
+
+How registration information is used
+We use necessary information to arrange and administer the booked workshop, verify age suitability and payment, manage available places and attendance, contact the guardian about that booking, and handle cancellations, disputes, privacy requests and required records. The system also records registration references, payment and refund status, policy acceptance, optional permission choices and administrative actions. We do not sell or rent children's registration information or use it for behavioral advertising. Necessary information is available only to authorized staff according to their role. Instructors receive the participant and attendance details needed for assigned classes, not the complete financial or guardian-contact records.
+
+Payment, hosting and essential website functions
+Square hosts checkout and processes payment details under its own privacy practices. Adventure Station keeps payment references and verification status, not card numbers or security codes. Cloudflare provides website, database, image-storage and staff sign-in services. These providers process information needed to deliver their services; this notice does not promise that every processing location is in Florida. Essential cookies support staff sign-in and access to a registration receipt. The receipt cookie lasts up to seven days. Abuse prevention uses temporary salted identifiers. This website has no advertising trackers or third-party analytics integration. Ordinary infrastructure security records may still be processed by service providers.
+
+Separate optional choices
+An optional workshop-update box records whether the guardian wants future workshop information. It is separate from booking communications and is not required to attend. Contact us to withdraw that choice. Photo permission is also separate and optional, and declining it does not affect a place or participation. If the guardian opts in, Adventure Station may use workshop images of the registered children on its own public website and business social-media pages. We will not attach a child's name, tag a child account, publish a live location, or include registration details with those images. Contact us to withdraw permission for future use and request removal from channels we control. We will review the request promptly; already distributed third-party copies may be outside our control. Do not photograph or post another family's child without their guardian's permission.
+
+Retention, correction and removal
+Operational guardian contact details and children's names and ages are scheduled for a privacy review 180 days after the class. We remove information when it is no longer needed for the stated purpose; any longer retention needs a specific documented reason, such as an unresolved dispute or a legal recordkeeping obligation. This review is an operating responsibility, not a promise that the website automatically deletes every record on day 180. Financial references may be kept separately for necessary accounting and legal purposes, without children's identifying details where possible. [OWNER: adopt the financial and backup retention schedule, including deletion requests after a restore, before approving this notice.] Service providers may have their own necessary retention obligations.
+
+A guardian may request access, correction or removal, or withdraw optional permission, by contacting us. We will verify the requester using proportionate information already associated with the booking rather than asking for unnecessary identity documents. Removing information still needed to operate a booking may require discussing cancellation or an alternative first. We will explain any information we must retain and why. We use reasonable access controls and security measures, but cannot guarantee absolute security. Material changes affecting an existing booking or optional consent will be brought to the guardian's attention, and new permission will be requested where required. This notice is not a determination that a guardian checkbox satisfies every applicable parental-consent requirement.
+
+See [policy review notes and official sources](POLICY_DRAFTS.md) for assumptions and adoption decisions.

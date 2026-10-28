@@ -23,6 +23,7 @@ const owner: Staff = {
 const manager: Staff = { ...owner, id: 'manager', role: 'manager' };
 const instructor: Staff = { ...owner, id: 'instructor', role: 'instructor' };
 let sessionStart: number;
+let initialDefaults: Awaited<ReturnType<typeof settings>>;
 async function admin(
   path: string,
   data?: unknown,
@@ -89,13 +90,18 @@ beforeEach(async () => {
     }),
   );
   db = await mf.getD1Database('DB');
-  const sql = ['0001_initial.sql', '0002_reconciliation.sql', '0003_review_and_media_integrity.sql']
+  const sql = [
+    '0001_initial.sql',
+    '0002_reconciliation.sql',
+    '0003_review_and_media_integrity.sql',
+    '0004_freeport_policy_drafts.sql',
+  ]
     .map((f) => readFileSync(`migrations/${f}`, 'utf8'))
     .join('\n');
   // D1 exec splits on newlines; batch each complete statement, preserving trigger bodies.
   const cleaned = sql.replace(/--[^\n]*/g, '');
   const chunks = cleaned
-    .split(/;\s*(?=(?:CREATE|INSERT|PRAGMA|ALTER)\b)/)
+    .split(/;\s*(?=(?:CREATE|INSERT|PRAGMA|ALTER|UPDATE)\b)/)
     .map((s) => s.trim())
     .filter(Boolean);
   for (const chunk of chunks) await db.prepare(chunk.endsWith(';') ? chunk : chunk + ';').run();
@@ -116,7 +122,8 @@ beforeEach(async () => {
       )
       .bind(sessionStart, sessionStart + 3600),
   ]);
-  const s = await settings(db);
+  initialDefaults = await settings(db);
+  const s = structuredClone(initialDefaults);
   Object.assign(s, {
     timezone: 'America/New_York',
     locality: 'Test locality',
@@ -350,6 +357,42 @@ describe('Payment evidence and events', () => {
   });
 });
 describe('Owner operations and access boundaries', () => {
+  it('initializes Freeport in Central Time with private, unapproved policy drafts', () => {
+    expect(initialDefaults.locality).toBe('Freeport, Florida');
+    expect(initialDefaults.timezone).toBe('America/Chicago');
+    expect(initialDefaults.policiesApproved).toBe(false);
+    expect(initialDefaults.refundPolicy).toContain('48 hours');
+    expect(initialDefaults.privacyPolicy).toContain('[OWNER:');
+    expect(zonedDateTime('2026-01-15T13:00', initialDefaults.timezone)).toBe(
+      Date.parse('2026-01-15T19:00Z') / 1000,
+    );
+    expect(zonedDateTime('2026-07-15T13:00', initialDefaults.timezone)).toBe(
+      Date.parse('2026-07-15T18:00Z') / 1000,
+    );
+  });
+  it('loads recommended policy drafts without overwriting other owner content or approving them', async () => {
+    const current = await (await admin('content')).json();
+    await admin('content', { ...current, headline: 'Keep the owner headline' });
+    await admin('content/policy-drafts', { revision: current.revision + 1 });
+    const saved = await settings(db);
+    expect(saved.headline).toBe('Keep the owner headline');
+    expect(saved.refundPolicy).toContain('48 hours');
+    expect(saved.policiesApproved).toBe(false);
+    await expect(record()).rejects.toThrow('being finalized');
+    await expect(
+      admin('content/policy-drafts', { revision: current.revision + 1 }),
+    ).rejects.toThrow('Reload');
+    await expect(
+      admin('content/policy-drafts', { revision: current.revision + 2 }, manager),
+    ).rejects.toThrow('role');
+  });
+  it('refuses approval while unresolved owner instructions remain in the draft', async () => {
+    const current = await (await admin('content')).json();
+    await admin('content/policy-drafts', { revision: current.revision });
+    const draft = await (await admin('content')).json();
+    await expect(admin('content', { ...draft, policiesApproved: true })).rejects.toThrow('OWNER:');
+    expect((await settings(db)).policiesApproved).toBe(false);
+  });
   it('keeps payment review explicit until staff can safely confirm capacity', async () => {
     const old = await record(12);
     await db
@@ -394,12 +437,12 @@ describe('Owner operations and access boundaries', () => {
     const uploaded = await response.json();
     expect((await db.prepare('SELECT COUNT(*) AS n FROM media').first())?.n).toBe(1);
     expect((await env.MEDIA.list()).objects).toHaveLength(3);
-    const site = await settings(db);
-    await admin('content', { ...site, heroMediaId: uploaded.id, revision: 1 });
+    const site = await (await admin('content')).json();
+    await admin('content', { ...site, heroMediaId: uploaded.id, revision: site.revision });
     await expect(
       env.DB.prepare('DELETE FROM media WHERE id=?').bind(uploaded.id).run(),
     ).rejects.toThrow('FOREIGN KEY');
-    await admin('content', { ...site, heroMediaId: null, revision: 2 });
+    await admin('content', { ...site, heroMediaId: null, revision: site.revision + 1 });
     await expect(
       mediaApi(
         new Request('http://localhost/api/admin/media/' + uploaded.id, { method: 'DELETE' }),
@@ -586,11 +629,11 @@ describe('Owner operations and access boundaries', () => {
     expect((await db.prepare('SELECT COUNT(*) AS n FROM sessions').first())?.n).toBe(3);
   });
   it('publishes content, preserves earlier versions, and rejects stale saves', async () => {
-    const site = await settings(db);
-    await admin('content', { ...site, headline: 'Updated by owner', revision: 1 });
+    const site = await (await admin('content')).json();
+    await admin('content', { ...site, headline: 'Updated by owner', revision: site.revision });
     expect((await settings(db)).headline).toBe('Updated by owner');
-    expect((await db.prepare('SELECT COUNT(*) AS n FROM content_versions').first())?.n).toBe(1);
-    await expect(admin('content', { ...site, revision: 1 })).rejects.toThrow('Reload');
+    expect((await db.prepare('SELECT COUNT(*) AS n FROM content_versions').first())?.n).toBe(2);
+    await expect(admin('content', { ...site, revision: site.revision })).rejects.toThrow('Reload');
   });
   it('rejects instructor management access and unrelated attendance', async () => {
     expect(() => authorize(instructor, ['owner', 'manager'])).toThrow('role');

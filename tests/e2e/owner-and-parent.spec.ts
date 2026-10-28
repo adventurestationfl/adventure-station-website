@@ -20,6 +20,8 @@ test('parents can explore the responsive site and its accessible navigation', as
     .click();
   await expect(page.getByRole('heading', { level: 1 })).toContainText('adventure');
   await page.goto('/faq');
+  await expect(page.getByText('[OWNER:', { exact: false })).toHaveCount(0);
+  await expect(page.getByText('48 hours', { exact: false })).toHaveCount(0);
   await page.getByText('What ages are the workshops for?', { exact: true }).click();
   await expect(
     page.getByText('Check each workshop for its recommended age range.', { exact: true }),
@@ -108,6 +110,15 @@ test('owner can upload an optimized image and edit public text with history', as
   await page.getByRole('button', { name: 'Upload image ↗', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Image uploaded');
   await page.goto('/admin/content');
+  await expect(page.getByLabel('Florida city / locality', { exact: true })).toHaveValue(
+    'Freeport, Florida',
+  );
+  await expect(page.getByLabel('Business timezone', { exact: true })).toHaveValue(
+    'America/Chicago',
+  );
+  await expect(
+    page.getByRole('button', { name: 'Load recommended policy drafts', exact: true }),
+  ).toBeVisible();
   await page
     .getByLabel('Promotional heading', { exact: true })
     .fill('Make room for a little creativity.');

@@ -20,6 +20,8 @@ Set a random local `ABUSE_SALT` in `.dev.vars` before testing registration. Use 
 
 The initial local workshop is a draft. There are no fabricated dates, registrations or financial statistics. Do not enter real guardian or child information into development environments.
 
+Freeport, Florida is configured as `America/Chicago` (Central Time). [Proposed customer policies](docs/PROPOSED_CUSTOMER_POLICIES.md) are preloaded as private, unapproved drafts, with an owner-only restore action. Their [adoption notes](docs/POLICY_DRAFTS.md) distinguish verified facts from proposed operating terms. Required owner instructions must be completed before approval; unapproved text is not rendered publicly.
+
 ```sh
 npm run check
 npm test
