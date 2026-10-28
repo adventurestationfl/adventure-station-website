@@ -21,7 +21,7 @@
 - Browser inspection confirmed the original workshop can be saved/published and appears in the public catalog. At 390 pixels, the mobile menu expands, the page has no horizontal overflow, every image has an alt attribute and buttons have visible names. Desktop/public and owner forms were visually inspected.
 - Dependency audit after updates: zero reported vulnerabilities. This is not a guarantee that all security issues have been excluded.
 
-The browser specifications are committed for execution in GitHub CI. See the pull request checks for their actual result; this document does not claim a local Playwright execution. Browser inspection and automated tests do not certify WCAG 2.2 AA or substitute for owner usability review.
+GitHub CI also completed successfully: **34 operational tests and 8 desktop/mobile browser tests passed**, including targeted axe accessibility checks, workshop publishing/archiving, multi-date drafts, image upload and content version saving. The baseline check accepts only the two exact frozen Windows-checkout and original Git-blob hashes. See the pull request checks for the result on its current head; no local Playwright execution is claimed. These checks do not certify WCAG 2.2 AA or substitute for owner usability review.
 
 ## Blocked or unverified
 

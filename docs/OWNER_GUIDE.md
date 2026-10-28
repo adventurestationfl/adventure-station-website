@@ -61,6 +61,8 @@ Choose **Class dates → Attendance** to see confirmed participants. Check **Att
 
 **Check payment updates** asks Square for the latest information. Never tell a family that a place is confirmed just because they returned from checkout or sent a screenshot.
 
+For a paid registration in Payment review, **Confirm available places** is available when verified payment supports confirmation. Speak with the guardian, then use this action if appropriate. The system checks availability again before saving and refuses to oversell the class. If no places remain, arrange a refund or another agreed solution. **Follow-up complete** clears an attention flag only after the registration and payment issue are resolved.
+
 The development preview uses test payments only. **Sandbox refund** cannot refund real money. Refund requests are not complete until the payment information confirms them. The production refund process will be explained after production payment setup is approved.
 
 The overview shows gross verified sales before refunds and processing fees. It does not show net bank deposits or estimated fees.
