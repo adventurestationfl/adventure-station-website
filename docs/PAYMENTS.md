@@ -54,3 +54,5 @@ Shared venue names, addresses and arrival instructions are also locked while use
 ## Bilingual checkout boundary
 
 Registration stores the chosen language and exact policy version; later edits cannot rewrite them. The Square return URL follows the original registration language. The current CreatePaymentLink/CheckoutOptions contract does not expose an application-controlled checkout locale in the reviewed configuration, so the hosted processor's Spanish presentation remains unverified until actual sandbox testing. Do not claim end-to-end Spanish Square checkout from localized local pages. See [Square checkout options](https://developer.squareup.com/docs/checkout-api/optional-checkout-configurations).
+
+The October 29 secure provisioning checklist, exact preview webhook/return URLs, required API operations and remaining account/credential gates are in [PROVIDER_VERIFICATION_CHECKLIST.md](PROVIDER_VERIFICATION_CHECKLIST.md). No actual Square credential or Sandbox transaction has been verified at this checkpoint.

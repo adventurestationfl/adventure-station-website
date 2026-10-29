@@ -790,5 +790,16 @@
   "Owner": "Propietaria",
   "Manager": "Encargado",
   "Instructor": "Instructor",
-  "Godmin": "Godmin"
+  "Godmin": "Godmin",
+  "Application access and Cloudflare sign-in are separate. Saving a team member does not send an invitation or update Cloudflare Access. Your technical manager must separately authorize the exact sign-in email in Cloudflare.": "El acceso a la aplicación y el inicio de sesión en Cloudflare son independientes. Guardar a una persona no envía una invitación ni actualiza Cloudflare Access. Tu responsable técnico debe autorizar por separado el correo exacto en Cloudflare.",
+  "Application access": "Acceso a la aplicación",
+  "Verified sign-in observed": "Inicio de sesión verificado registrado",
+  "Awaiting verified sign-in": "En espera del inicio de sesión verificado",
+  "Use the same sign-in email in this application and Cloudflare Access. No separate website password is needed.": "Usa el mismo correo en esta aplicación y en Cloudflare Access. No necesitas otra contraseña del sitio.",
+  "Saving these permissions only changes application access. Cloudflare authorization is managed separately by your technical manager; no invitation email is sent here.": "Guardar estos permisos solo cambia el acceso a la aplicación. Tu responsable técnico administra por separado la autorización de Cloudflare; aquí no se envían invitaciones por correo.",
+  "Enable application access.": "Habilitar el acceso a la aplicación.",
+  "Your sign-in has ended. Sign in again before saving.": "Tu sesión terminó. Vuelve a iniciar sesión antes de guardar.",
+  "Open sign-in in another tab, then return here. Unsaved fields stay on this page.": "Abre el inicio de sesión en otra pestaña y después regresa aquí. Los campos sin guardar permanecen en esta página.",
+  "Sign in again ↗": "Volver a iniciar sesión ↗",
+  "Edit workshop": "Editar taller"
 }

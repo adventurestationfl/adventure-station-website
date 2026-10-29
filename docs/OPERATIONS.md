@@ -52,7 +52,7 @@ The local sign-out link is not an authentication boundary: local developer mode 
 - Restore into a **new isolated database and bucket**. Apply only missing migrations. Check row counts, foreign keys, payment ledger totals, image references and capacity constraints. Run authenticated smoke tests with synthetic data. Document the rehearsal before production consideration.
 - Anonymization clears operational personal fields, not financial amounts. Backups can still contain deleted personal information. Establish backup retention and a procedure to reapply deletion requests after restoration.
 
-The initial migration and rollback tests validate local transaction behavior; they are not a completed hosted restore rehearsal.
+The initial migration tests alone validate local transaction behavior. The later completed isolated D1/private-R2 restore rehearsal and its checksums are recorded in PREVIEW.md; it is not production restore acceptance and need not be recreated for these UI fixes.
 
 ## Eventual cutover and rollback — requires authorization
 
@@ -62,7 +62,7 @@ Create separate production resources and migrate before routing any public traff
 
 If cutover fails, first stop new registrations in the new application, reconcile in-flight payments, and preserve all new registrations/payments. Restore the previously recorded DNS/hosting configuration only with authorization. Reverting the public site does not undo financial activity or make newly paid registrations disappear. Do not restore an old database over newer payments. Prefer a forward migration or a separate restored database followed by reconciliation.
 
-This plan is documented; the production cutover and hosted rollback rehearsal have not been executed.
+Production cutover and production rollback have not been executed. The separately recorded isolated recovery rehearsal does not authorize either.
 
 ## Owner setup and external evidence
 

@@ -87,7 +87,7 @@ Review old registrations after the period in your privacy settings. When a histo
 
 ## Give a team member access
 
-The owner opens **Team access → Add team member**, enters their name and sign-in email, and chooses Owner, Manager or Instructor. Give instructors only the access they need. Disable access when someone leaves. Your website helper may need to allow the same email in the sign-in service during initial setup.
+The owner opens **Team access → Add team member**, enters their name and sign-in email, and chooses Owner, Manager or Instructor. This saves application permissions only: no invitation email is sent and Cloudflare authorization is not changed. Your technical manager must separately authorize the exact same email in Cloudflare Access. “Active” refers to application access; “Awaiting verified sign-in” means the application has not yet observed that identity. Give instructors only the access they need. Disable access when someone leaves. Self-service Cloudflare staff synchronization is deferred.
 
 ## Get Adventure Station ready
 
@@ -138,3 +138,7 @@ In **Settings → AI Connections**, an owner or Godmin can prepare the preferred
 When testing is enabled by the technical manager, copy the exact callback from the client's setup, register it and use the returned client ID. Sign in through Cloudflare and approve only the requested permissions. Read access covers workshop content, schedules, capacity, public business settings and aggregate statistics. Optional writing creates draft requests for your review in this panel. Inspect each request, apply it explicitly or reject it. Nothing is automatically published or scheduled. The client cannot access children's/guardians' records, move money, change roles or adopt policies. **Disconnect** stops subsequent access and prevents outstanding requests being applied. No chat password or API key belongs in this panel.
 
 [Guía en español mexicano](OWNER_GUIDE.es-MX.md)
+
+## When a sign-in ends
+
+If saving reports that your sign-in has ended, use **Sign in again** to open another tab, complete Cloudflare sign-in there, and return to your original form. Unsaved fields stay on that page. The application does not retry the write automatically. If a different network error leaves the outcome uncertain, inspect the saved record before submitting again.

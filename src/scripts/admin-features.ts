@@ -128,16 +128,16 @@ export async function renderExtra(
         const action = b.dataset.spark!,
           id = b.dataset.idea;
         if (action === 'draft') {
-          const result = await api(ui`companion/${id}/draft`, 'POST', {});
+          const result = await api(`companion/${id}/draft`, 'POST', {});
           notify(
             t('Workshop draft prepared. Review its content, price and capacity before publishing.'),
           );
-          location.assign(ui`/admin/workshops?edit=${encodeURIComponent(result.id)}`);
+          location.assign(`/admin/workshops?edit=${encodeURIComponent(result.id)}`);
           return;
         }
         if (action === 'another') await api('companion/another', 'POST', {});
         else {
-          await api(ui`companion/${id}/${action}`, 'POST', {});
+          await api(`companion/${id}/${action}`, 'POST', {});
         }
         await render();
       } catch (error) {

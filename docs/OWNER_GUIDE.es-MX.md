@@ -61,3 +61,9 @@ Cuando el equipo técnico habilite las pruebas, copia la dirección de retorno e
 Godmin conserva acceso técnico y operativo amplio, sin sustituir las aprobaciones financieras, legales, de privacidad o producción de la propietaria.
 
 [English owner guide](OWNER_GUIDE.md)
+
+## Acceso del equipo en dos pasos
+
+Guardar a una persona solo cambia sus permisos en la aplicación. No se envía una invitación por correo ni se actualiza Cloudflare Access. Tu responsable técnico debe autorizar por separado el mismo correo exacto en Cloudflare. “Activo” describe el acceso a la aplicación; “En espera del inicio de sesión verificado” indica que todavía no se ha registrado esa identidad. La sincronización automática con Cloudflare sigue pendiente.
+
+Si al guardar tu sesión ya terminó, usa **Volver a iniciar sesión** para abrir otra pestaña, completa el acceso en Cloudflare y regresa al formulario original. Los campos sin guardar permanecen en esa página; la aplicación no reenvía la solicitud automáticamente. Si otro error de red deja dudas sobre el resultado, revisa el registro guardado antes de volver a enviarlo.

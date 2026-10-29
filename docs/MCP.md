@@ -44,3 +44,5 @@ Reviewed October 28, 2026:
 - [Cloudflare remote MCP guidance](https://developers.cloudflare.com/agents/model-context-protocol/guides/remote-mcp-server/) and [authorization](https://developers.cloudflare.com/agents/model-context-protocol/protocol/authorization/).
 
 A chat subscription is not an API generation budget. Optional future generation must use separately authorized provider credentials, server-only secret storage, explicit cost limits, safety/data boundaries and reviewed output. The present daily creative feature is local curation and makes no popularity/trend claim.
+
+Official product documentation and current callback/client prerequisites were refreshed October 29 in [PROVIDER_VERIFICATION_CHECKLIST.md](PROVIDER_VERIFICATION_CHECKLIST.md). This does not establish actual account entitlement or client interoperability; MCP remains disabled.

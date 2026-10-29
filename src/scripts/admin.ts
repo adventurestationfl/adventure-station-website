@@ -50,11 +50,21 @@ function notify(text: string, error = false) {
   message.scrollIntoView({ block: 'nearest' });
 }
 async function api(path: string, method = 'GET', data?: unknown) {
-  const response = await fetch(ui`/api/admin/${path}`, {
+  const response = await fetch(`/api/admin/${path}`, {
     method,
-    headers: data instanceof FormData ? {} : { 'Content-Type': 'application/json' },
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest',
+      ...(data instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+    },
     body: data === undefined ? undefined : data instanceof FormData ? data : JSON.stringify(data),
   });
+  // Access returns 401 to AJAX requests instead of redirecting a write to its login page.
+  // Keep the form in place; never retry an ambiguous or rejected write automatically.
+  if (response.status === 401) {
+    document.querySelector<HTMLElement>('#admin-session-help')!.hidden = false;
+    throw new Error('Your sign-in has ended. Sign in again before saving.');
+  }
+  document.querySelector<HTMLElement>('#admin-session-help')!.hidden = true;
   const result = await response.json();
   if (!response.ok) throw new Error(result.error ?? 'Please try again.');
   return result;
@@ -163,7 +173,7 @@ function workshopEditor(original?: any, duplicate = false) {
     d.media_id = d.media_id || null;
     d.revision = w.revision;
     d.gallery_ids = new FormData(form).getAll('gallery_ids');
-    await api(ui`workshops${w.id ? ui`/${w.id}` : ''}`, 'POST', d);
+    await api(`workshops${w.id ? `/${w.id}` : ''}`, 'POST', d);
     notify('Workshop saved.');
     await renderWorkshops();
   });
@@ -299,7 +309,7 @@ function sessionEditor(original?: any, workshopId?: string, duplicate = false) {
       )
     )
       return;
-    if (s.id) await api(ui`sessions/${s.id}`, 'POST', records[0]);
+    if (s.id) await api(`sessions/${s.id}`, 'POST', records[0]);
     else await api('sessions/batch', 'POST', { sessions: records });
     notify(ui`${records.length} class date${records.length === 1 ? '' : 's'} saved.`);
     await renderSessions();
@@ -324,7 +334,7 @@ async function renderSessions() {
         ));
 }
 async function roster(id: string) {
-  const rows = await api(ui`sessions/${id}/roster`);
+  const rows = await api(`sessions/${id}/roster`);
   workspace.innerHTML =
     heading(
       'Attendance',
@@ -341,7 +351,7 @@ async function roster(id: string) {
     box.addEventListener('change', async () => {
       box.disabled = true;
       try {
-        await api(ui`participants/${box.dataset.attendance}/attendance`, 'POST', {
+        await api(`participants/${box.dataset.attendance}/attendance`, 'POST', {
           attended: box.checked,
         });
         notify('Attendance saved.');
@@ -468,7 +478,7 @@ function retentionEditor(id: string) {
   const form = document.querySelector<HTMLFormElement>('#retention-form')!;
   onSave(form, async () => {
     const v = formValues(form);
-    await api(ui`privacy-review/${id}`, 'POST', {
+    await api(`privacy-review/${id}`, 'POST', {
       reason: v.reason,
       reviewAfter: Math.floor(Date.now() / 1000) + Number(v.days) * 86400,
     });
@@ -492,7 +502,7 @@ async function renderPrivacy() {
         ));
 }
 async function registrationDetails(id: string) {
-  const d = await api(ui`registrations/${id}/details`);
+  const d = await api(`registrations/${id}/details`);
   workspace.innerHTML =
     heading(
       'Review a family booking',
@@ -522,7 +532,7 @@ async function registrationDetails(id: string) {
       )
     )
       return;
-    await api(ui`registrations/${id}/cancel-places`, 'POST', { participantIds });
+    await api(`registrations/${id}/cancel-places`, 'POST', { participantIds });
     await registrationDetails(id);
     notify('Selected places cancelled. Review any refund and message follow-up.');
   });
@@ -537,7 +547,7 @@ async function registrationDetails(id: string) {
         )
       )
         return;
-      await api(ui`registrations/${id}/refund`, 'POST', {
+      await api(`registrations/${id}/refund`, 'POST', {
         requestId,
         paymentId: v.paymentId,
         amount: Math.round(Number(v.refundAmount) * 100),
@@ -549,7 +559,7 @@ async function registrationDetails(id: string) {
     b.addEventListener('click', async () => {
       try {
         const r = d.refunds.find((r: any) => r.id === b.dataset.id);
-        await api(ui`registrations/${id}/refund`, 'POST', {
+        await api(`registrations/${id}/refund`, 'POST', {
           requestId: r.id,
           paymentId: r.payment_id,
           amount: r.amount,
@@ -578,7 +588,7 @@ async function renderDashboard() {
   const load = async () => {
     const v = formValues(form);
     const d = await api(
-      ui`dashboard?from=${Date.parse(ui`${v.from}T00:00:00Z`) / 1000}&to=${Date.parse(ui`${v.to}T00:00:00Z`) / 1000 + 86400}`,
+      `dashboard?from=${Date.parse(ui`${v.from}T00:00:00Z`) / 1000}&to=${Date.parse(ui`${v.to}T00:00:00Z`) / 1000 + 86400}`,
     );
     const confirmed = d.registrations.find((r: any) => r.status === 'confirmed');
     document.querySelector('#dashboard-data')!.innerHTML =
@@ -726,7 +736,7 @@ function venueEditor(
     ).checked;
     d.verified = (form.elements.namedItem('verified') as HTMLInputElement).checked;
     d.archived = (form.elements.namedItem('archived') as HTMLInputElement).checked;
-    await api(ui`venues${v.id ? ui`/${v.id}` : ''}`, 'POST', d);
+    await api(`venues${v.id ? `/${v.id}` : ''}`, 'POST', d);
     notify('Venue saved.');
     await renderVenues();
   });
@@ -803,7 +813,7 @@ async function renderTeam() {
       'Give each person only the access they need.',
       button('+ Add team member', 'new-team', '', ''),
     ) +
-    ui`<div class="panel table-panel"><div class="record-view" data-record-view><table class="table data-table records-team" data-record-table="team" data-record-threshold="720"><caption class="visually-hidden">Team member records</caption><colgroup><col/><col/><col/><col/><col/></colgroup><thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col">Access</th><th scope="col">Actions</th></tr></thead><tbody>${team.map((s: any) => ui`<tr data-record-id="${h(s.id)}"><th scope="row"><strong class="record-title">${h(s.name)}</strong></th><td><span class="identifier">${h(s.email)}</span></td><td>${h(t(s.role))}</td><td>${status(s.active ? 'active' : 'disabled')}</td><td data-actions>${button('Edit access', 'edit-team', s.id)}</td></tr>`).join('')}</tbody></table></div>${!team.length ? ui`<p class="muted empty-table">${t('No team members found.')}</p>` : ''}</div>`;
+    ui`<p class="notice" data-team-access-notice>Application access and Cloudflare sign-in are separate. Saving a team member does not send an invitation or update Cloudflare Access. Your technical manager must separately authorize the exact sign-in email in Cloudflare.</p><div class="panel table-panel"><div class="record-view" data-record-view><table class="table data-table records-team" data-record-table="team" data-record-threshold="720"><caption class="visually-hidden">Team member records</caption><colgroup><col/><col/><col/><col/><col/></colgroup><thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col">Application access</th><th scope="col">Actions</th></tr></thead><tbody>${team.map((s: any) => ui`<tr data-record-id="${h(s.id)}"><th scope="row"><strong class="record-title">${h(s.name)}</strong></th><td><span class="identifier">${h(s.email)}</span></td><td>${h(t(s.role))}</td><td>${status(s.active ? 'active' : 'disabled')}<small class="record-secondary">${t(s.identity_bound ? 'Verified sign-in observed' : 'Awaiting verified sign-in')}</small></td><td data-actions>${button('Edit access', 'edit-team', s.id)}</td></tr>`).join('')}</tbody></table></div>${!team.length ? ui`<p class="muted empty-table">${t('No team members found.')}</p>` : ''}</div>`;
   workspace
     .querySelectorAll('[data-action=edit-team]')
     .forEach((b) =>
@@ -816,10 +826,10 @@ function teamEditor(s: any = { name: '', email: '', role: 'instructor', active: 
   workspace.innerHTML =
     heading(
       'Team access',
-      'Staff sign in using the email allowed here. No separate password to manage.',
+      'Use the same sign-in email in this application and Cloudflare Access. No separate website password is needed.',
       button('Back', 'back'),
     ) +
-    ui`<form id="editor" class="panel">${field('Name', 'name', s.name, 'text', '', 'required')}${field('Sign-in email', 'email', s.email, 'email', '', 'required')}${select(
+    ui`<p class="notice" data-team-access-notice>Saving these permissions only changes application access. Cloudflare authorization is managed separately by your technical manager; no invitation email is sent here.</p><form id="editor" class="panel">${field('Name', 'name', s.name, 'text', '', 'required')}${field('Sign-in email', 'email', s.email, 'email', '', 'required')}${select(
       'Role',
       'role',
       s.base_role ?? s.role,
@@ -828,7 +838,7 @@ function teamEditor(s: any = { name: '', email: '', role: 'instructor', active: 
         { id: 'manager', name: t('Manager — workshops, content and registrations') },
         { id: 'owner', name: t('Owner — full access including team and payments') },
       ],
-    )}${check('Allow this person to sign in.', 'active', !!s.active)}${saveBar('Save team access')}</form>${role === 'owner' && s.id && s.base_role !== 'owner' ? ui`<section class="panel"><h2>Godmin technical access</h2><p>Requires a verified sign-in and explicit owner confirmation. Business, financial and policy approvals stay with the owner.</p>${s.identity_bound ? button(s.role === 'godmin' ? 'Revoke Godmin access' : 'Grant Godmin access', 'godmin-change', s.id) : ui`<p>Waiting for this person to sign in with their invited identity.</p>`}</section>` : ''}`;
+    )}${check('Enable application access.', 'active', !!s.active)}${saveBar('Save team access')}</form>${role === 'owner' && s.id && s.base_role !== 'owner' ? ui`<section class="panel"><h2>Godmin technical access</h2><p>Requires a verified sign-in and explicit owner confirmation. Business, financial and policy approvals stay with the owner.</p>${s.identity_bound ? button(s.role === 'godmin' ? 'Revoke Godmin access' : 'Grant Godmin access', 'godmin-change', s.id) : ui`<p>Waiting for this person to sign in with their invited identity.</p>`}</section>` : ''}`;
   workspace.querySelector('[data-action=godmin-change]')?.addEventListener('click', async () => {
     if (!confirm(t('Confirm this change to verified technical access?'))) return;
     try {
@@ -916,7 +926,7 @@ workspace.addEventListener('click', async (event) => {
         notify('Notification checks complete. Review any follow-up.');
         break;
       case 'retry-notice':
-        await api(ui`notifications/${key}/retry`, 'POST', {});
+        await api(`notifications/${key}/retry`, 'POST', {});
         await renderNotifications();
         break;
       case 'load-policy-drafts':
@@ -984,13 +994,13 @@ workspace.addEventListener('click', async (event) => {
             'Confirm these paid places? Contact the guardian to explain the outcome. Availability is checked again when saving.',
           )
         ) {
-          await api(ui`registrations/${key}/review`, 'POST', { action: 'confirm' });
+          await api(`registrations/${key}/review`, 'POST', { action: 'confirm' });
           notify('Places confirmed. Please inform the guardian.');
           await renderRegistrations();
         }
         break;
       case 'complete-review':
-        await api(ui`registrations/${key}/review`, 'POST', { action: 'complete' });
+        await api(`registrations/${key}/review`, 'POST', { action: 'complete' });
         notify('Follow-up marked complete.');
         await renderRegistrations();
         break;
@@ -1000,7 +1010,7 @@ workspace.addEventListener('click', async (event) => {
             'Permanently remove guardian and child personal details from this historical registration? Financial records will remain.',
           )
         ) {
-          await api(ui`registrations/${key}/anonymize`, 'POST', {});
+          await api(`registrations/${key}/anonymize`, 'POST', {});
           notify('Personal details removed. Financial history preserved.');
           if (section === 'privacy') await renderPrivacy();
           else await renderRegistrations();
@@ -1012,7 +1022,7 @@ workspace.addEventListener('click', async (event) => {
             'Remove this unused image? Images referenced by workshops or saved page versions are protected.',
           )
         ) {
-          await api(ui`media/${key}`, 'DELETE');
+          await api(`media/${key}`, 'DELETE');
           notify('Unused image removed.');
           await renderMedia();
         }
@@ -1021,7 +1031,7 @@ workspace.addEventListener('click', async (event) => {
         const current = media.find((m) => m.id === key),
           alt = prompt('Describe this image for accessibility:', current.alt);
         if (alt) {
-          await api(ui`media/${key}`, 'POST', { alt });
+          await api(`media/${key}`, 'POST', { alt });
           notify('Image description saved.');
           await renderMedia();
         }
@@ -1056,7 +1066,7 @@ render().catch((e) => {
 });
 
 async function translationEditor(type: 'workshop' | 'site' | 'venue', id: string) {
-  const data = await api(ui`translations/${type}/${id}`),
+  const data = await api(`translations/${type}/${id}`),
     value = data.value;
   const keys =
     type === 'workshop'
@@ -1122,7 +1132,7 @@ async function translationEditor(type: 'workshop' | 'site' | 'venue', id: string
         question: values['question-' + i],
         answer: values['answer-' + i],
       }));
-    await api(ui`translations/${type}/${id}`, 'POST', {
+    await api(`translations/${type}/${id}`, 'POST', {
       value: result,
       revision: data.revision,
       sourceRevision: data.sourceRevision,

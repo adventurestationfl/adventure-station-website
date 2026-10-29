@@ -192,6 +192,15 @@ const sectionLabel =
           data-locale={locale}
         >
           <div id="admin-message" role="status" aria-live="polite" class="notice"></div>
+          <p id="admin-session-help" class="notice" hidden>
+            {t(
+              'Open sign-in in another tab, then return here. Unsaved fields stay on this page.',
+              locale,
+            )}
+            <a class="text-link" href="/admin/settings" target="_blank" rel="noopener">
+              {t('Sign in again ↗', locale)}
+            </a>
+          </p>
           <div id="workspace">
             <div class="loading">{t('Opening your workspace…', locale)}</div>
           </div>
