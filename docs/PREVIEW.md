@@ -1,4 +1,4 @@
-# Hosted preview — October 28, 2026
+# Hosted preview — October 29, 2026
 
 Public preview: https://adventure-station-preview.adventurestationfl.workers.dev
 
@@ -8,24 +8,26 @@ This is an isolated synthetic review environment. It does not accept real bookin
 
 ## Provisioned resources
 
-| Resource                      | Actual configuration                                                                                                                                            |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Account workers.dev subdomain | `adventurestationfl` initialized                                                                                                                                |
-| Worker                        | `adventure-station-preview`, canonical workers.dev enabled; version preview URLs disabled                                                                       |
-| D1                            | `adventure-station-preview`, primary ENAM, migrations 0001–0012 applied                                                                                         |
-| R2                            | `adventure-station-preview-media`, Standard, ENAM; managed public domain disabled, no custom domains or CORS configuration                                      |
-| Access application            | Adventure Station Preview — staff; both `/admin` and `/api/admin`, including child paths                                                                        |
-| Owner policy                  | Exact owner and invited technical addresses only; existing Cloudflare sign-in plus one-time email-code provider; one-hour sessions; no bypass or service tokens |
-| Secrets                       | `ABUSE_SALT` generated and written directly to Worker secret storage without returning plaintext; no Square or Resend credential configured                     |
-| Scheduled processing          | `*/15 * * * *`, UTC; actual completion marker observed at 17:45:54 UTC                                                                                          |
-| Current Worker version        | `1062820f-847d-4958-9989-1e5bf8253253` at 100%; deployment `c7ca16c4-fcbf-4b00-9402-2f3d7430accc`                                                               |
-| Previous functional version   | `6f15bff5-5ba8-422d-a91b-d246bc79c5e2`; UI rollback candidate, not a database restore                                                                           |
+| Resource                      | Actual configuration                                                                                                                                                             |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Account workers.dev subdomain | `adventurestationfl` initialized                                                                                                                                                 |
+| Worker                        | `adventure-station-preview`, canonical workers.dev enabled; version preview URLs disabled                                                                                        |
+| D1                            | `adventure-station-preview`, primary ENAM, migrations 0001–0012 applied                                                                                                          |
+| R2                            | `adventure-station-preview-media`, Standard, ENAM; managed public domain disabled, no custom domains or CORS configuration                                                       |
+| Access application            | Adventure Station Preview — staff; both `/admin` and `/api/admin`, including child paths                                                                                         |
+| Owner policy                  | Exact owner and invited technical addresses only; existing Cloudflare sign-in plus one-time email-code provider; one-hour sessions; no bypass or service tokens                  |
+| Secrets                       | `ABUSE_SALT` generated and written directly to Worker secret storage without returning plaintext; no Square or Resend credential configured                                      |
+| Scheduled processing          | `*/15 * * * *`, UTC; actual completion marker observed at 17:45:54 UTC                                                                                                           |
+| Current Worker version        | `c1948897-6ba8-4ab3-ac2a-a14e4f1927b6` at 100%; deployment `55775056-0bfb-46a2-bc25-075d01d9bd40`                                                                                |
+| Previous functional version   | `1062820f-847d-4958-9989-1e5bf8253253`; immediate UI rollback candidate. Earlier version `6f15bff5-5ba8-422d-a91b-d246bc79c5e2` remains recorded; neither is a database restore. |
 
 Actual binding IDs and local evidence are retained in ignored `local-artifacts/preview-manifest.json` and `preview.wrangler.jsonc`. Account metadata and secrets do not belong in public GitHub documentation. Owner and invited technical staff identities are now bound after actual Access authentication. The technical identity received an explicit owner Godmin grant after verified sign-in.
 
 `seed-preview.sql` created three clearly labeled synthetic workshop examples, one unverified sample venue, three published sample dates and one draft. No real customer information was used. Policies, business operating decisions and external integration evidence remain unapproved. Preview D1 contained zero registrations and zero payments after the scheduled test.
 
 ## Verified outcomes and limits
+
+October 29 admin UI update: all **32 hosted HTTP/negative-access checks and 13 byte-for-byte build asset comparisons passed** after deployment. Existing bindings, Access application, secret binding, disabled payment/email/MCP gates and the 15-minute schedule are unchanged. No migrations, owner data changes or infrastructure provisioning were performed. The bundle is 450,341 gzip bytes, 13 assets; startup is 30 ms. The controllable in-app browser is at Access sign-in, so authenticated hosted acceptance is not inferred from local tests. See [ADMIN_UX_REFINEMENT.md](ADMIN_UX_REFINEMENT.md) for the table inventory, 77 operational/84 browser results, actual screenshot evidence and limitations. The following companion/recovery evidence records earlier work.
 
 - The final 32 checks in `scripts/check-preview.mjs` passed against the deployed hostname: eight public pages, artwork, private receipt denial, four staff-route challenges, spoofed staff write denial, closed registration, cross-origin rejection and unsigned webhook rejection. Additional checks cover eight Spanish public pages, actual synthetic JPEG serving, disabled MCP/discovery and denied Spanish protected-route aliases. Public responses have noindex and nosniff headers. Session selection was also inspected in the browser and reached the closed-registration explanation.
 - Real scheduled execution wrote `scheduled.completed` to D1. With payment credentials absent and email disabled, this verifies invocation and the configured no-payment/no-send path. It does not verify live provider reconciliation or notification delivery.

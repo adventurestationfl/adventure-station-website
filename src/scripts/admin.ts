@@ -1,3 +1,4 @@
+import { installRecordLayouts } from './admin-records';
 import { createUI, localeOf, t as translate, errorMessage } from '../lib/i18n';
 import { renderExtra, companionSummary } from './admin-features';
 const locale = localeOf(document.documentElement.lang),
@@ -7,6 +8,7 @@ import { zonedDateTime, wallClock } from '../lib/time';
 const main = document.querySelector<HTMLElement>('#admin-main')!,
   workspace = document.querySelector<HTMLElement>('#workspace')!,
   message = document.querySelector<HTMLElement>('#admin-message')!;
+installRecordLayouts(workspace);
 if (locale === 'es-MX') {
   document.addEventListener(
     'invalid',
@@ -314,7 +316,7 @@ async function renderSessions() {
       role !== 'instructor' ? button('+ Add a date', 'new-session', '', '') : '',
     ) +
     (sessions.length
-      ? ui`<div class="panel overflow"><table class="table"><thead><tr><th>Workshop & date</th><th>Status</th><th>Places</th><th>Actions</th></tr></thead><tbody>${sessions.map((s) => ui`<tr><td><strong>${h(s.workshop_name)}</strong><br/>${h(date(s.starts_at, s.timezone))}<br/><small>${h(s.venue_name)}</small></td><td>${s.starts_at < Date.now() / 1000 && s.status === 'published' ? status('completed') : status(s.status)}</td><td>${s.occupied} / ${s.capacity}<div class="progress"><span style="width:${Math.min(100, (s.occupied / s.capacity) * 100)}%"></span></div></td><td><div class="inline-actions">${button('Attendance', 'roster', s.id)}${role !== 'instructor' ? button('Edit', 'edit-session', s.id) + button('Duplicate', 'copy-session', s.id) : ''}</div></td></tr>`).join('')}</tbody></table></div>`
+      ? ui`<div class="panel table-panel"><div class="record-view" data-record-view><table class="table data-table records-sessions" data-record-table="sessions" data-record-threshold="720"><caption class="visually-hidden">Class date records</caption><colgroup><col/><col/><col/><col/></colgroup><thead><tr><th scope="col">Workshop & date</th><th scope="col">Status</th><th scope="col">Places</th><th scope="col">Actions</th></tr></thead><tbody>${sessions.map((s) => ui`<tr data-record-id="${h(s.id)}"><th scope="row"><strong class="record-title">${h(s.workshop_name)}</strong><time class="record-meta" datetime="${new Date(s.starts_at * 1000).toISOString()}">${h(date(s.starts_at, s.timezone))}</time><span class="record-secondary">${h(s.venue_name)}</span></th><td>${s.starts_at < Date.now() / 1000 && s.status === 'published' ? status('completed') : status(s.status)}</td><td><span class="amount">${s.occupied} / ${s.capacity}</span><div class="progress" aria-hidden="true"><span style="width:${Math.min(100, (s.occupied / s.capacity) * 100)}%"></span></div></td><td data-actions><div class="inline-actions">${button('Attendance', 'roster', s.id)}${role !== 'instructor' ? button('Edit', 'edit-session', s.id) + button('Duplicate', 'copy-session', s.id) : ''}</div></td></tr>`).join('')}</tbody></table></div></div>`
       : empty(
           'A fresh page in the calendar.',
           'Add a date to an existing workshop. Past dates stay here as history.',
@@ -330,7 +332,7 @@ async function roster(id: string) {
       button('Back to class dates', 'back'),
     ) +
     (rows.length
-      ? ui`<div class="panel overflow"><table class="table"><thead><tr><th>Child</th><th>Age</th>${role !== 'instructor' ? u('<th>Guardian contact</th>') : ''}<th>Check-in</th></tr></thead><tbody>${rows.map((p: any) => ui`<tr><td>${h(p.first_name ?? t('Removed for privacy'))}</td><td>${h(p.age ?? '—')}</td>${role !== 'instructor' ? ui`<td>${h(p.guardian_name)}<br/>${h(p.guardian_email)}<br/>${h(p.guardian_phone)}</td>` : ''}<td><label class="check"><input type="checkbox" data-attendance="${h(p.id)}" ${p.attended ? 'checked' : ''}/>Attended</label></td></tr>`).join('')}</tbody></table></div>`
+      ? ui`<div class="panel table-panel"><p class="table-scroll-hint" id="roster-scroll-help" data-scroll-hint>Scroll for more details. Names and check-in stay visible.</p><div class="table-scroll" data-scroll-table role="region" aria-label="Attendance table" aria-describedby="roster-scroll-help"><table class="table data-table roster-table ${role === 'instructor' ? 'instructor-roster' : ''}"><caption class="visually-hidden">Confirmed participant attendance</caption><colgroup><col/><col/><col/>${role !== 'instructor' ? u('<col/>') : ''}</colgroup><thead><tr><th scope="col">Child</th><th scope="col">Check-in</th><th scope="col">Age</th>${role !== 'instructor' ? u('<th scope="col">Guardian contact</th>') : ''}</tr></thead><tbody>${rows.map((p: any) => ui`<tr><th scope="row">${h(p.first_name ?? t('Removed for privacy'))}</th><td><label class="check"><input type="checkbox" data-attendance="${h(p.id)}" aria-label="${h(t('Attended') + ' — ' + (p.first_name ?? t('Removed for privacy')))}" ${p.attended ? 'checked' : ''}/><span>Attended</span></label></td><td><span class="amount">${h(p.age ?? '—')}</span></td>${role !== 'instructor' ? ui`<td><strong>${h(p.guardian_name)}</strong><span class="record-secondary identifier">${h(p.guardian_email)}</span><span class="record-secondary">${h(p.guardian_phone)}</span></td>` : ''}</tr>`).join('')}</tbody></table></div></div>`
       : empty(
           'No confirmed participants yet.',
           'Only registrations with verified payments appear on the attendance list.',
@@ -407,6 +409,17 @@ async function renderSetup() {
   setupRevealCleanup = () => window.removeEventListener('hashchange', reveal);
   if (location.hash) reveal();
   const form = document.querySelector<HTMLFormElement>('#setup-form')!;
+  if (role !== 'owner') {
+    form
+      .querySelectorAll<
+        HTMLInputElement | HTMLButtonElement | HTMLSelectElement | HTMLTextAreaElement
+      >('input,button,select,textarea')
+      .forEach((control) => (control.disabled = true));
+    form.insertAdjacentHTML(
+      'afterbegin',
+      ui`<p class="notice">${t('Business decisions are managed by the owner. This view is read-only.')}</p>`,
+    );
+  }
   onSave(form, async () => {
     const value: any = formValues(form);
     value.minimized = (form.elements.namedItem('minimized') as HTMLInputElement).checked;
@@ -726,7 +739,7 @@ async function renderRegistrations() {
       'Payment and registration states are shown separately.',
       button('Check payment updates', 'reconcile'),
     ) +
-    ui`<div class="panel"><div class="field"><label for="registration-search">Find a registration</label><input id="registration-search" type="search" placeholder="Guardian, workshop, or reference"/></div><div class="overflow"><table class="table registrations-table"><thead><tr><th>Workshop / guardian</th><th>Places</th><th>Registration</th><th>Verified payment</th><th>Actions</th></tr></thead><tbody>${rows.map((r: any) => ui`<tr data-search="${h(ui`${r.guardian_name} ${r.guardian_email} ${r.workshop_name} ${r.id}`.toLowerCase())}"><td data-label="Workshop and guardian"><strong>${h(r.workshop_name)}</strong><br/>${h(r.guardian_name ?? t('Personal details removed'))}<br/><small>${h(r.guardian_email)}<br/>${h(r.id)}</small></td><td data-label="Places">${r.seats - r.cancelled_seats} active<br/><small>${r.seats} originally booked</small></td><td data-label="Registration">${status(r.status)}${r.needs_attention ? u('<br/><small>Follow-up needed</small>') : ''}</td><td data-label="Verified payment">${cash(r.paid)} received<br/>${(r.payment_issues ?? []).map((i: any) => ui`<strong>Needs review: ${h(i.amount / 100)} ${h(i.currency)}</strong><br/>`).join('')}${cash(r.refunded)} refunded<br/><small>Order total ${cash(r.total)}</small></td><td data-label="Actions">${button('Review booking', 'booking-details', r.id)}<div class="inline-actions">${r.status === 'payment_review' && r.paid - r.refunded >= r.total ? button('Confirm available places', 'confirm-review', r.id) : ''}${r.needs_attention && !['pending', 'payment_review'].includes(r.status) ? button('Follow-up complete', 'complete-review', r.id) : ''}</div>${role === 'owner' ? ui`<div class="inline-actions">${r.paid > r.refunded || (r.payment_issues ?? []).some((i: any) => i.refunded < i.amount) ? button('Review refund', 'booking-details', r.id) : ''}${r.ends_at < Date.now() / 1000 && !r.anonymized_at ? button('Remove personal details', 'anonymize', r.id) : ''}</div>` : ''}</td></tr>`).join('')}</tbody></table></div>${!rows.length ? u('<p class="muted">Registrations will appear here when a family starts checkout.</p>') : ''}</div>`;
+    ui`<div class="panel table-panel"><div class="field record-search"><label for="registration-search">Find a registration</label><input id="registration-search" type="search" placeholder="Guardian, workshop, or reference"/></div><div class="record-view" data-record-view><table class="table data-table records-registrations" data-record-table="registrations" data-record-threshold="920"><caption class="visually-hidden">Registration records</caption><colgroup><col/><col/><col/><col/><col/></colgroup><thead><tr><th scope="col">Workshop / guardian</th><th scope="col">Places</th><th scope="col">Registration</th><th scope="col">Verified payment</th><th scope="col">Actions</th></tr></thead><tbody>${rows.map((r: any) => ui`<tr data-record-id="${h(r.id)}" data-search="${h(`${r.guardian_name} ${r.guardian_email} ${r.workshop_name} ${r.id}`.toLowerCase())}"><th scope="row"><strong class="record-title">${h(r.workshop_name)}</strong><time class="record-meta" datetime="${new Date(r.starts_at * 1000).toISOString()}">${h(date(r.starts_at, r.timezone))}</time><span class="record-secondary">${h(r.guardian_name ?? t('Personal details removed'))}</span><span class="record-secondary identifier">${h(r.guardian_email)}</span><span class="record-secondary identifier">${h(r.id)}</span></th><td><span class="amount">${r.seats - r.cancelled_seats} ${t(r.seats - r.cancelled_seats === 1 ? 'active place' : 'active places')}</span><small class="record-secondary">${r.seats} ${t('originally booked')}</small></td><td>${status(r.status)}${r.needs_attention ? u('<small class="record-secondary">Follow-up needed</small>') : ''}</td><td><span class="amount">${cash(r.paid)}</span> ${t('received')}<br/>${(r.payment_issues ?? []).map((i: any) => ui`<strong>${t('Needs review:')} <span class="amount">${h(i.amount / 100)} ${h(i.currency)}</span></strong><br/>`).join('')}<span class="amount">${cash(r.refunded)}</span> ${t('refunded')}<small class="record-secondary">${t('Order total')} <span class="amount">${cash(r.total)}</span></small></td><td data-actions>${button('Review booking', 'booking-details', r.id)}<div class="inline-actions">${r.status === 'payment_review' && r.paid - r.refunded >= r.total ? button('Confirm available places', 'confirm-review', r.id) : ''}${r.needs_attention && !['pending', 'payment_review'].includes(r.status) ? button('Follow-up complete', 'complete-review', r.id) : ''}</div>${role === 'owner' ? ui`<div class="inline-actions">${r.paid > r.refunded || (r.payment_issues ?? []).some((i: any) => i.refunded < i.amount) ? button('Review refund', 'booking-details', r.id) : ''}${r.ends_at < Date.now() / 1000 && !r.anonymized_at ? button('Remove personal details', 'anonymize', r.id) : ''}</div>` : ''}</td></tr>`).join('')}</tbody></table></div>${!rows.length ? u('<p class="muted empty-table">Registrations will appear here when a family starts checkout.</p>') : ''}<p class="muted empty-table" data-filter-empty hidden>${t('No registrations match this search.')}</p></div>`;
   workspace
     .querySelector<HTMLInputElement>('#registration-search')!
     .addEventListener('input', (event) => {
@@ -734,6 +747,9 @@ async function renderRegistrations() {
       workspace
         .querySelectorAll<HTMLElement>('tr[data-search]')
         .forEach((row) => (row.hidden = !row.dataset.search!.includes(query)));
+      workspace.querySelector<HTMLElement>('[data-filter-empty]')!.hidden = [
+        ...workspace.querySelectorAll<HTMLElement>('tr[data-search]'),
+      ].some((row) => !row.hidden);
     });
 }
 async function optimized(file: File, width: number) {
@@ -787,7 +803,7 @@ async function renderTeam() {
       'Give each person only the access they need.',
       button('+ Add team member', 'new-team', '', ''),
     ) +
-    ui`<div class="panel overflow"><table class="table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Access</th><th></th></tr></thead><tbody>${team.map((s: any) => ui`<tr><td>${h(s.name)}</td><td>${h(s.email)}</td><td>${h(t(s.role))}</td><td>${status(s.active ? 'active' : 'disabled')}</td><td>${button('Edit access', 'edit-team', s.id)}</td></tr>`).join('')}</tbody></table></div>`;
+    ui`<div class="panel table-panel"><div class="record-view" data-record-view><table class="table data-table records-team" data-record-table="team" data-record-threshold="720"><caption class="visually-hidden">Team member records</caption><colgroup><col/><col/><col/><col/><col/></colgroup><thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col">Access</th><th scope="col">Actions</th></tr></thead><tbody>${team.map((s: any) => ui`<tr data-record-id="${h(s.id)}"><th scope="row"><strong class="record-title">${h(s.name)}</strong></th><td><span class="identifier">${h(s.email)}</span></td><td>${h(t(s.role))}</td><td>${status(s.active ? 'active' : 'disabled')}</td><td data-actions>${button('Edit access', 'edit-team', s.id)}</td></tr>`).join('')}</tbody></table></div>${!team.length ? ui`<p class="muted empty-table">${t('No team members found.')}</p>` : ''}</div>`;
   workspace
     .querySelectorAll('[data-action=edit-team]')
     .forEach((b) =>

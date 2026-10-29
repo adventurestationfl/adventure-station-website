@@ -34,7 +34,10 @@ test('owner cancels one selected child without cancelling the other two places',
   page,
 }, testInfo) => {
   await page.goto('/admin/registrations');
-  const row = page.getByRole('row').filter({ hasText: `E2E guardian ${testInfo.project.name}` });
+  const row = page
+    .locator('[data-record-id]')
+    .filter({ visible: true })
+    .filter({ hasText: `E2E guardian ${testInfo.project.name}` });
   await row.getByRole('button', { name: 'Review booking', exact: true }).click();
   await page.getByLabel('Test child A', { exact: true }).check();
   page.once('dialog', (dialog) => dialog.accept());
@@ -45,7 +48,10 @@ test('owner cancels one selected child without cancelling the other two places',
   await expect(page.getByLabel('Test child C', { exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Back to registrations', exact: true }).click();
   await expect(
-    page.getByRole('row').filter({ hasText: `E2E guardian ${testInfo.project.name}` }),
+    page
+      .locator('[data-record-id]')
+      .filter({ visible: true })
+      .filter({ hasText: `E2E guardian ${testInfo.project.name}` }),
   ).toContainText('2 active');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

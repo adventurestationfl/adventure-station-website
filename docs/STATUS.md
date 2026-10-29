@@ -1,4 +1,4 @@
-# Review status — October 28, 2026
+# Review status — October 29, 2026
 
 **Isolated bilingual hosted preview; draft PR #1 remains unmerged. Production, live payments, customer email and paid AI generation remain disabled.**
 
@@ -15,6 +15,8 @@ Godmin is an explicit technical grant layered over the preserved staff identity 
 The existing audit table is extended, append-only and available to Owner/Godmin with person/category/local-date filters and pagination. It records important changes, denied authenticated requests and MCP person/client/tool/outcome/correlation attribution without request bodies, tokens or participant details. Cloudflare Access retains separate authentication records. Ordinary page views are not a visitor analytics feature. Authenticated staff pages alone contain `Made with love by your Bro · 2026`.
 
 ## Verification levels
+
+Focused admin UX continuation: the four actual tables now use task-specific semantic record lists or contained attendance scrolling, and a grouped persistent sidebar/native modal mobile drawer replaces the expanded mobile navigation grid. The complete current local baseline is **77 operational and 84 browser tests passed**; the browser total includes 32 new bilingual/role/responsive cases. All ten requested widths from 320 through 1920 px plus landscape, focus/state retention, drawer keyboard/inertness and targeted axe checks pass. Astro/TypeScript and formatting pass; production files remain byte-identical. After the UI-only preview deployment, **32 hosted checks and 13 exact asset comparisons pass**. Actual before/after screenshots and verification limits are documented in [ADMIN_UX_REFINEMENT.md](ADMIN_UX_REFINEMENT.md). Authenticated hosted acceptance still requires a signed-in staff browser; the controllable browser is at Access sign-in. The detailed earlier companion/recovery evidence below remains historical evidence, not a claim it was repeated for this UI change.
 
 - Local Miniflare: the complete 76-case run passed; an additional starter-source regression passed in a focused run (77 cases in the final suite). Signed identity, revision conflicts, capacity, cancellation, refund/outbox privacy safeguards, immutable Spanish booking/policy snapshots, stale critical-translation rejection, daily selection, all-dismissed fallback, concurrent draft deduplication, OAuth replay/PKCE/scopes/expiry/revocation and proposal application are covered. Square, email and JWT provider responses are explicitly mocked.
 - Browser: the original 30 cases and 20 new bilingual/companion cases passed. Two additional localized native-validation cases passed in the final 22-case companion browser run; combined browser coverage is 52 cases. Explicit 320/360/390/768/1024/1440/1920 widths, keyboard/focus, enlarged text, selected axe checks, public journeys, personal preferences, Creative Spark and disabled connection messaging are covered. This is not full WCAG certification.
