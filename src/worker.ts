@@ -3,6 +3,7 @@ import { reconcile } from './lib/registration';
 import { reconcileRefunds } from './lib/booking-operations';
 import { deliverNotifications } from './lib/notifications';
 import { audit } from './lib/data';
+import { maintainSpark } from './lib/spark';
 export default {
   fetch(...args: Parameters<typeof handle>) {
     return handle(...args);
@@ -10,10 +11,21 @@ export default {
   async scheduled(
     _event: import('@cloudflare/workers-types').ScheduledController,
     env: Cloudflare.Env,
+    ctx: import('@cloudflare/workers-types').ExecutionContext,
   ) {
     await reconcile(env);
     await reconcileRefunds(env);
     await deliverNotifications(env);
     await audit(env.DB, 'scheduled', 'scheduled.completed', env.ENVIRONMENT).run();
+    // Critical payment/refund/outbox work completes first. Creative research has its own
+    // bounded lease, status and failure path and cannot turn a payment run into a retry.
+    ctx.waitUntil(
+      maintainSpark(env).catch(async () => {
+        await audit(env.DB, 'scheduled', 'idea.maintenance.failed', 'creative_spark', {
+          source: 'scheduled',
+          outcome: 'failed',
+        }).run();
+      }),
+    );
   },
 };

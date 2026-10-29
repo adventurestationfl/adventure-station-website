@@ -1,4 +1,5 @@
 ---
+import { parseTopics, topicLabel } from '../lib/activity-topics';
 import { localeOf, t, localPath } from '../lib/i18n';
 const locale = localeOf(Astro.locals.locale),
   href = (p: string) => localPath(p, locale);
@@ -11,7 +12,7 @@ const next = sessions[0];
   <div class="card-image">
     <img
       src={w.media_id ? `/media/${w.media_id}?w=480` : '/brand/art-480.webp'}
-      alt={w.image_alt ?? t('Adventure Station crafts and arts artwork', locale)}
+      alt={w.image_alt ?? t('Adventure Station rainbow and creative-tool artwork', locale)}
       width="480"
       height="480"
       loading="lazy"
@@ -19,6 +20,11 @@ const next = sessions[0];
   </div>
   <div class="card-body">
     <span class="tag">{w.category}</span>
+    <div class="topic-chips">
+      {parseTopics(w.activity_tags).map((id) => (
+        <span class="tag">{topicLabel(id, locale)}</span>
+      ))}
+    </div>
     <h3>{w.name}</h3>
     <p>{w.summary}</p>
     {locale === 'es-MX' && w.translationIncomplete && (

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { activityTopics } from './activity-topics';
 export const id = z
   .string()
   .min(1)
@@ -12,6 +13,22 @@ export const workshopSchema = z
     summary: text(240),
     description: text(8000),
     category: text(80),
+    activity_tags: z.preprocess(
+      (value) => {
+        if (typeof value === 'string') {
+          try {
+            return JSON.parse(value);
+          } catch {
+            return value;
+          }
+        }
+        return value;
+      },
+      z
+        .array(z.enum(activityTopics.map((t) => t.id) as [string, ...string[]]))
+        .max(7)
+        .default([]),
+    ),
     age_min: z.number().int().min(1).max(17),
     age_max: z.number().int().min(1).max(17),
     duration: z.number().int().min(15).max(480),
@@ -124,7 +141,10 @@ export const registrationSchema = z.object({
   photo_consent: z.literal(false).default(false),
 });
 export type SiteSettings = z.infer<typeof siteSchema>;
-export type Workshop = z.infer<typeof workshopSchema> & { id: string };
+export type Workshop = Omit<z.infer<typeof workshopSchema>, 'activity_tags'> & {
+  id: string;
+  activity_tags: string | string[];
+};
 export type Session = z.infer<typeof sessionSchema> & {
   id: string;
   workshop_name: string;

@@ -17,7 +17,7 @@ const heroAlt = site.heroMediaId
         .bind(site.heroMediaId)
         .first<{ alt: string }>()
     )?.alt
-  : 'Adventure Station’s colorful arts and crafts characters';
+  : 'Adventure Station’s rainbow and friendly creative-tool characters';
 ---
 
 <Public>
@@ -29,17 +29,8 @@ const heroAlt = site.heroMediaId
           <span></span>
           <span></span>
         </div>
-        <h1>
-          {site.headline === 'A little mess. A lot of imagination.' ? (
-            <>
-              {t('\r\n              A little mess.\r\n              ', locale)}
-              <br />
-              {t('A lot of imagination.\r\n            ', locale)}
-            </>
-          ) : (
-            site.headline
-          )}
-        </h1>
+        <p class="eyebrow">Wonder · Create · Play</p>
+        <h1>{site.headline}</h1>
         <p>{site.intro}</p>
         <div class="hero-actions">
           <a class="btn coral" href={href('/workshops')}>
@@ -51,7 +42,7 @@ const heroAlt = site.heroMediaId
           </a>
         </div>
         <div class="hero-note">
-          {t('Arts and crafts in ', locale)}
+          {t('Hands-on adventures in ', locale)}
           {site.locality || 'Florida'}
         </div>
       </div>
@@ -69,7 +60,7 @@ const heroAlt = site.heroMediaId
           alt={heroAlt}
           fetchpriority="high"
         />
-        <span class="art-label">{t('Big ideas start with little hands.', locale)}</span>
+        <span class="art-label">{t('Big discoveries start with little adventures.', locale)}</span>
       </div>
     </section>
     <div class="ribbon" aria-label={t('Workshop themes', locale)}>
@@ -90,6 +81,30 @@ const heroAlt = site.heroMediaId
         {t(' Made with imagination\r\n      ', locale)}
       </span>
     </div>
+    <section class="section" aria-labelledby="adventure-pillars">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Wonder · Create · Play</p>
+          <h2 id="adventure-pillars">{t('Three ways into an adventure', locale)}</h2>
+        </div>
+        <p>{t('Mix them together. Every experience can make room for all three.', locale)}</p>
+      </div>
+      <div class="steps">
+        {[
+          [
+            'Wonder',
+            'Notice a pattern, explore a texture, or test a simple idea. Curiosity leads the way.',
+          ],
+          ['Create', 'Draw, paint, build, shape and make something with imagination.'],
+          ['Play', 'Invent a game, try a friendly challenge, or build a story together.'],
+        ].map(([name, description]) => (
+          <article>
+            <h3>{name}</h3>
+            <p>{t(description!, locale)}</p>
+          </article>
+        ))}
+      </div>
+    </section>
     <section class="section">
       <div class="section-head">
         <div>
@@ -97,12 +112,12 @@ const heroAlt = site.heroMediaId
           <h2>
             {t('\r\n            What will they\r\n            ', locale)}
             <br />
-            {t('\r\n            make next?\r\n          ', locale)}
+            {t('\r\n            discover next?\r\n          ', locale)}
           </h2>
         </div>
         <p>
           {t(
-            '\r\n          A new idea. A splash of color. Something to call their own. Explore our creative\r\n          workshops.\r\n        ',
+            '\r\n          A surprising material. An imagined world. A playful challenge. Explore our hands-on\r\n          workshops.\r\n        ',
             locale,
           )}
         </p>
@@ -134,28 +149,28 @@ const heroAlt = site.heroMediaId
     </section>
     <section class="section split">
       <div class="story-panel">
-        {t('\r\n        Not every masterpiece\r\n        ', locale)}
+        {t('\r\n        Every adventure\r\n        ', locale)}
         <br />
-        {t('\r\n        belongs in a museum.\r\n        ', locale)}
+        {t('\r\n        starts with a question.\r\n        ', locale)}
         <br />
         <em>
-          {t('\r\n          Some belong on\r\n          ', locale)}
+          {t('\r\n          Where will curiosity\r\n          ', locale)}
           <br />
-          {t('\r\n          your fridge.\r\n        ', locale)}
+          {t('\r\n          take them?\r\n        ', locale)}
         </em>
         <div class="mini">{t('A LITTLE WONDER GOES A LONG WAY.', locale)}</div>
       </div>
       <div>
-        <div class="eyebrow">{t('More than the finished project', locale)}</div>
+        <div class="eyebrow">{t('More than a finished project', locale)}</div>
         <h2>
-          {t('\r\n          The magic is\r\n          ', locale)}
+          {t('\r\n          Make room for\r\n          ', locale)}
           <br />
-          {t('\r\n          in the making.\r\n        ', locale)}
+          {t('\r\n          discovery.\r\n        ', locale)}
         </h2>
         <p>{site.about}</p>
         <p>
           {t(
-            '\r\n          There’s joy in trying something new, choosing your own colors, and seeing an idea become\r\n          something you can hold.\r\n        ',
+            '\r\n          There’s joy in testing an idea, inventing a game, exploring a texture, and making\r\n          something you can hold.\r\n        ',
             locale,
           )}
         </p>
@@ -168,7 +183,7 @@ const heroAlt = site.heroMediaId
       <div class="section-head">
         <div>
           <div class="eyebrow">{t('Simple from the start', locale)}</div>
-          <h2>{t('From “let’s go” to “look what I made!”', locale)}</h2>
+          <h2>{t('From “what if?” to “let’s try!”', locale)}</h2>
         </div>
       </div>
       <div class="steps">
@@ -194,7 +209,7 @@ const heroAlt = site.heroMediaId
         </article>
         <article>
           <span class="step-number">03.</span>
-          <h3>{t('Let creativity take over', locale)}</h3>
+          <h3>{t('Make, discover and play', locale)}</h3>
           <p>
             {t(
               '\r\n            Check your confirmed registration and class instructions. Then get ready to make\r\n            something special.\r\n          ',

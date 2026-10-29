@@ -115,9 +115,11 @@ Booked times, venues and prices are locked to protect family agreements. To chan
 
 Overview offers a small original encouragement each day, using Freeport local time. In **Settings**, choose shown, minimized or disabled; this changes only your account. Choose English or Español for your interface there too.
 
-**Creative Spark** offers a detailed starting point for a workshop. Read preparation, safety, accessibility, materials, cleanup and cost notes. Adapt them to the children, location and actual materials. Save useful ideas, dismiss unsuitable ones, restore dismissed ideas or ask for another. **Create workshop draft** creates an editable English/Spanish draft. Check its suggested price, age range and capacity. It does not schedule or publish a class. Repeating the same idea opens its existing draft.
+**Creative Spark** offers today's idea, fresh discoveries, seasonal suggestions and your saved/dismissed collection. Filter by topic or search materials and descriptions. Read preparation, safety, accessibility and cleanup notes; adapt them to the actual activity. **Refine idea** and **Generate a variation** create editable bilingual versions while preserving the original. Variations work as editable adaptations without claiming AI generation. **Create workshop draft** asks for your price and capacity, then creates one editable English/Spanish draft. It never schedules or publishes a class. Repeating the same idea opens its existing draft.
 
-The current ideas are curated and seasonal/evergreen. They are not researched popularity claims. No paid AI generation is enabled. Connecting a chat account is different from buying API generation credits.
+Research refreshes automatically each Chicago-local week, with **Find fresh inspiration** available when wanted. Dated topic references are not proof of popularity; the 18 curated ideas remain available offline. Saved and edited versions are preserved. Personal inspiration preferences guide future selections; use **Show another** to select again today. Owner/Godmin can inspect research status and prepare generation settings, but zero authorized budget and the absent provider binding keep model generation disabled. A chat connection does not independently run a background model. Actual ChatGPT/Claude connection testing is deferred and MCP stays disabled.
+
+Workshops can combine several **Activity topics**. Existing categories and prices remain yours to edit. The public identity is **Wonder · Create · Play**, with seasonal making, discovery, sensory exploration and playful challenges. This does not advertise an existing indoor playground.
 
 ## English and Spanish content
 

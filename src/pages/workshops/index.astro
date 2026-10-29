@@ -6,25 +6,48 @@ const href = (p: string) => localPath(p, locale);
 import Public from '../../layouts/Public.astro';
 import WorkshopCard from '../../components/WorkshopCard.astro';
 import SessionList from '../../components/SessionList.astro';
+import { activityTopics, parseTopics, topicLabel } from '../../lib/activity-topics';
 import { env } from 'cloudflare:workers';
 
-const workshops = await publicCatalog(env.DB, locale),
+const topic = Astro.url.searchParams.get('topic') ?? '';
+const workshops = (await publicCatalog(env.DB, locale)).filter(
+    (w) =>
+      !activityTopics.some((t) => t.id === topic) ||
+      parseTopics(w.activity_tags).includes(topic as any),
+  ),
   sessions = await publicUpcoming(env.DB, locale);
 ---
 
-<Public title={t('Creative workshops', locale)}>
+<Public title={t('Hands-on adventures', locale)}>
   <div class="wrap">
     <div class="page-heading">
-      <div class="eyebrow">{t('Make something wonderful', locale)}</div>
+      <div class="eyebrow">{t('Wonder · Create · Play', locale)}</div>
       <h1>
         {t('\r\n        A little adventure.\r\n        ', locale)}
         <br />
         {t('\r\n        All their own.\r\n      ', locale)}
       </h1>
       <p>
-        {t('Explore the workshops, find a date that fits, and make space for imagination.', locale)}
+        {t(
+          'Explore creative projects, sensory discoveries, science-inspired experiments and playful challenges. A workshop can mix several kinds of adventure.',
+          locale,
+        )}
       </p>
     </div>
+    <form class="topic-filter" method="get">
+      <label for="activity-topic">{t('Activity topic', locale)}</label>
+      <select id="activity-topic" name="topic">
+        <option value="">{t('All topics', locale)}</option>
+        {activityTopics.map((v) => (
+          <option value={v.id} selected={topic === v.id}>
+            {topicLabel(v.id, locale)}
+          </option>
+        ))}
+      </select>
+      <button class="btn light" type="submit">
+        {t('Explore', locale)}
+      </button>
+    </form>
     <section class="section">
       {workshops.length ? (
         <div class="grid">

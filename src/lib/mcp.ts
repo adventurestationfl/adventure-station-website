@@ -3,7 +3,9 @@ import { audit, settings, type AuditContext } from './data';
 import { bodyJson, HttpError, json, now, readBody, requireOrigin, sha256 } from './http';
 import { type Staff, requirePermission } from './auth';
 import { localeOf } from './i18n';
-import { ideas, ideaCopy } from './ideas';
+import { sparkLibrary, sparkIdea, sparkCopy, sparkDraftInput } from './spark';
+import { parseTopics } from './activity-topics';
+import { validateSparkContent } from './spark-provider';
 import {
   localizeWorkshop,
   publicUpcoming,
@@ -267,9 +269,72 @@ const copyInput = workshopCopySchema
     duration: z.number().int().min(15).max(480).default(60),
     locale: localeArg,
     english: workshopCopySchema.optional(),
+    price: z
+      .number()
+      .int()
+      .min(100)
+      .max(100000)
+      .describe('Price supplied by the owner in USD cents. Ask if it has not been supplied.'),
+    capacity: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .describe('Capacity supplied by the owner, never an assumed group size.'),
   })
   .strict();
 const tools = [
+  {
+    name: 'creative_spark_list_ideas',
+    description:
+      'List the shared Creative Spark library with provenance. Topic references are not popularity evidence.',
+    schema: z.object({ locale: localeArg }).strict(),
+  },
+  {
+    name: 'creative_spark_get_idea',
+    description: 'Read one shared bilingual activity idea and source context.',
+    schema: z.object({ id: z.string().max(100), locale: localeArg }).strict(),
+  },
+  {
+    name: 'creative_spark_search_ideas',
+    description: 'Search shared creative ideas by words or canonical activity topic.',
+    schema: z
+      .object({
+        query: z.string().max(100).default(''),
+        topic: z.string().max(40).default(''),
+        locale: localeArg,
+      })
+      .strict(),
+  },
+  {
+    name: 'creative_spark_save_idea',
+    description:
+      'Prepare a personal save request for the same staff member to review in the dashboard.',
+    schema: z.object({ id: z.string().max(100), locale: localeArg }).strict(),
+    write: true,
+  },
+  {
+    name: 'creative_spark_create_workshop_draft',
+    description:
+      'Prepare an editable bilingual draft request from a shared Spark idea. Use only owner-supplied price/capacity. Requires dashboard review; never publishes.',
+    schema: sparkDraftInput.extend({ id: z.string().max(100), locale: localeArg }).strict(),
+    write: true,
+  },
+  {
+    name: 'creative_spark_refine_idea',
+    description:
+      'Prepare a new bilingual version for dashboard review. The original idea is never overwritten.',
+    schema: z
+      .object({
+        id: z.string().max(100),
+        en: z.object({ title: z.string().max(120), description: z.string().max(700) }).strict(),
+        es: z.object({ title: z.string().max(120), description: z.string().max(700) }).strict(),
+        variation: z.boolean().default(false),
+        locale: localeArg,
+      })
+      .strict(),
+    write: true,
+  },
   {
     name: 'list_workshops',
     description: 'List non-sensitive workshop content. No participant records.',
@@ -407,8 +472,6 @@ async function commandFor(tool: string, input: any, env: Cloudflare.Env) {
         ...input,
         ...(input.locale === 'es-MX' ? input.english : {}),
         slug: 'ai-draft-' + crypto.randomUUID().slice(0, 8),
-        price: 2500,
-        capacity: 6,
         venue_id: null,
         media_id: null,
         status: 'draft',
@@ -417,9 +480,30 @@ async function commandFor(tool: string, input: any, env: Cloudflare.Env) {
       spanish: input.locale === 'es-MX' ? workshopCopySchema.parse(input) : null,
     };
   }
-  if (tool === 'save_creative_idea') {
-    if (!ideas.some((i) => i.id === input.id)) throw new HttpError(404, 'Idea not found.');
+  if (tool === 'save_creative_idea' || tool === 'creative_spark_save_idea') {
+    await sparkIdea(env.DB, input.id);
     return { route: `companion/${input.id}/save`, data: {} };
+  }
+  if (tool === 'creative_spark_create_workshop_draft') {
+    const idea = await sparkIdea(env.DB, input.id);
+    return {
+      route: `companion/${input.id}/draft`,
+      data: sparkDraftInput.parse({ price: input.price, capacity: input.capacity }),
+      preview: { en: idea.content.en, es: idea.content.es },
+    };
+  }
+  if (tool === 'creative_spark_refine_idea') {
+    const idea = await sparkIdea(env.DB, input.id);
+    validateSparkContent({
+      ...idea.content,
+      en: { ...idea.content.en, ...input.en },
+      es: { ...idea.content.es, ...input.es },
+    });
+    return {
+      route: `companion/${input.id}/refine`,
+      data: { en: input.en, es: input.es, variation: input.variation },
+      preview: { en: { ...idea.content.en, ...input.en }, es: { ...idea.content.es, ...input.es } },
+    };
   }
   if (tool === 'prepare_draft_sessions') {
     if (input.sessions.some((s: any) => s.status !== 'draft'))
@@ -447,6 +531,7 @@ async function commandFor(tool: string, input: any, env: Cloudflare.Env) {
     route: `workshops/${input.id}`,
     data: workshopSchema.parse({
       ...current,
+      activity_tags: parseTopics(current.activity_tags),
       ...input.content,
       status: 'draft',
       revision: input.revision,
@@ -568,7 +653,23 @@ async function callTool(
       currency: 'USD',
       policiesApproved: site.policiesApproved,
     };
-  } else if (name === 'creative_ideas') result = ideas.map((i) => ideaCopy(i, locale));
+  } else if (
+    ['creative_ideas', 'creative_spark_list_ideas', 'creative_spark_search_ideas'].includes(name)
+  ) {
+    const library = await sparkLibrary(db, principal.staff.id);
+    result = library
+      .filter(
+        (i) =>
+          name !== 'creative_spark_search_ideas' ||
+          ((!args.topic || i.tags.includes(args.topic)) &&
+            (!args.query ||
+              JSON.stringify(i.content)
+                .toLocaleLowerCase(locale)
+                .includes(args.query.toLocaleLowerCase(locale)))),
+      )
+      .map((i) => sparkCopy(i, locale));
+  } else if (name === 'creative_spark_get_idea')
+    result = sparkCopy(await sparkIdea(db, args.id), locale);
   else if (name === 'draft_request_status') {
     const row = await db
       .prepare('SELECT id,state,result FROM mcp_proposals WHERE id=? AND grant_id=?')

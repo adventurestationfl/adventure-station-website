@@ -980,3 +980,34 @@ legend {
     animation: none !important;
   }
 }
+
+.topic-filter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-block: 24px;
+}
+.topic-filter select {
+  max-width: 100%;
+  padding: 10px;
+  border: 1px solid var(--line, #cbdce0);
+  border-radius: 6px;
+  background: white;
+  color: inherit;
+  font: inherit;
+}
+.topic-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-block: 10px;
+}
+.topic-chips .tag {
+  font-size: 0.78rem;
+}
+@media (max-width: 500px) {
+  .topic-filter select {
+    width: 100%;
+  }
+}

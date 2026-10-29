@@ -1,3 +1,4 @@
+import { renderSpark } from './spark-view';
 import { createUI, localeOf, t as translate } from '../lib/i18n';
 type Api = (path: string, method?: string, data?: unknown) => Promise<any>;
 const locale = localeOf(document.documentElement.lang),
@@ -22,14 +23,33 @@ function proposalView(command: any) {
     duration: 'Duration (minutes)',
     capacity: 'Capacity',
     price: 'Price (USD cents)',
+    activity_tags: 'Activity topics',
     locale: 'Language',
   };
-  return ui`<dl class="idea-details">${Object.entries(labels)
-    .filter(([key]) => data[key] !== undefined)
-    .map(([key, label]) => ui`<div><dt>${h(t(label))}</dt><dd>${h(data[key])}</dd></div>`)
-    .join(
-      '',
-    )}${data.sessions ? ui`<div><dt>${t('Draft class dates')}</dt><dd>${data.sessions.length}</dd></div>` : ''}</dl><p>${t('Nothing will be published. Review all shared facts before opening bookings.')}</p>`;
+  const preview = command.preview
+    ? ui`<section>${['en', 'es']
+        .map(
+          (language) =>
+            ui`<details open><summary>${language === 'es' ? 'Español' : 'English'}</summary><dl class="idea-details">${Object.entries(
+              command.preview[language] ?? {},
+            )
+              .map(
+                ([key, value]) =>
+                  ui`<div><dt>${h(t(key[0]!.toUpperCase() + key.slice(1)))}</dt><dd>${h(value)}</dd></div>`,
+              )
+              .join('')}</dl></details>`,
+        )
+        .join('')}</section>`
+    : '';
+  return (
+    preview +
+    ui`<dl class="idea-details">${Object.entries(labels)
+      .filter(([key]) => data[key] !== undefined)
+      .map(([key, label]) => ui`<div><dt>${h(t(label))}</dt><dd>${h(data[key])}</dd></div>`)
+      .join(
+        '',
+      )}${data.sessions ? ui`<div><dt>${t('Draft class dates')}</dt><dd>${data.sessions.length}</dd></div>` : ''}</dl><p>${t('Nothing will be published. Review all shared facts before opening bookings.')}</p>`
+  );
 }
 const recordLink = (event: any) => {
   const section: Record<string, string> = {
@@ -51,11 +71,6 @@ const recordLink = (event: any) => {
     ? ui`<a href="/admin/${target}${target === 'workshops' ? '?edit=' + encodeURIComponent(event.entity_id) : ''}">${t('Open related records')}</a>`
     : '';
 };
-const actions = (idea: any) =>
-  ui`<div class="inline-actions"><button class="btn small" data-spark="draft" data-idea="${h(idea.id)}">Create workshop draft</button><button class="btn small light" data-spark="save" data-idea="${h(idea.id)}">Save idea</button><button class="btn small light" data-spark="another">Show another</button><button class="btn small light" data-spark="dismiss" data-idea="${h(idea.id)}">Dismiss</button></div>`;
-function ideaView(idea: any, compact = false) {
-  return ui`<article class="spark-idea"><p class="eyebrow">Curated workshop idea · not a verified trend</p><h2>${h(idea.title)}</h2><p>${h(idea.description)}</p><p class="muted">${t('Ages')} ${idea.age_min}–${idea.age_max} · ${idea.duration} ${t('minutes')} · ${t('Suggested group')}: ${idea.capacity}</p>${compact ? '' : ui`<dl class="idea-details">${['materials', 'preparation', 'difficulty', 'benefit', 'cost', 'cleanup', 'accessibility', 'safety', 'variations'].map((k) => ui`<div><dt>${h(t(k[0]!.toUpperCase() + k.slice(1)))}</dt><dd>${h(idea[k])}</dd></div>`).join('')}</dl>`}${actions(idea)}</article>`;
-}
 export async function companionSummary(host: HTMLElement, api: Api) {
   const [data, prefs] = await Promise.all([api('companion'), api('preferences')]);
   host.innerHTML = ui`${prefs.encouragement === 'disabled' ? '' : ui`<details class="encouragement" ${prefs.encouragement === 'shown' ? 'open' : ''}><summary>${t('A little encouragement for today')}</summary><p>${h(data.phrase.text)}</p><a href="/admin/settings">${t('Personal preferences')}</a></details>`}<section class="companion-summary"><div><strong>${t('Creative Spark')}</strong><p>${h(data.idea?.title ?? t('No idea selected. Restore a dismissed idea below.'))}</p></div><a class="btn small light" href="/admin/creative">Explore today’s idea</a></section>`;
@@ -90,63 +105,7 @@ export async function renderExtra(
     return true;
   }
   if (section === 'creative') {
-    const render = async () => {
-      const data = await api('companion');
-      host.innerHTML = ui`<header class="admin-heading"><div><h1>Creative Spark</h1><p>A practical starting point for your next workshop. Review and adapt every idea.</p></div></header>${data.idea ? ideaView(data.idea) : ui`<p class="panel">${t('No idea selected. Restore a dismissed idea below.')}</p>`}<section class="panel"><h2>Saved ideas</h2><div class="saved-ideas">${
-        data.preferences
-          .filter((p: any) => p.saved)
-          .map((p: any) => {
-            const i = data.library.find((i: any) => i.id === p.idea_id);
-            return i
-              ? ui`<button class="btn light" data-preview-idea="${h(i.id)}">${h(i.title)}</button>`
-              : '';
-          })
-          .join('') || ui`<p>${t('Save an idea to find it here later.')}</p>`
-      }</div></section><details class="panel"><summary>Dismissed ideas</summary>${data.preferences
-        .filter((p: any) => p.dismissed)
-        .map((p: any) => {
-          const i = data.library.find((i: any) => i.id === p.idea_id);
-          return ui`<p>${h(i?.title)} <button class="btn small light" data-spark="restore" data-idea="${h(p.idea_id)}">${t('Restore')}</button></p>`;
-        })
-        .join(
-          '',
-        )}</details><section class="panel"><h2>Optional AI and trends</h2><p>No separately authorized AI API or budget is configured. No paid generation runs here.</p><p>These suggestions are curated, evergreen or seasonal. They are not claims of current popularity.</p><p>Use age range, duration, available materials, theme and budget when requesting additional ideas from a separately connected assistant. Review safety, costs and instructions before use.</p></section>`;
-      host.querySelectorAll<HTMLButtonElement>('[data-preview-idea]').forEach((b) =>
-        b.addEventListener('click', () => {
-          host.querySelector('.spark-idea')!.outerHTML = ideaView(
-            data.library.find((i: any) => i.id === b.dataset.previewIdea),
-          );
-          host.querySelector('.spark-idea')!.scrollIntoView({ block: 'start' });
-        }),
-      );
-    };
-    host.addEventListener('click', async (e) => {
-      const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-spark]');
-      if (!b) return;
-      b.disabled = true;
-      try {
-        const action = b.dataset.spark!,
-          id = b.dataset.idea;
-        if (action === 'draft') {
-          const result = await api(`companion/${id}/draft`, 'POST', {});
-          notify(
-            t('Workshop draft prepared. Review its content, price and capacity before publishing.'),
-          );
-          location.assign(`/admin/workshops?edit=${encodeURIComponent(result.id)}`);
-          return;
-        }
-        if (action === 'another') await api('companion/another', 'POST', {});
-        else {
-          await api(`companion/${id}/${action}`, 'POST', {});
-        }
-        await render();
-      } catch (error) {
-        notify((error as Error).message, true);
-      } finally {
-        b.disabled = false;
-      }
-    });
-    await render();
+    await renderSpark(host, role, api, notify);
     return true;
   }
   if (section === 'activity') {

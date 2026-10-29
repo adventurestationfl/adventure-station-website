@@ -30,9 +30,11 @@ Los datos de una clase que ya tiene inscripciones quedan protegidos. No cambies 
 
 El resumen ofrece una frase original cada día, según la fecha local de Freeport. En preferencias, elige visible, minimizada o desactivada.
 
-**Chispa creativa** propone ideas bilingües con materiales, preparación, edades, duración, beneficio creativo, accesibilidad, seguridad, costos y limpieza. Adáptalas a las personas, materiales y lugar reales. Guarda las útiles, descarta las que no encajen, recupera las descartadas o pide otra. **Crear borrador de taller** prepara un borrador editable en ambos idiomas. Revisa precio, capacidad y contenido. No publica ni programa clases automáticamente. Repetir la misma idea abre su borrador existente.
+**Chispa creativa** ofrece la idea de hoy, nuevos descubrimientos, sugerencias de temporada y tus ideas guardadas o descartadas. Filtra por tipo de actividad o busca materiales y descripciones. Revisa preparación, seguridad, accesibilidad y limpieza, y adapta cada propuesta a la actividad real. **Adaptar idea** y **Crear una variante** guardan versiones bilingües editables sin modificar la original. Las variantes funcionan como adaptaciones editables; no se afirma que sean generadas con IA. **Crear borrador de taller** te pide el precio y el cupo, y prepara un único borrador editable en ambos idiomas. Nunca publica ni programa una clase. Repetir la misma idea abre su borrador existente.
 
-Las ideas son seleccionadas y permanentes o de temporada. No afirman ser tendencias actuales verificadas. No se hacen llamadas de generación de pago. Una suscripción de chat no incluye por sí misma un presupuesto de API.
+La investigación se actualiza automáticamente cada semana según la fecha de Chicago; también puedes usar **Buscar nueva inspiración**. Una referencia temática fechada no demuestra popularidad. Las 18 ideas seleccionadas siguen disponibles sin conexión y se conservan las versiones guardadas o adaptadas. Tus preferencias guían las próximas selecciones; usa **Mostrar otra** para elegir de nuevo hoy. La propietaria o Godmin puede revisar el estado y preparar la configuración de generación. El presupuesto autorizado de cero y la ausencia de una conexión de proveedor mantienen desactivados los modelos. Conectar un chat no pone en marcha un modelo permanente. Las pruebas reales con ChatGPT y Claude quedan pendientes; MCP sigue desactivado.
+
+Cada taller puede combinar varios **Tipos de actividad**. Tú conservas el control de las categorías y los precios. La identidad pública es **Wonder · Create · Play**, con creación, descubrimiento, exploración sensorial y retos divertidos de temporada. No se anuncia un parque infantil cubierto existente.
 
 ## Contenido, imágenes e historial
 

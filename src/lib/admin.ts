@@ -209,6 +209,7 @@ export async function adminApi(
           .all()
       ).results.map(({ gallery_json, ...w }) => ({
         ...w,
+        activity_tags: JSON.parse(String(w.activity_tags ?? '[]')),
         gallery_ids: JSON.parse(String(gallery_json)),
       })),
     );
@@ -334,9 +335,16 @@ export async function adminApi(
   }
   const workshop = /^workshops(?:\/([\w-]+))?$/.exec(path);
   if (workshop && method === 'POST') {
-    const data = workshopSchema.parse(await bodyJson(request)),
+    const input = await bodyJson(request);
+    const data = workshopSchema.parse(input),
       key = workshop[1] ?? crypto.randomUUID();
-    const { revision, gallery_ids, ...fields } = data;
+    const { revision, gallery_ids, activity_tags, ...rest } = data;
+    const fields = {
+      ...rest,
+      ...(workshop[1] && !Object.prototype.hasOwnProperty.call(input, 'activity_tags')
+        ? {}
+        : { activity_tags: JSON.stringify([...new Set(activity_tags)]) }),
+    };
     const cols = Object.keys(fields),
       vals = Object.values(fields);
     if (data.status === 'published' && (!data.summary || !data.description))

@@ -1,4 +1,5 @@
 ---
+import { parseTopics, topicLabel } from '../../lib/activity-topics';
 import { localeOf, t, localPath } from '../../lib/i18n';
 import { publicCatalog, publicUpcoming } from '../../lib/translations';
 const locale = localeOf(Astro.locals.locale);
@@ -27,6 +28,11 @@ const gallery = (
     <section class="section split">
       <div>
         <div class="eyebrow">{w.category}</div>
+        <div class="topic-chips">
+          {parseTopics(w.activity_tags).map((id) => (
+            <span class="tag">{topicLabel(id, locale)}</span>
+          ))}
+        </div>
         <h1>{w.name}</h1>
         {locale === 'es-MX' && w.translationIncomplete && (
           <p class="notice">
@@ -62,7 +68,7 @@ const gallery = (
       <div class="hero-art">
         <img
           src={w.media_id ? `/media/${w.media_id}?w=960` : '/brand/art-960.webp'}
-          alt={w.image_alt ?? t('Adventure Station crafts and arts artwork', locale)}
+          alt={w.image_alt ?? t('Adventure Station rainbow and creative-tool artwork', locale)}
           width="960"
           height="960"
         />

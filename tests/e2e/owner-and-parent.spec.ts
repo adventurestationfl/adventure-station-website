@@ -75,7 +75,9 @@ test('parents can explore the responsive site and its accessible navigation', as
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('imagination');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    'Big discoveries start with little adventures.',
+  );
   if (testInfo.project.name === 'mobile') {
     await page.getByRole('button', { name: 'Menu', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Menu' })).toHaveAttribute(
@@ -112,6 +114,7 @@ test('owner can save a workshop, publish it, and archive it without code', async
   await page.getByRole('button', { name: '+ Create workshop', exact: true }).click();
   await page.getByLabel('Workshop name', { exact: true }).fill(name);
   await page.getByLabel('Page address', { exact: true }).fill(slug);
+  await page.getByLabel('Price per child ($)', { exact: true }).fill('21.37');
   await page
     .getByLabel('Short description', { exact: true })
     .fill('Test-only activity for automated checks.');

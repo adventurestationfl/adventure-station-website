@@ -17,6 +17,10 @@
   ],
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "adventure-station-local-media" }],
   "vars": {
+    "SPARK_AI_AUTHORIZED": "false",
+    "SPARK_AI_MONTHLY_LIMIT_MICROUSD": "0",
+    "SPARK_AI_REQUEST_LIMIT_MICROUSD": "0",
+    "SPARK_AI_ALLOWED_MODELS": "",
     "MCP_ENABLED": "false",
     "ENVIRONMENT": "local",
     "DEV_AUTH": "false",

@@ -13,6 +13,7 @@ for (const locale of ['en-US', 'es-MX'])
     try {
       await page.goto('/admin/workshops');
       await page.locator('[data-action=new-workshop]').click();
+      await page.locator('input[name=price]').fill('21.37');
       const draftName = 'Synthetic unsaved session draft';
       await page.locator('input[name=name]').fill(draftName);
       await page.locator('input[name=slug]').fill('synthetic-unsaved-session-draft');
@@ -48,6 +49,7 @@ for (const locale of ['en-US', 'es-MX'])
       });
       await page.reload();
       await page.locator('[data-action=new-workshop]').click();
+      await page.locator('input[name=price]').fill('21.37');
       await page.locator('input[name=name]').fill(draftName);
       await page.locator('input[name=slug]').fill('synthetic-unsaved-session-draft');
       await page.locator('button[type=submit]').click();

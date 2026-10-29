@@ -8,5 +8,5 @@ if (
   return new Response('No se encontró la página.', { status: 404 });
 Astro.locals.locale = 'es-MX';
 Astro.locals.publicPath = '/es/' + path;
-return Astro.rewrite('/' + path);
+return Astro.rewrite('/' + path + Astro.url.search);
 ---

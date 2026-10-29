@@ -3,13 +3,20 @@ import '../styles/global.css';
 import { env } from 'cloudflare:workers';
 import { localizedSite } from '../lib/translations';
 import { localeOf, t, localPath } from '../lib/i18n';
+import { activityTopics } from '../lib/activity-topics';
 const locale = localeOf(Astro.locals.locale),
   site = await localizedSite(env.DB, locale);
 const path = Astro.locals.publicPath || Astro.url.pathname;
+const selectedTopic = Astro.url.searchParams.get('topic');
+const languagePath =
+  path +
+  (/^(?:\/es)?\/workshops$/.test(path) && activityTopics.some((t) => t.id === selectedTopic)
+    ? '?topic=' + encodeURIComponent(selectedTopic!)
+    : '');
 const href = (p: string) => localPath(p, locale);
 const {
-  title = 'A little mess. A lot of imagination.',
-  description = 'Hands-on arts and crafts for curious kids. Explore workshops and upcoming dates at Adventure Station.',
+  title = 'Wonder · Create · Play',
+  description = 'Seasonal hands-on experiences for children: creative projects, sensory exploration, science-inspired experiments and playful challenges.',
 } = Astro.props;
 const origin = env.PUBLIC_ORIGIN;
 const organization = JSON.stringify({
@@ -20,6 +27,11 @@ const organization = JSON.stringify({
   email: site.email,
   logo: `${origin}/brand/logo-96.webp`,
   inLanguage: locale,
+  slogan: 'Wonder · Create · Play',
+  description: t(
+    'Seasonal hands-on experiences for children: creative projects, sensory exploration, science-inspired experiments and playful challenges.',
+    locale,
+  ),
 }).replace(/</g, '\\u003c');
 ---
 
@@ -65,7 +77,7 @@ const organization = JSON.stringify({
     <div class="topline">{t('Little hands. Big ideas. Endless possibilities.', locale)}</div>
     <nav class="language-choice wrap" aria-label={t('Language', locale)}>
       <a
-        href={localPath(path, 'en-US')}
+        href={localPath(languagePath, 'en-US')}
         lang="en-US"
         aria-current={locale === 'en-US' ? 'true' : undefined}
       >
@@ -73,7 +85,7 @@ const organization = JSON.stringify({
       </a>
       <span aria-hidden="true"> | </span>
       <a
-        href={localPath(path, 'es-MX')}
+        href={localPath(languagePath, 'es-MX')}
         lang="es-MX"
         aria-current={locale === 'es-MX' ? 'true' : undefined}
       >
@@ -93,7 +105,7 @@ const organization = JSON.stringify({
         <img src="/brand/logo-96.webp" alt="" width="62" height="62" />
         <span>
           {t('\r\n          Adventure Station', locale)}
-          <small>{t('Crafts & arts for kids', locale)}</small>
+          <small>Wonder · Create · Play</small>
         </span>
       </a>
       <button class="mobile-menu" aria-expanded="false" aria-controls="main-nav">

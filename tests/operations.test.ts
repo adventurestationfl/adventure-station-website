@@ -108,6 +108,8 @@ beforeEach(async () => {
     '0010_companion_locales_and_technical_access.sql',
     '0011_spanish_starter_copy.sql',
     '0012_starter_copy_source_review.sql',
+    '0013_wonder_create_play_and_spark.sql',
+    '0014_wonder_positioning_starter_copy.sql',
   ]
     .map((f) => readFileSync(`migrations/${f}`, 'utf8'))
     .join('\n');

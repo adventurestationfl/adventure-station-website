@@ -18,6 +18,7 @@ test('Spanish workshop and venue creation preserve API identifiers and saved val
   try {
     await page.goto('/admin/workshops');
     await page.locator('[data-action=new-workshop]').click();
+    await page.locator('input[name=price]').fill('21.37');
     await page.locator('input[name=name]').fill(name);
     await page.locator('input[name=slug]').fill(`es-write-${suffix}`);
     await page

@@ -1,11 +1,13 @@
 import es from '../locales/es-MX.json';
+import sparkEs from '../locales/spark.es-MX.json';
+const spanish: Record<string, string> = { ...es, ...sparkEs };
 export type Locale = 'en-US' | 'es-MX';
 export const localeOf = (value?: string | null): Locale => (value === 'es-MX' ? 'es-MX' : 'en-US');
 export const normalize = (value: string) => value.replace(/\s+/g, ' ').trim();
 export function t(value: string, locale: Locale = 'en-US') {
   if (locale === 'en-US') return value;
   const key = normalize(value);
-  const translated = (es as Record<string, string>)[key];
+  const translated = spanish[key];
   return translated === undefined
     ? value
     : (value.match(/^\s*/)?.[0] ?? '') + translated + (value.match(/\s*$/)?.[0] ?? '');

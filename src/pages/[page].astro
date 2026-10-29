@@ -34,11 +34,11 @@ const venues = (
     <section class="section prose">
       {page === 'about' && (
         <>
-          <h2>{t('For the joy of making.', locale)}</h2>
+          <h2>{t('For the joy of discovering.', locale)}</h2>
           <p>{site.about}</p>
           <p>
             {t(
-              'Seasonal inspiration. Hands-on exploration. A chance to make something special.',
+              'Creative projects, sensory exploration, science-inspired experiments and playful challenges can share the same adventure.',
               locale,
             )}
           </p>
@@ -99,7 +99,7 @@ const venues = (
             <a href={`mailto:${site.email}`}>{site.email}</a>
           </p>
           {site.phone && <p>{site.phone}</p>}
-          <h2>{t('Where we create.', locale)}</h2>
+          <h2>{t('Where adventures happen.', locale)}</h2>
           {site.locality && <p>{site.locality}</p>}
           {venues.length ? (
             venues.map((v) => (

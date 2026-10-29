@@ -1,4 +1,5 @@
 import { installRecordLayouts } from './admin-records';
+import { activityTopics, parseTopics, topicLabel } from '../lib/activity-topics';
 import { createUI, localeOf, t as translate, errorMessage } from '../lib/i18n';
 import { renderExtra, companionSummary } from './admin-features';
 const locale = localeOf(document.documentElement.lang),
@@ -131,11 +132,12 @@ function workshopEditor(original?: any, duplicate = false) {
         slug: '',
         summary: '',
         description: '',
-        category: 'Arts & crafts',
+        category: '',
+        activity_tags: [],
         age_min: 4,
         age_max: 10,
         duration: 60,
-        price: 2500,
+        price: null,
         capacity: 12,
         venue_id: null,
         media_id: null,
@@ -155,7 +157,7 @@ function workshopEditor(original?: any, duplicate = false) {
       'Describe it once. Add as many class dates as you need.',
       button('Back to workshops', 'back'),
     ) +
-    ui`<div class="content-language"><span>Content language: English</span>${w.id ? ui`<button class="btn small light" type="button" data-action="translate-workshop" data-id="${h(w.id)}">Español</button>` : ui`<small>${t('Save the English source before adding Spanish content.')}</small>`}</div><form id="editor"><div class="form-columns"><div class="panel"><h2>The creative idea</h2>${field('Workshop name', 'name', w.name, 'text', '', 'required maxlength="120"')}${field('Page address', 'slug', w.slug, 'text', 'Use lowercase words separated by hyphens.', 'required pattern="[a-z0-9]+(-[a-z0-9]+)*"')}${field('Short description', 'summary', w.summary, 'textarea', 'A sentence or two for the workshop card.', 'maxlength="240"')}${field('Full description', 'description', w.description, 'textarea', '', 'maxlength="8000"')}${field('Category', 'category', w.category)}${select('Workshop image', 'media_id', w.media_id, [{ id: '', name: t('Original Adventure Station artwork') }, ...media.map((m) => ({ id: m.id, name: m.alt }))])}${media.length ? ui`<fieldset><legend>Workshop gallery (up to 12 images)</legend>${media.map((m) => check(m.alt, 'gallery_ids', (w.gallery_ids ?? []).includes(m.id)).replace('name="gallery_ids"', ui`name="gallery_ids" value="${h(m.id)}"`)).join('')}</fieldset>` : ''}${field('Included materials', 'materials', w.materials, 'textarea')}${field('Instructions for families', 'instructions', w.instructions, 'textarea')}</div><div><div class="panel"><h2>Defaults for new dates</h2><p class="muted">Change these here to save time later. Existing class dates and registrations keep their details.</p><div class="form-grid">${field('Youngest age', 'age_min', w.age_min, 'number', '', 'required min="1" max="17"')}${field('Oldest age', 'age_max', w.age_max, 'number', '', 'required min="1" max="17"')}${field('Duration (minutes)', 'duration', w.duration, 'number', '', 'required min="15" max="480"')}${field('Places per class', 'capacity', w.capacity, 'number', '', 'required min="1" max="100"')}</div>${field('Price per child ($)', 'price', w.price / 100, 'number', '', 'required min="1" max="1000" step="0.01"')}${select('Usual venue', 'venue_id', w.venue_id, [{ id: '', name: t('Choose when scheduling') }, ...venues.map((v) => ({ id: v.id, name: v.name }))])}</div><div class="panel"><h2>Visibility</h2>${select(
+    ui`<div class="content-language"><span>Content language: English</span>${w.id ? ui`<button class="btn small light" type="button" data-action="translate-workshop" data-id="${h(w.id)}">Español</button>` : ui`<small>${t('Save the English source before adding Spanish content.')}</small>`}</div><form id="editor"><div class="form-columns"><div class="panel"><h2>The creative idea</h2>${field('Workshop name', 'name', w.name, 'text', '', 'required maxlength="120"')}${field('Page address', 'slug', w.slug, 'text', 'Use lowercase words separated by hyphens.', 'required pattern="[a-z0-9]+(-[a-z0-9]+)*"')}${field('Short description', 'summary', w.summary, 'textarea', 'A sentence or two for the workshop card.', 'maxlength="240"')}${field('Full description', 'description', w.description, 'textarea', '', 'maxlength="8000"')}${field('Category', 'category', w.category)}<fieldset><legend>Activity topics</legend><p>Choose any that fit. Wonder, Create and Play can overlap.</p><div class="topic-options">${activityTopics.map((topic) => check(topicLabel(topic.id, locale), 'activity_tags', parseTopics(w.activity_tags).includes(topic.id)).replace('name="activity_tags"', 'name="activity_tags" value="' + topic.id + '"')).join('')}</div></fieldset>${select('Workshop image', 'media_id', w.media_id, [{ id: '', name: t('Original Adventure Station artwork') }, ...media.map((m) => ({ id: m.id, name: m.alt }))])}${media.length ? ui`<fieldset><legend>Workshop gallery (up to 12 images)</legend>${media.map((m) => check(m.alt, 'gallery_ids', (w.gallery_ids ?? []).includes(m.id)).replace('name="gallery_ids"', ui`name="gallery_ids" value="${h(m.id)}"`)).join('')}</fieldset>` : ''}${field('Included materials', 'materials', w.materials, 'textarea')}${field('Instructions for families', 'instructions', w.instructions, 'textarea')}</div><div><div class="panel"><h2>Defaults for new dates</h2><p class="muted">Change these here to save time later. Existing class dates and registrations keep their details.</p><div class="form-grid">${field('Youngest age', 'age_min', w.age_min, 'number', '', 'required min="1" max="17"')}${field('Oldest age', 'age_max', w.age_max, 'number', '', 'required min="1" max="17"')}${field('Duration (minutes)', 'duration', w.duration, 'number', '', 'required min="15" max="480"')}${field('Places per class', 'capacity', w.capacity, 'number', '', 'required min="1" max="100"')}</div>${field('Price per child ($)', 'price', w.price == null ? '' : w.price / 100, 'number', '', 'required min="1" max="1000" step="0.01"')}${select('Usual venue', 'venue_id', w.venue_id, [{ id: '', name: t('Choose when scheduling') }, ...venues.map((v) => ({ id: v.id, name: v.name }))])}</div><div class="panel"><h2>Visibility</h2>${select(
       'Workshop status',
       'status',
       w.status,
@@ -173,6 +175,7 @@ function workshopEditor(original?: any, duplicate = false) {
     d.media_id = d.media_id || null;
     d.revision = w.revision;
     d.gallery_ids = new FormData(form).getAll('gallery_ids');
+    d.activity_tags = new FormData(form).getAll('activity_tags');
     await api(`workshops${w.id ? `/${w.id}` : ''}`, 'POST', d);
     notify('Workshop saved.');
     await renderWorkshops();

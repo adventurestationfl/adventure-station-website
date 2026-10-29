@@ -1,6 +1,8 @@
 # Adventure Station
 
-An Astro website and purpose-built studio desk for reusable workshops, scheduled dates, content, images, registrations, attendance, and payment review.
+**Wonder · Create · Play.** An Astro website and purpose-built studio desk for seasonal hands-on adventures, reusable workshops, scheduled dates, creative inspiration, content, images, registrations, attendance, and payment review.
+
+The broader positioning, shared activity topics, scheduled Creative Spark research and disabled model/MCP boundaries are documented in [WONDER_CREATE_PLAY.md](docs/WONDER_CREATE_PLAY.md).
 
 **Development candidate. Not approved for production.** The original three GitHub Pages files remain unchanged. No production deployment, DNS change, live payment, or subscription activation is part of this implementation.
 

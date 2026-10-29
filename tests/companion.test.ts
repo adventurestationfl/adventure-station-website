@@ -6,6 +6,7 @@ import { dailyEncouragement, encouragement as phrases } from '../src/lib/encoura
 import { businessDay, createUI, errorMessage } from '../src/lib/i18n';
 import { ideas } from '../src/lib/ideas';
 import { companionApi, technicalApi } from '../src/lib/companion';
+import { insertSparkIdea, developResearchIdea } from '../src/lib/spark';
 import {
   localizedSite,
   localizeWorkshop,
@@ -101,6 +102,8 @@ const copy = {
   category: 'Paper',
   materials: 'Paper and crayons',
   instructions: 'Adult supervision',
+  price: 2137,
+  capacity: 7,
 };
 async function bearer(scope = 'studio:read studio:drafts') {
   await db
@@ -197,7 +200,10 @@ it('saves, dismisses, restores and handles an entirely dismissed library', async
 });
 it('creates one editable bilingual draft under concurrent retries and no scheduled classes', async () => {
   const path = 'companion/' + ideas[0]!.id + '/draft',
-    results = await Promise.all([companion(path, {}), companion(path, {})]);
+    results = await Promise.all([
+      companion(path, { price: 2137, capacity: 7 }),
+      companion(path, { price: 2137, capacity: 7 }),
+    ]);
   expect(results[0].id).toBe(results[1].id);
   expect(await db.prepare('SELECT status,revision FROM workshops').first()).toMatchObject({
     status: 'draft',
@@ -257,6 +263,9 @@ it('keeps the last active owner and audit records intact at database level', asy
   await expect(team('activity', undefined, manager)).rejects.toThrow('role');
 });
 it('requires separately approved Spanish policies and reopens approval after an English policy edit', async () => {
+  const beforeVersions = (await db
+    .prepare('SELECT COUNT(*) n FROM translation_versions')
+    .first<any>())!.n;
   let site = await settings(db);
   site = {
     ...site,
@@ -294,9 +303,16 @@ it('requires separately approved Spanish policies and reopens approval after an 
     )
     .run();
   expect((await localizedSite(db, 'es-MX')).policiesApproved).toBe(false);
-  expect((await db.prepare('SELECT COUNT(*) n FROM translation_versions').first<any>())!.n).toBe(1);
+  expect((await db.prepare('SELECT COUNT(*) n FROM translation_versions').first<any>())!.n).toBe(
+    beforeVersions + 1,
+  );
 });
 it('guards translation revisions and cannot let a manager approve legal text', async () => {
+  const translationRevision = (await db
+    .prepare(
+      "SELECT revision FROM content_translations WHERE entity_type='site' AND entity_id='site'",
+    )
+    .first<any>())!.revision;
   const site = await settings(db),
     value = { ...site, headline: 'Hola' },
     revision = (await db.prepare("SELECT revision FROM settings WHERE key='site'").first<any>())!
@@ -318,7 +334,7 @@ it('guards translation revisions and cannot let a manager approve legal text', a
     translationsApi(
       req('/api/admin/translations/site/site', {
         value,
-        revision: 1,
+        revision: translationRevision,
         sourceRevision: revision,
         approved: true,
       }),
@@ -591,4 +607,65 @@ it('does not silently accept starter Spanish for English copy customized before 
       .prepare("SELECT COUNT(*) n FROM translation_versions WHERE actor='system:starter-review'")
       .first<any>())!.n,
   ).toBe(1);
+});
+
+it('shares researched Spark ideas with scoped MCP readers and never exposes private records', async () => {
+  const developed = await insertSparkIdea(
+    db,
+    developResearchIdea(
+      {
+        url: 'https://www.nasa.gov/test-only',
+        title: 'Moon discovery',
+        retrievedAt: new Date().toISOString(),
+        evidence: 'topic-context',
+      },
+      0,
+      '2026-10-29',
+    ),
+    owner.id,
+  );
+  const token = await bearer('studio:read');
+  const response = await rpc(token, 'spark-get', 'creative_spark_get_idea', {
+    id: developed.id,
+    locale: 'es-MX',
+  });
+  expect(response.status).toBe(200);
+  const value = JSON.parse((await response.json()).result.content[0].text);
+  expect(value.id).toBe(developed.id);
+  expect(value.title).toBe(developed.content.es.title);
+  expect(value.verifiedTrend).toBe(false);
+  expect(JSON.stringify(value)).not.toContain('guardian_email');
+  expect(
+    (await rpc(token, 'spark-write', 'creative_spark_save_idea', { id: developed.id })).status,
+  ).toBe(403);
+  const event = await db
+    .prepare("SELECT actor,source,tool_name FROM audit WHERE tool_name='creative_spark_get_idea'")
+    .first();
+  expect(event).toMatchObject({
+    actor: 'owner',
+    source: 'mcp',
+    tool_name: 'creative_spark_get_idea',
+  });
+});
+it('requires same-person review for MCP Spark drafts with owner-supplied pricing', async () => {
+  const token = await bearer();
+  const response = await rpc(token, 'spark-draft', 'creative_spark_create_workshop_draft', {
+    id: 'paper-garden',
+    price: 2137,
+    capacity: 7,
+  });
+  expect(response.status).toBe(200);
+  const pending = JSON.parse((await response.json()).result.content[0].text);
+  expect((await db.prepare('SELECT COUNT(*) n FROM workshops').first<any>())!.n).toBe(0);
+  await connect(`connections/proposals/${pending.id}/apply`, { confirm: true });
+  expect(await db.prepare('SELECT status,price,capacity FROM workshops').first()).toMatchObject({
+    status: 'draft',
+    price: 2137,
+    capacity: 7,
+  });
+  expect((await db.prepare('SELECT COUNT(*) n FROM sessions').first<any>())!.n).toBe(0);
+  expect(
+    (await rpc(token, 'no-price', 'creative_spark_create_workshop_draft', { id: 'paper-garden' }))
+      .status,
+  ).toBe(400);
 });

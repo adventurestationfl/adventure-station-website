@@ -1,8 +1,10 @@
 # Review status — October 29, 2026
 
-**Isolated bilingual hosted preview; draft PR #1 remains unmerged. Production, live payments, customer email and paid AI generation remain disabled.**
+**Isolated bilingual hosted preview; draft PR #1 remains unmerged. Production remains unchanged. Live payments, customer email and paid AI generation remain disabled.**
 
 ## Current implementation
+
+Latest continuation: **Wonder · Create · Play** broadens English/Spanish public positioning without claiming an existing indoor playground. Shared multi-topic classification, a persistent Creative Spark catalog, weekly bounded RSS research, Chicago daily/seasonal recommendations, immutable refinements, and explicit staff-priced bilingual drafts reuse the existing application. The 18 curated ideas remain the offline fallback. The provider contract/native adapter and atomic budget guard are prepared; model generation is not activated. Actual ChatGPT/Claude client testing was explicitly deferred and MCP remains disabled. See [WONDER_CREATE_PLAY.md](WONDER_CREATE_PLAY.md) and the current PR for final source, deployment, tests and remaining gates. Earlier counts/evidence below are historical checkpoints.
 
 The existing Astro/Workers/D1/private R2 application now includes English and Mexican Spanish public journeys, equivalent language links, canonical/hreflang metadata, a production-only bilingual sitemap and per-staff admin language preferences. Workshop/session identities, prices, capacity, payment references and registrations remain shared. Structured Spanish copy has source revisions and history. Critical stale or missing Spanish workshop/venue guidance blocks Spanish registration. Legal text has independent owner approval, source fingerprints and saved registration-language/policy snapshots. English policy changes reopen Spanish review. Proposed Spanish policy drafts can be loaded for comparison; loading does not save or adopt them.
 

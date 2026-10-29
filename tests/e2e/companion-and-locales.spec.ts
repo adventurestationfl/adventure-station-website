@@ -83,6 +83,9 @@ test('Creative Spark saves, dismisses, restores and creates an editable bilingua
     .locator('.spark-idea')
     .getByRole('button', { name: 'Create workshop draft', exact: true })
     .click();
+  await page.locator('#spark-draft-price').fill('21.37');
+  await page.locator('#spark-draft-capacity').fill('7');
+  await page.getByRole('button', { name: 'Prepare editable draft', exact: true }).click();
   await expect(page.getByLabel('Workshop name', { exact: true })).toBeVisible();
   await expect(page.locator('select[name=status]')).toHaveValue('draft');
 });
