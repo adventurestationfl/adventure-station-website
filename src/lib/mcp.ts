@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { audit, settings, type AuditContext } from './data';
-import { bodyJson, HttpError, json, now, readBody, requireOrigin, sha256 } from './http';
+import { bodyJson, HttpError, json, now, readBody, sha256 } from './http';
 import { type Staff, requirePermission } from './auth';
+import { requireConsentOrigin, consentOriginClassification } from './consent-origin';
 import { localeOf } from './i18n';
 import { sparkLibrary, sparkIdea, sparkCopy, sparkDraftInput } from './spark';
 import { parseTopics } from './activity-topics';
@@ -89,7 +90,18 @@ export async function beginConsent(env: Cloudflare.Env, staff: Staff, params: UR
 export async function finishConsent(request: Request, env: Cloudflare.Env, staff: Staff) {
   enabled(env);
   requirePermission(staff, 'technical');
-  requireOrigin(request);
+  try {
+    requireConsentOrigin(request, env);
+  } catch (error) {
+    await audit(
+      env.DB,
+      staff.id,
+      'mcp.consent.origin_rejected',
+      consentOriginClassification(request, env),
+      { outcome: 'denied' },
+    ).run();
+    throw error;
+  }
   const body = new URLSearchParams(await readBody(request, 8192)),
     nonce = body.get('nonce') ?? '',
     cookie =

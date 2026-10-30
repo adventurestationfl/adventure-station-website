@@ -3,6 +3,7 @@ import { env } from 'cloudflare:workers';
 import { authenticate } from './lib/auth';
 import { errorResponse, HttpError } from './lib/http';
 import { localeOf } from './lib/i18n';
+import { consentReferrerPolicy } from './lib/consent-origin';
 export const onRequest = defineMiddleware(async (context, next) => {
   context.locals.publicPath ??= context.url.pathname;
   context.locals.locale ??=
@@ -28,7 +29,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
   const headers = new Headers(response.headers);
   headers.set('X-Content-Type-Options', 'nosniff');
-  headers.set('Referrer-Policy', 'no-referrer');
+  headers.set(
+    'Referrer-Policy',
+    consentReferrerPolicy(context.url.pathname, context.request.method, response.status),
+  );
   headers.set('Permissions-Policy', 'camera=(),microphone=(),geolocation=()');
   headers.set(
     'Content-Security-Policy',

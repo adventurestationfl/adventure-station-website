@@ -324,6 +324,9 @@ test('navigation and server permissions agree for owner, manager, instructor and
 test('English/Spanish records, drawer and landscape pass targeted accessibility checks', async ({
   page,
 }) => {
+  // Sixteen page audits plus four modal audits need a bounded budget on slower
+  // machines. Individual visibility assertions retain their normal timeout.
+  test.setTimeout(90000);
   await mockRecords(page, { spanishContent: true });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   for (const locale of ['en-US', 'es-MX']) {

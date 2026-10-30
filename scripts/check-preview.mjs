@@ -86,9 +86,9 @@ for (const [name, path, headers, expected] of [
   results.push({ name, status: r.status, expected, passed: r.status === expected });
 }
 for (const [path, expected] of [
-  ['/mcp', 503],
-  ['/.well-known/oauth-authorization-server', 503],
-  ['/.well-known/oauth-protected-resource/mcp', 503],
+  ['/mcp', 401],
+  ['/.well-known/oauth-authorization-server', 200],
+  ['/.well-known/oauth-protected-resource/mcp', 200],
   ['/es/admin/settings', 404],
   ['/es/api/admin/me', 404],
 ]) {
