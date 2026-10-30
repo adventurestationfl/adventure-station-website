@@ -43,6 +43,9 @@ function proposalView(command: any) {
     : '';
   return (
     preview +
+    (command.references?.length
+      ? ui`<section><h3>Sources and context</h3><ul>${command.references.map((r: any) => ui`<li><a href="${h(r.url)}" target="_blank" rel="noopener noreferrer">${h(r.title)}</a></li>`).join('')}</ul><p>References provide context, not measured demand or copied instructions.</p></section>`
+      : '') +
     ui`<dl class="idea-details">${Object.entries(labels)
       .filter(([key]) => data[key] !== undefined)
       .map(([key, label]) => ui`<div><dt>${h(t(label))}</dt><dd>${h(data[key])}</dd></div>`)

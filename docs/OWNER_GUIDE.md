@@ -153,6 +153,14 @@ Unused images can move to **Trash** and be restored for 30 days before cleanup s
 
 A confirmed booking with active places can download **Add to calendar** from its private receipt, using the same browser and receipt cookie. The link contains no secret token, child name or guardian contact. Downloads use the saved class time/location, support English/Spanish descriptions and do not subscribe the family to automatic updates. Check the booking again after a change. Receipt access expires after seven days and ends when personal booking data is anonymized; the studio retains its authorized operational records separately.
 
+## Fresh inspiration — development candidate
+
+After an authorized deployment, **Creative Spark** adds a few fresh research briefs alongside today's featured idea. A brief gives you a creative question; expand **Sources and context** to see where it came from. A new article is not proof that an activity is popular. Historical art references are identified separately. Your original and saved ideas remain available when a source is offline.
+
+Eight additional offline explorations include water transfer, ramps, rhythm, color overlays, cooperative building/games, fabric textures and process printing. **Explore the activity** opens preparation, safety, cleanup and accessibility details. Save, dismiss, another and draft controls work as before. You still choose actual ages, prices, capacity, class dates, venues and publication.
+
+**How inspiration works** keeps model and budget settings out of everyday use. You do not need a model subscription or technical settings to receive cached/original inspiration. Unattended model development remains off. The existing ChatGPT Studio connection can read permitted information; saving a new interactive idea through the new tool requires a separately authorized draft grant and your dashboard review. It does not automatically publish, schedule or create API charges. The live preview remains on the earlier version until deployment is explicitly authorized.
+
 ## Offers and messages
 
 These additions are a local development candidate until separately deployed. **Promotions** prepares bilingual announcements, homepage features or workshop messages. Choose the dates in Freeport local time, preview the copy, then deliberately publish when ready. Drafts stay private. Expired/paused campaigns or unavailable linked offers stop displaying. **Coupons & offers** sets one discount per booking; an entered code takes priority over automatic offers. Specify eligibility, limits and clear English/Spanish terms. Only you activate offers. Saved price facts remain intact after edits or refunds; discounts do not establish tax treatment or activate checkout.

@@ -20,6 +20,8 @@ Existing workshops and class-date prices are not rewritten. New workshop forms l
 
 ## Discover → Evaluate → Develop → Recommend → Owner Review
 
+The October 30 local continuation supersedes the NASA-only, fixed-outline discovery strategy and adds broader original fallbacks, independent complementary sources, qualified research briefs, mechanism-based novelty and reviewed interactive idea intake. [The current architecture and activation limits](DYNAMIC_CREATIVE_SPARK.md) distinguish this local candidate from the unchanged hosted version and from actual model execution. Historical implementation detail below remains an evidence record; it does not describe a newly deployed engine.
+
 The shared `src/lib/spark.ts` service serves both administration and MCP. There is one idea catalog, not a separate assistant database.
 
 1. **Discover:** bounded requests to NASA's official RSS endpoint; metadata only, without full article scraping, third-party instructions or photographs. Store source URL, publisher date, retrieval date and `topic-context` evidence. Seasonal context includes a calendar reference and the calculated fourth Thursday in November; it does not schedule a business event.

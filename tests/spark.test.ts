@@ -3,7 +3,8 @@ import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { readFileSync, readdirSync } from 'node:fs';
 import { sqlStatements } from './sql-statements';
 import {
-  refreshSpark,
+  refreshSpark as realRefreshSpark,
+  discoverSparkSources,
   sparkLibrary,
   selectSpark,
   sparkIdea,
@@ -17,6 +18,11 @@ import {
   sparkSettingsApi,
   sparkSeasonalContext,
 } from '../src/lib/spark';
+import { nasaAdapter } from '../src/lib/spark-sources';
+import { ideas as originalIdeas } from '../src/lib/ideas';
+import { sparkOpportunities } from '../src/lib/spark-opportunities';
+const refreshSpark = (env: Cloudflare.Env, options: Parameters<typeof realRefreshSpark>[1] = {}) =>
+  realRefreshSpark(env, { adapters: [nasaAdapter], ...options });
 import { validateSparkContent } from '../src/lib/spark-provider';
 import { companionApi } from '../src/lib/companion';
 import { workshopSchema } from '../src/lib/validation';
@@ -88,7 +94,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
   await mf.dispose();
 });
-it('keeps the 18 curated ideas available without any external credential or request', async () => {
+it('preserves the original curated identities and adds broader offline explorations without external credentials', async () => {
   const network = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'));
   const response = await companionApi(
     new Request('https://preview.example.invalid/api/admin/companion'),
@@ -97,29 +103,39 @@ it('keeps the 18 curated ideas available without any external credential or requ
     'companion',
   );
   const result = (await response!.json()) as any;
-  expect(result.library).toHaveLength(18);
+  expect(result.library).toHaveLength(26);
+  expect(originalIdeas.every((i) => result.library.some((entry: any) => entry.id === i.id))).toBe(
+    true,
+  );
   expect(result.ai.enabled).toBe(false);
   expect(result.trends.enabled).toBe(false);
   expect(network).not.toHaveBeenCalled();
 });
-it('discovers dated permitted source context and creates original bilingual candidates once per Chicago week', async () => {
-  const fetcher = feed();
-  const first = await refreshSpark(env, { at, fetcher });
-  expect(first).toMatchObject({ state: 'completed', inserted: 4, verifiedTrends: 0 });
+it('discovers dated source briefs without pretending references are newly developed workshops', async () => {
+  const fetcher = feed(),
+    first = await refreshSpark(env, { at, fetcher });
+  expect(first).toMatchObject({
+    state: 'completed',
+    inserted: 0,
+    sourceCount: 4,
+    verifiedTrends: 0,
+  });
   expect(await refreshSpark(env, { at, fetcher })).toEqual({ state: 'cached' });
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(fetcher.mock.calls[0]![1]?.redirect).toBe('manual');
-  const library = await sparkLibrary(db);
-  expect(library).toHaveLength(22);
-  const idea = library[0]!;
-  expect(idea.origin).toBe('research-informed');
-  expect(idea.sources[0]).toMatchObject({
+  const discovery = await sparkOpportunities(db, 'es-MX', at);
+  expect(discovery.opportunities.length).toBeGreaterThan(0);
+  expect(discovery.opportunities[0]!.source).toMatchObject({
     evidence: 'topic-context',
     retrievedAt: at.toISOString(),
   });
-  expect(sparkCopy(idea, 'es-MX').id).toBe(sparkCopy(idea, 'en-US').id);
-  expect(idea.content.en.title).not.toBe(source.title);
-  expect(sparkCopy(idea, 'en-US').verifiedTrend).toBe(false);
+  expect(
+    discovery.opportunities.every(
+      (o) => !o.verifiedTrend && o.development === 'needs-original-development',
+    ),
+  ).toBe(true);
+  expect(await sparkLibrary(db)).toHaveLength(26);
+  expect((await db.prepare('SELECT COUNT(*) n FROM spark_catalog').first<any>())!.n).toBe(0);
 });
 it('uses a database lease to prevent overlapping scheduled discovery requests', async () => {
   const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => new Response(fixture()));
@@ -132,49 +148,50 @@ it('uses a database lease to prevent overlapping scheduled discovery requests', 
 });
 it('falls back safely on source outages and records a bounded retry without storing response bodies', async () => {
   const fetcher = vi.fn<typeof fetch>().mockRejectedValue(new Error('private provider failure'));
-  expect(await refreshSpark(env, { at, fetcher })).toEqual({ state: 'fallback' });
-  expect(await sparkLibrary(db)).toHaveLength(18);
-  const row = await db.prepare('SELECT status,attempts,error_code FROM spark_runs').first();
-  expect(row).toEqual({ status: 'failed', attempts: 1, error_code: 'source_unavailable' });
+  expect(await refreshSpark(env, { at, fetcher })).toMatchObject({ state: 'fallback' });
+  expect(await sparkLibrary(db)).toHaveLength(26);
+  const row = await db
+    .prepare("SELECT status,attempts,error_code FROM spark_runs WHERE provider='none'")
+    .first();
+  expect(row).toEqual({ status: 'failed', attempts: 1, error_code: 'source_partial' });
   expect(await refreshSpark(env, { at, fetcher })).toEqual({ state: 'cached' });
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
-it('rejects future, stale, off-host and entity-expanding source evidence', async () => {
+it('rejects redirects, off-host links, unsafe XML and oversized source bodies', async () => {
   const redirect = vi
     .fn<typeof fetch>()
     .mockResolvedValue(
       new Response(null, { status: 302, headers: { Location: 'https://untrusted.example/' } }),
     );
-  expect(await refreshSpark(env, { at, manualKey: 'redirect', fetcher: redirect })).toEqual({
-    state: 'fallback',
-  });
+  await expect(discoverSparkSources(redirect, at)).rejects.toThrow('source_http_302');
   expect(redirect).toHaveBeenCalledTimes(1);
   expect(redirect.mock.calls[0]![1]?.redirect).toBe('manual');
-  const malicious = fixture().replaceAll('https://www.nasa.gov/', 'https://untrusted.example/');
   expect(
-    await refreshSpark(env, {
+    await discoverSparkSources(
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(
+          new Response(fixture().replaceAll('https://www.nasa.gov/', 'https://untrusted.example/')),
+        ),
       at,
-      fetcher: vi.fn<typeof fetch>().mockResolvedValue(new Response(malicious)),
-    }),
-  ).toMatchObject({ inserted: 0 });
-  expect(
-    await refreshSpark(env, {
-      at,
-      manualKey: 'entity',
-      fetcher: vi
+    ),
+  ).toEqual([]);
+  await expect(
+    discoverSparkSources(
+      vi
         .fn<typeof fetch>()
         .mockResolvedValue(
           new Response('<!DOCTYPE rss [<!ENTITY x SYSTEM "file:///secret">]><rss/>'),
         ),
-    }),
-  ).toMatchObject({ state: 'fallback' });
-  expect(
-    await refreshSpark(env, {
       at,
-      manualKey: 'oversize',
-      fetcher: vi.fn<typeof fetch>().mockResolvedValue(new Response('a'.repeat(512001))),
-    }),
-  ).toMatchObject({ state: 'fallback' });
+    ),
+  ).rejects.toThrow('unsupported_feed');
+  await expect(
+    discoverSparkSources(
+      vi.fn<typeof fetch>().mockResolvedValue(new Response('a'.repeat(512001))),
+      at,
+    ),
+  ).rejects.toMatchObject({ status: 413 });
 });
 it('deduplicates content across refreshes and preserves original saved refinements', async () => {
   const base = await insertSparkIdea(db, developResearchIdea(source, 0, '2026-10-29'), owner.id);
@@ -308,7 +325,7 @@ it('keeps reservations after ambiguous provider failure and rejects unsafe outpu
     await generateSpark(env, 'next', { topics: [], season: 'autumn', titles: [] }, provider),
   ).toMatchObject({ state: 'budget_exhausted' });
   expect(develop).toHaveBeenCalledTimes(1);
-  expect((await sparkLibrary(db)).length).toBe(18);
+  expect((await sparkLibrary(db)).length).toBe(26);
 });
 it('does not let model output fabricate sources or publish a workshop', async () => {
   await authorizeTestProvider();

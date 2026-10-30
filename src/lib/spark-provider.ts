@@ -32,7 +32,9 @@ export type SparkContent = z.infer<typeof sparkContentSchema>;
 export const sparkConfigSchema = z
   .object({
     researchEnabled: z.boolean().default(true),
-    researchFrequency: z.enum(['weekly', 'fortnightly']).default('weekly'),
+    researchFrequency: z
+      .enum(['twice-daily', 'daily', 'weekly', 'fortnightly'])
+      .default('twice-daily'),
     enabled: z.boolean().default(false),
     provider: z.enum(['none', 'workers-ai']).default('none'),
     model: z.string().trim().max(120).default(''),
@@ -51,6 +53,8 @@ export interface SparkProvider {
 export function validateSparkContent(input: unknown): SparkContent {
   const content = sparkContentSchema.parse(input);
   const text = JSON.stringify(content).normalize('NFKC');
+  if (/\b(?:Disney|Marvel|Pok[eé]mon|Harry Potter|Bluey|Minecraft|Star Wars)\b/i.test(text))
+    throw new HttpError(400, 'Use original themes and characters for this idea.');
   if (
     /<[^>]*>|https?:|www\.|\b(?:bleach|ammonia|borax|boric acid|dry ice|water beads|button batter(?:y|ies)|neodymium|hydrogen peroxide|cloro|amon[ií]aco|b[oó]rax|hielo seco|perlas de agua|pilas? de bot[oó]n)\b|(?:boil|hervir|open flame|llama abierta|prueba comiendo)/i.test(
       text,

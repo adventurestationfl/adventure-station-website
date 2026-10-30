@@ -6,7 +6,7 @@ import { dailyEncouragement, encouragement as phrases } from '../src/lib/encoura
 import { businessDay, createUI, errorMessage } from '../src/lib/i18n';
 import { ideas } from '../src/lib/ideas';
 import { companionApi, technicalApi } from '../src/lib/companion';
-import { insertSparkIdea, developResearchIdea } from '../src/lib/spark';
+import { insertSparkIdea, developResearchIdea, sparkLibrary } from '../src/lib/spark';
 import {
   localizedSite,
   localizeWorkshop,
@@ -172,7 +172,7 @@ it('provides detailed curated ideas without external generation and avoids recen
     .spyOn(globalThis, 'fetch')
     .mockRejectedValue(new Error('No external generation allowed'));
   const first = await companion('companion');
-  expect(first.library).toHaveLength(18);
+  expect(first.library).toHaveLength(26);
   expect(first.ai.enabled).toBe(false);
   expect(first.trends.enabled).toBe(false);
   const ids = new Set([first.idea.id]);
@@ -192,7 +192,8 @@ it('saves, dismisses, restores and handles an entirely dismissed library', async
     saved: 1,
     dismissed: 1,
   });
-  for (const idea of ideas) await companion('companion/' + idea.id + '/dismiss', {});
+  for (const idea of await sparkLibrary(db, owner.id))
+    await companion('companion/' + idea.id + '/dismiss', {});
   expect((await companion('companion')).idea).toBeNull();
   await companion('companion/' + id + '/restore', {});
   data = await companion('companion');
@@ -668,4 +669,91 @@ it('requires same-person review for MCP Spark drafts with owner-supplied pricing
     (await rpc(token, 'no-price', 'creative_spark_create_workshop_draft', { id: 'paper-garden' }))
       .status,
   ).toBe(400);
+});
+it('keeps fresh opportunity reads scoped and denies new idea proposals to a read-only MCP grant', async () => {
+  const token = await bearer('studio:read');
+  const read = await rpc(token, 'fresh', 'creative_spark_list_opportunities', { locale: 'es-MX' });
+  expect(read.status).toBe(200);
+  const result = JSON.parse((await read.json()).result.content[0].text);
+  expect(result.opportunities).toEqual([]);
+  expect(JSON.stringify(result)).not.toContain('guardian');
+  const idea = (await sparkLibrary(db))[0]!;
+  expect(
+    (
+      await rpc(token, 'forbidden', 'creative_spark_propose_idea', {
+        content: idea.content,
+        tags: idea.tags,
+        months: [],
+      })
+    ).status,
+  ).toBe(403);
+  expect((await db.prepare('SELECT COUNT(*) n FROM spark_catalog').first<any>())!.n).toBe(0);
+});
+it('reviews an interactive bilingual idea in the shared catalog with same-user attribution and zero API reservations', async () => {
+  const token = await bearer(),
+    base = (await sparkLibrary(db))[0]!,
+    content = structuredClone(base.content);
+  content.en.title = 'Synthetic interactive exploration';
+  content.es.title = 'Exploración interactiva de prueba';
+  const input = { content, tags: ['discovery', 'mixed'], months: [], reference_ids: [] };
+  const response = await rpc(token, 'interactive', 'creative_spark_propose_idea', input);
+  expect(response.status).toBe(200);
+  const pending = JSON.parse((await response.json()).result.content[0].text);
+  expect((await db.prepare('SELECT COUNT(*) n FROM spark_catalog').first<any>())!.n).toBe(0);
+  await expect(
+    connect('connections/proposals/' + pending.id + '/apply', { confirm: true }, godmin),
+  ).rejects.toThrow('unavailable');
+  const applied = await connect('connections/proposals/' + pending.id + '/apply', {
+    confirm: true,
+  });
+  const saved = await db
+    .prepare('SELECT actor,content FROM spark_catalog WHERE id=?')
+    .bind(applied.id)
+    .first<any>();
+  expect(saved.actor).toBe(owner.id);
+  expect(JSON.parse(saved.content).es.title).toBe(content.es.title);
+  expect(
+    await db
+      .prepare('SELECT saved,dismissed FROM spark_preferences WHERE staff_id=? AND idea_id=?')
+      .bind(owner.id, applied.id)
+      .first(),
+  ).toMatchObject({ saved: 1, dismissed: 0 });
+  expect((await db.prepare('SELECT COUNT(*) n FROM workshops').first<any>())!.n).toBe(0);
+  expect(
+    (await db.prepare("SELECT COUNT(*) n FROM spark_runs WHERE kind='generation'").first<any>())!.n,
+  ).toBe(0);
+  expect(
+    await db
+      .prepare("SELECT actor,source,client_id,tool_name FROM audit WHERE action='idea.developed'")
+      .first(),
+  ).toMatchObject({
+    actor: owner.id,
+    source: 'mcp',
+    client_id: 'client',
+    tool_name: 'creative_spark_propose_idea',
+  });
+  expect(
+    (
+      await rpc(token, 'partial', 'creative_spark_propose_idea', {
+        ...input,
+        content: { en: content.en },
+      })
+    ).status,
+  ).toBe(400);
+  expect(
+    (
+      await rpc(token, 'invented', 'creative_spark_propose_idea', {
+        ...input,
+        sources: [{ url: 'https://invented.example' }],
+      })
+    ).status,
+  ).toBe(400);
+  const second = JSON.parse(
+    (await (await rpc(token, 'revoke', 'creative_spark_propose_idea', input)).json()).result
+      .content[0].text,
+  );
+  await connect('connections/grant/revoke', {});
+  await expect(
+    connect('connections/proposals/' + second.id + '/apply', { confirm: true }),
+  ).rejects.toThrow('unavailable');
 });

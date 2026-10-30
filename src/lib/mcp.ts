@@ -4,7 +4,8 @@ import { bodyJson, HttpError, json, now, readBody, sha256 } from './http';
 import { type Staff, requirePermission } from './auth';
 import { requireConsentOrigin, consentOriginClassification } from './consent-origin';
 import { localeOf } from './i18n';
-import { sparkLibrary, sparkIdea, sparkCopy, sparkDraftInput } from './spark';
+import { sparkLibrary, sparkIdea, sparkCopy, sparkDraftInput, sparkProposalSchema } from './spark';
+import { sparkOpportunities } from './spark-opportunities';
 import { parseTopics } from './activity-topics';
 import { validateSparkContent } from './spark-provider';
 import {
@@ -308,6 +309,19 @@ const tools = [
     schema: z.object({ id: z.string().max(100), locale: localeArg }).strict(),
   },
   {
+    name: 'creative_spark_list_opportunities',
+    description:
+      'Read a small set of fresh research briefs and their actual provenance. References do not measure popularity; no family records or backend model call.',
+    schema: z.object({ locale: localeArg }).strict(),
+  },
+  {
+    name: 'creative_spark_propose_idea',
+    description:
+      'Prepare an original bilingual idea for same-person dashboard review in the shared Spark catalog. Requires studio:drafts; no publication, scheduling, pricing or backend model billing. References must use actual brief IDs.',
+    schema: sparkProposalSchema.extend({ locale: localeArg }).strict(),
+    write: true,
+  },
+  {
     name: 'creative_spark_search_ideas',
     description: 'Search shared creative ideas by words or canonical activity topic.',
     schema: z
@@ -472,6 +486,31 @@ const safeWorkshop = (w: any) => ({
   revision: w.revision,
 });
 async function commandFor(tool: string, input: any, env: Cloudflare.Env) {
+  if (tool === 'creative_spark_propose_idea') {
+    const { locale, ...data } = input;
+    const value = sparkProposalSchema.parse(data);
+    validateSparkContent(value.content);
+    const opportunities = (await sparkOpportunities(env.DB)).opportunities;
+    const references = value.reference_ids.map((id) => {
+      const reference = opportunities.find((o) => o.id === id);
+      if (!reference)
+        throw new HttpError(
+          409,
+          'This research reference expired. Refresh the brief before saving.',
+        );
+      return {
+        url: reference.source.url,
+        title: reference.source.title,
+        evidenceClass: reference.evidenceClass,
+      };
+    });
+    return {
+      route: 'companion/ideas',
+      data: value,
+      preview: { en: value.content.en, es: value.content.es },
+      references,
+    };
+  }
   if (tool === 'create_workshop_draft') {
     if (input.locale === 'es-MX' && !input.english)
       throw new HttpError(
@@ -680,7 +719,9 @@ async function callTool(
                 .includes(args.query.toLocaleLowerCase(locale)))),
       )
       .map((i) => sparkCopy(i, locale));
-  } else if (name === 'creative_spark_get_idea')
+  } else if (name === 'creative_spark_list_opportunities')
+    result = await sparkOpportunities(db, locale);
+  else if (name === 'creative_spark_get_idea')
     result = sparkCopy(await sparkIdea(db, args.id), locale);
   else if (name === 'draft_request_status') {
     const row = await db

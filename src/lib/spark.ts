@@ -3,8 +3,24 @@ import { ideas, ideaCopy } from './ideas';
 import { businessDay, type Locale } from './i18n';
 import { parseTopics, topicLabel, type ActivityTopic } from './activity-topics';
 import { audit, type AuditContext } from './data';
-import { HttpError, json, bodyJson, now, readBody, sha256 } from './http';
+import { HttpError, json, bodyJson, now, sha256 } from './http';
 import { requirePermission, type Staff } from './auth';
+import {
+  nasaAdapter,
+  pollSparkSources,
+  discoverySlot,
+  type DiscoveryAdapter,
+  type SparkSource,
+} from './spark-sources';
+export type { SparkSource } from './spark-sources';
+import { originalExplorations } from './spark-experiences';
+import {
+  assessSparkNovelty,
+  experienceProfile,
+  sparkQuality,
+  sparkEvidence,
+} from './spark-novelty';
+import { consolidateOpportunities, sparkOpportunities } from './spark-opportunities';
 import {
   sparkConfigSchema,
   sparkOutputSchema,
@@ -14,13 +30,6 @@ import {
   type SparkProvider,
 } from './spark-provider';
 
-export type SparkSource = {
-  url: string;
-  retrievedAt: string;
-  publishedAt?: string;
-  title: string;
-  evidence: 'topic-context' | 'calendar';
-};
 export type SparkIdea = {
   id: string;
   family: string;
@@ -55,7 +64,7 @@ export const sparkProfileSchema = z
   .refine((v) => v.age_max >= v.age_min, 'Choose a valid age range.');
 
 function curated(): SparkIdea[] {
-  return ideas.map((i) => {
+  const original = ideas.map<SparkIdea>((i) => {
     const content = (locale: Locale) => {
       const c = ideaCopy(i, locale);
       return {
@@ -99,6 +108,7 @@ function curated(): SparkIdea[] {
       createdAt: 0,
     };
   });
+  return [...original, ...originalExplorations()];
 }
 const fromRow = (r: CatalogRow): SparkIdea => ({
   id: r.id,
@@ -137,7 +147,6 @@ export function sparkCopy(i: SparkIdea, locale: Locale) {
     age_min: i.content.age_min,
     age_max: i.content.age_max,
     duration: i.content.duration,
-    capacity: 6,
     category: i.tags.map((t) => topicLabel(t, locale)).join(' · '),
     tags: i.tags,
     months: i.months,
@@ -146,6 +155,15 @@ export function sparkCopy(i: SparkIdea, locale: Locale) {
     parentId: i.parentId,
     createdAt: i.createdAt,
     verifiedTrend: false,
+    evidenceClass: sparkEvidence(i),
+    relevance:
+      locale === 'es-MX'
+        ? i.sources.length
+          ? 'Una referencia para explorar; no mide popularidad.'
+          : 'Una propuesta original para observar, crear y jugar.'
+        : i.sources.length
+          ? 'A reference to explore; it does not measure popularity.'
+          : 'An original starting point for discovery, making and play.',
     variants: { en: i.content.en, es: i.content.es },
     difficulty:
       locale === 'es-MX'
@@ -293,10 +311,15 @@ export async function selectSpark(
       idea: i,
       hash: await sha256(`${day}:${staff.id}:${sequence}:${i.id}`),
       score:
+        sparkQuality(
+          i,
+          library.filter((v) => recent.includes(v.id)),
+          at,
+        ) +
         (i.months.includes(Number(day.slice(5, 7)))
-          ? 4
+          ? 2
           : i.months.some((m) => seasonalMonths(day).includes(m))
-            ? 2
+            ? 1
             : 0) +
         (saved.some((s) => s.tags.some((t) => i.tags.includes(t))) ? 1 : 0) +
         (profile.materials &&
@@ -369,70 +392,11 @@ export async function sparkStatus(env: Cloudflare.Env) {
       'Model generation requires a separately authorized provider binding and budget. Cached and curated ideas remain available.',
   };
 }
-const feedURL = 'https://www.nasa.gov/feed/';
-const plain = (v: string) =>
-  v
-    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&#0*39;|&apos;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&lt;|&gt;/g, '')
-    .trim();
 export async function discoverSparkSources(
   fetcher: typeof fetch = (input, init) => globalThis.fetch(input, init),
   at = new Date(),
 ): Promise<SparkSource[]> {
-  const response = await fetcher(feedURL, {
-    headers: { Accept: 'application/rss+xml, application/xml;q=0.9' },
-    // Workers supports manual/follow, but not the browser's error mode.
-    // A 3xx fails the response.ok check below and is never followed.
-    redirect: 'manual',
-    signal: AbortSignal.timeout(5000),
-  });
-  if (!response.ok) throw new Error('source_http_' + response.status);
-  const xml = await readBody(response, 512000);
-  if (!/<rss(?:\s|>)/i.test(xml) || !/<channel(?:\s|>)/i.test(xml))
-    throw new Error('unsupported_feed');
-  if (/<!DOCTYPE|<!ENTITY/i.test(xml)) throw new Error('unsupported_feed');
-  const sources: SparkSource[] = [];
-  for (const item of xml.matchAll(/<item(?:\s[^>]*)?>([\s\S]*?)<\/item>/g)) {
-    const tag = (name: string) =>
-      plain(
-        new RegExp('<' + name + '(?:\\s[^>]*)?>([\\s\\S]*?)<\\/' + name + '>').exec(
-          item[1]!,
-        )?.[1] ?? '',
-      );
-    try {
-      const url = new URL(tag('link')),
-        title = tag('title').slice(0, 160),
-        date = Date.parse(tag('pubDate'));
-      if (
-        url.protocol !== 'https:' ||
-        !['www.nasa.gov', 'science.nasa.gov'].includes(url.hostname) ||
-        url.username ||
-        url.password ||
-        url.port ||
-        !title ||
-        !Number.isFinite(date) ||
-        date > at.getTime() + 86400000 ||
-        at.getTime() - date > 120 * 86400000
-      )
-        continue;
-      if (!sources.some((s) => s.url === url.href))
-        sources.push({
-          url: url.href,
-          title,
-          publishedAt: new Date(date).toISOString(),
-          retrievedAt: at.toISOString(),
-          evidence: 'topic-context',
-        });
-    } catch {
-      /* Unsupported feed entries do not become evidence. */
-    }
-    if (sources.length >= 8) break;
-  }
-  return sources;
+  return nasaAdapter.discover(fetcher, at);
 }
 
 // Original Adventure Station outlines. Research supplies context, not instructions or claims of demand.
@@ -603,96 +567,101 @@ async function claimDiscovery(db: D1Database, id: string, at: number, month: str
 }
 export async function refreshSpark(
   env: Cloudflare.Env,
-  options: { at?: Date; manualKey?: string; fetcher?: typeof fetch; provider?: SparkProvider } = {},
+  options: {
+    at?: Date;
+    manualKey?: string;
+    fetcher?: typeof fetch;
+    provider?: SparkProvider;
+    adapters?: readonly DiscoveryAdapter[];
+  } = {},
 ) {
   const at = options.at ?? new Date(),
     day = businessDay(at),
     config = await sparkConfig(env.DB),
-    db = env.DB;
+    db = env.DB,
+    seconds = Math.floor(at.getTime() / 1000);
   if (!config.researchEnabled) return { state: 'disabled' };
-  const key =
-    options.manualKey ?? 'discovery:' + sparkWeek(at, config.researchFrequency === 'fortnightly');
-  if (!(await claimDiscovery(db, key, Math.floor(at.getTime() / 1000), day.slice(0, 7))))
-    return { state: 'cached' };
-  let phase = 'source';
+  const period =
+    config.researchFrequency === 'twice-daily'
+      ? discoverySlot(at)
+      : config.researchFrequency === 'daily'
+        ? day
+        : sparkWeek(at, config.researchFrequency === 'fortnightly');
+  const key = 'discovery:v2:' + (options.manualKey ?? period);
+  if (!(await claimDiscovery(db, key, seconds, day.slice(0, 7)))) return { state: 'cached' };
   try {
-    const sources = await discoverSparkSources(options.fetcher, at);
-    phase = 'develop';
-    let inserted = 0;
-    const contexts = sources.filter((s) =>
-      /moon|earth|space|star|light|planet|nature|weather|discover|explor|science/i.test(s.title),
+    const polled = await pollSparkSources(
+      db,
+      options.fetcher ?? ((input, init) => globalThis.fetch(input, init)),
+      at,
+      options.adapters,
     );
-    for (const [index, source] of contexts.slice(0, 4).entries()) {
-      const before = await db
-        .prepare('SELECT COUNT(*) AS n FROM spark_catalog')
-        .first<{ n: number }>();
-      await insertSparkIdea(db, developResearchIdea(source, index, day), 'scheduled', {
-        source: 'scheduled',
-      });
-      const after = await db
-        .prepare('SELECT COUNT(*) AS n FROM spark_catalog')
-        .first<{ n: number }>();
-      inserted += Number(after!.n > before!.n);
-    }
+    const opportunities = await consolidateOpportunities(polled.sources, 'en-US', at);
+    const failed = polled.outcomes.some((o) => o.state === 'failed');
     const summary = {
-      sourceCount: sources.length,
-      relevantCount: contexts.length,
-      inserted,
+      sourceCount: polled.sources.length,
+      relevantCount: opportunities.length,
+      inserted: 0,
       verifiedTrends: 0,
       modelGeneration: 'disabled',
-      sourceReferences: sources,
+      sourceReferences: polled.sources,
+      adapters: polled.outcomes,
+      opportunities: opportunities.map((o) => ({
+        id: o.id,
+        theme: o.theme,
+        evidenceClass: o.evidenceClass,
+        development: o.development,
+      })),
     };
-    await db
-      .prepare("UPDATE spark_runs SET status='completed',completed_at=?,summary=? WHERE id=?")
-      .bind(now(), JSON.stringify(summary), key)
-      .run();
-    await audit(db, 'scheduled', 'idea.discovery.completed', key, { source: 'scheduled' }).run();
-    if (config.enabled) {
+    // New references create research opportunities, never pretend that retitling
+    // one of four fixed activities constitutes a newly developed workshop.
+    if (config.enabled && opportunities.length) {
+      const opportunity =
+        opportunities.find((o) => o.freshness === 'dated-reference') ?? opportunities[0]!;
       const generation = await generateSpark(
         env,
-        key,
+        'opportunity:' + opportunity.id,
         {
-          topics: ['wonder', 'create', 'play'],
+          topics: opportunity.tags,
           season: day,
-          titles: contexts.map((s) => s.title).slice(0, 4),
+          titles: [opportunity.source.title, opportunity.question],
         },
         options.provider,
+        [opportunity.source],
       );
       summary.modelGeneration = generation.state;
-      await db
-        .prepare('UPDATE spark_runs SET summary=? WHERE id=?')
-        .bind(JSON.stringify(summary), key)
-        .run();
+      summary.inserted = Number(generation.state === 'completed');
     }
-    return { state: 'completed', ...summary };
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : '';
-    const errorCode = /^(?:source_http_\d{3}|unsupported_feed)$/.test(detail)
-      ? detail
-      : error instanceof z.ZodError
-        ? 'candidate_validation'
-        : error instanceof HttpError
-          ? error.status === 413
-            ? 'source_too_large'
-            : 'candidate_validation'
-          : error instanceof Error && ['TimeoutError', 'AbortError'].includes(error.name)
-            ? 'source_timeout'
-            : error instanceof TypeError
-              ? 'source_transport'
-              : /D1_ERROR/.test(detail)
-                ? 'storage_unavailable'
-                : 'source_unavailable';
     await db
       .prepare(
-        "UPDATE spark_runs SET status='failed',completed_at=?,lease_until=?,error_code=?,summary=? WHERE id=?",
+        'UPDATE spark_runs SET status=?,completed_at=?,lease_until=?,error_code=?,summary=? WHERE id=?',
       )
       .bind(
-        now(),
-        Math.floor(at.getTime() / 1000) + 3600,
-        errorCode,
-        JSON.stringify({ phase }),
+        failed ? 'failed' : 'completed',
+        seconds,
+        failed ? seconds + 3600 : seconds,
+        failed ? 'source_partial' : '',
+        JSON.stringify(summary),
         key,
       )
+      .run();
+    await audit(
+      db,
+      'scheduled',
+      failed ? 'idea.discovery.partial' : 'idea.discovery.completed',
+      key,
+      { source: 'scheduled', outcome: failed ? 'failed' : 'success' },
+    ).run();
+    return {
+      state: failed ? (polled.sources.length ? 'partial' : 'fallback') : 'completed',
+      ...summary,
+    };
+  } catch {
+    await db
+      .prepare(
+        "UPDATE spark_runs SET status='failed',completed_at=?,lease_until=?,error_code='source_unavailable' WHERE id=?",
+      )
+      .bind(seconds, seconds + 3600, key)
       .run();
     await audit(db, 'scheduled', 'idea.discovery.failed', key, {
       source: 'scheduled',
@@ -718,6 +687,7 @@ export async function generateSpark(
   key: string,
   input: Parameters<SparkProvider['develop']>[0],
   provider?: SparkProvider,
+  evidenceSources: SparkSource[] = [],
 ) {
   const config = await sparkConfig(env.DB),
     month = businessDay().slice(0, 7),
@@ -774,15 +744,47 @@ export async function generateSpark(
     if (JSON.stringify(raw).length > 24000) throw new Error('oversized_output');
     const output = sparkOutputSchema.parse(raw);
     validateSparkContent(output.content);
+    const profile = experienceProfile({ family: 'candidate', content: output.content }),
+      family =
+        'activity-' +
+        (
+          await sha256(
+            JSON.stringify({
+              mechanism: profile.mechanism,
+              actions: [...profile.actions].sort(),
+              materials: [...profile.materials].sort(),
+            }),
+          )
+        ).slice(0, 24);
+    const novelty = assessSparkNovelty(
+      { family, content: output.content },
+      await sparkLibrary(env.DB),
+    );
+    if (!novelty.novel) {
+      await env.DB.prepare(
+        "UPDATE spark_runs SET status='completed',completed_at=?,summary=? WHERE id=?",
+      )
+        .bind(
+          now(),
+          JSON.stringify({
+            duplicate: true,
+            similarity: novelty.similarity,
+            actualCostVerified: false,
+          }),
+          key + ':ai',
+        )
+        .run();
+      return { state: 'not_novel' };
+    }
     const idea = await insertSparkIdea(
       env.DB,
       {
-        family: 'ai-' + output.tags.join('-'),
+        family,
         content: output.content,
         tags: parseTopics(output.tags),
         months: output.months,
         origin: 'ai',
-        sources: [],
+        sources: evidenceSources,
       },
       'scheduled',
       { source: 'scheduled' },
@@ -814,6 +816,82 @@ export async function maintainSpark(env: Cloudflare.Env) {
       .all<Staff>()
   ).results;
   for (const person of staff) await selectSpark(env, person);
+  // Source cache records are not billing records. Keep immutable saved idea
+  // provenance and every generation reservation; bound only old research logs.
+  await env.DB.prepare(
+    "DELETE FROM spark_runs WHERE id IN(SELECT id FROM spark_runs WHERE kind='discovery' AND reserved_microusd=0 AND status IN('completed','failed') AND completed_at<unixepoch()-7776000 ORDER BY completed_at LIMIT 10)",
+  ).run();
+}
+
+export const sparkProposalSchema = sparkOutputSchema
+  .extend({
+    reference_ids: z
+      .array(z.string().regex(/^opp-[a-f0-9]{24}$/))
+      .max(3)
+      .default([]),
+  })
+  .strict();
+export async function proposeSparkIdea(
+  env: Cloudflare.Env,
+  staff: Staff,
+  input: unknown,
+  context: AuditContext = {},
+) {
+  requirePermission(staff, 'operations');
+  const value = sparkProposalSchema.parse(input),
+    content = validateSparkContent(value.content);
+  const opportunities = (await sparkOpportunities(env.DB)).opportunities;
+  const sources = value.reference_ids.map((id) => {
+    const reference = opportunities.find((o) => o.id === id);
+    if (!reference)
+      throw new HttpError(409, 'This research reference expired. Refresh the brief before saving.');
+    return reference.source;
+  });
+  const library = await sparkLibrary(env.DB, staff.id),
+    profile = experienceProfile({ family: 'proposal', content });
+  const family =
+    'activity-' +
+    (
+      await sha256(
+        JSON.stringify({
+          mechanism: profile.mechanism,
+          actions: [...profile.actions].sort(),
+          materials: [...profile.materials].sort(),
+        }),
+      )
+    ).slice(0, 24);
+  const novelty = assessSparkNovelty({ family, content }, library),
+    parent = novelty.novel ? undefined : library.find((i) => i.family === novelty.closestFamily);
+  const identical = library.find((i) => JSON.stringify(i.content) === JSON.stringify(content));
+  const save = async (id: string) =>
+    env.DB.batch([
+      env.DB.prepare(
+        'INSERT INTO spark_preferences(staff_id,idea_id,saved,dismissed) VALUES(?,?,1,0) ON CONFLICT(staff_id,idea_id) DO UPDATE SET saved=1,dismissed=0,updated_at=unixepoch()',
+      ).bind(staff.id, id),
+      audit(env.DB, staff.id, 'idea.saved', id, context),
+    ]);
+  if (identical) {
+    await save(identical.id);
+    return { id: identical.id, existing: true };
+  }
+  // Interactive assistants and the Studio use the same immutable catalog. This
+  // path neither calls a backend model nor reserves/bills API generation.
+  const idea = await insertSparkIdea(
+    env.DB,
+    {
+      family: parent?.family ?? family,
+      content,
+      tags: parseTopics(value.tags),
+      months: value.months,
+      origin: parent ? 'adaptation' : 'ai',
+      sources,
+      parentId: parent?.id,
+    },
+    staff.id,
+    context,
+  );
+  await save(idea.id);
+  return { id: idea.id, existing: false, adaptation: !!parent };
 }
 
 export async function sparkSettingsApi(

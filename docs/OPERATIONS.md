@@ -104,4 +104,6 @@ The hosted recovery rehearsal is recorded in [PREVIEW.md](PREVIEW.md), with SQL/
 
 ## Local operational candidate
 
+Dynamic Spark extends the same scheduled service with independent twelve-hour source leases, bounded RSS/metadata requests, isolated errors and seven-day fallback references. Default new configuration is twice daily; explicitly saved older frequencies remain respected. Model development remains separately gated/off, source polling reserves no inference budget, and interactive reviewed ideas use the existing catalog. Source cache maintenance excludes every generation reservation. No new scheduler or schema is required. See [DYNAMIC_CREATIVE_SPARK.md](DYNAMIC_CREATIVE_SPARK.md). No remote operation is authorized by this continuation.
+
 Migrations 0015–0017 and the media, promotion, coupon, private calendar and communications changes are local only. See LEGAL_MEDIA_OPERATIONS.md. The October 30 directive requires new explicit authorization before remote migrations or deployment. Do not package generic MCP=false defaults over the existing authorized preview. Existing critical reconciliation/refund/outbox processing still completes before bounded media, research and reminder maintenance. No mailbox, customer delivery or new model inference is activated.

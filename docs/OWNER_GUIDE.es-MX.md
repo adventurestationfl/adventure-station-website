@@ -82,6 +82,14 @@ Guardar a una persona solo cambia sus permisos en la aplicación. No se envía u
 
 Si al guardar tu sesión ya terminó, usa **Volver a iniciar sesión** para abrir otra pestaña, completa el acceso en Cloudflare y regresa al formulario original. Los campos sin guardar permanecen en esa página; la aplicación no reenvía la solicitud automáticamente. Si otro error de red deja dudas sobre el resultado, revisa el registro guardado antes de volver a enviarlo.
 
+## Inspiración fresca — candidato de desarrollo
+
+Después de un despliegue autorizado, **Creative Spark** mostrará unos cuantos puntos de partida basados en referencias nuevas, junto con la idea del día. Abre **Fuentes y contexto** para consultar su procedencia. Un artículo nuevo no prueba que una actividad sea popular. Las referencias de colecciones históricas se distinguen de las publicaciones recientes. Tus ideas guardadas y originales seguirán disponibles aunque una fuente falle.
+
+Se agregan ocho exploraciones originales sin conexión: transferencia de agua, rampas, ritmos suaves, superposición de colores, construcción y juegos cooperativos, texturas de tela e impresión de marcas. **Explorar la actividad** abre preparación, seguridad, limpieza y accesibilidad. Tú sigues eligiendo edades adecuadas, precios, cupos, fechas, sedes y publicación.
+
+**Cómo llega la inspiración** mantiene la configuración técnica en segundo plano. No necesitas configurar modelos para recibir ideas originales o en caché. El desarrollo automático con modelos sigue desactivado. ChatGPT Studio ya puede leer información permitida; guardar nuevas ideas con la nueva herramienta requerirá autorización de borradores por separado y tu revisión en el panel. No publica, agenda ni genera cargos de API automáticamente. La vista previa sigue en su versión anterior hasta que se autorice el despliegue.
+
 ## Ofertas y mensajes
 
 Estas funciones son un candidato de desarrollo local hasta que se autorice su despliegue. En **Promociones**, prepara los textos en inglés y español, elige el periodo con hora de Freeport y revisa antes de publicar. Los borradores son privados. Los avisos vencidos o pausados dejan de mostrarse. En **Cupones y ofertas**, define descuento, requisitos, límites y condiciones claras. Solo la propietaria activa ofertas. Un código ingresado tiene prioridad sobre las ofertas automáticas; no se acumulan descuentos. Los importes originales se conservan después de cambios y reembolsos. Un descuento no define una exención fiscal ni habilita pagos.

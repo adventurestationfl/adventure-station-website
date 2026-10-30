@@ -75,7 +75,15 @@ for (const locale of ['en-US', 'es-MX']) {
       await page.locator('[data-spark=draft]').click();
       await expect(page.locator('#spark-draft-price')).toBeEmpty();
       await expect(page.locator('#spark-draft-capacity')).toBeEmpty();
+      let cancelRefreshes = 0;
+      const onCancelRequest = (request: import('@playwright/test').Request) => {
+        if (new URL(request.url()).pathname === '/api/admin/companion') cancelRefreshes++;
+      };
+      page.on('request', onCancelRequest);
       await page.locator('[data-spark=cancel]').click();
+      expect(cancelRefreshes).toBe(0);
+      page.off('request', onCancelRequest);
+      await page.locator('#spark-how > summary').click();
       await page.locator('#spark-config-open').click();
       await expect(page.locator('#spark-config')).toContainText(
         locale === 'es-MX' ? 'no está activada' : 'not activated',

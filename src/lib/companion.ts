@@ -16,7 +16,9 @@ import {
   createSparkDraft,
   refineSpark,
   sparkSeasonalContext,
+  proposeSparkIdea,
 } from './spark';
+import { sparkOpportunities } from './spark-opportunities';
 
 export async function companionApi(
   request: Request,
@@ -53,11 +55,12 @@ export async function companionApi(
   if (extra) return extra;
   const locale = localeOf(staff.locale);
   if (path === 'companion' && method === 'GET') {
-    const [daily, library, status, profile] = await Promise.all([
+    const [daily, library, status, profile, discovery] = await Promise.all([
       selectSpark(env, staff),
       sparkLibrary(db, staff.id),
       sparkStatus(env),
       sparkProfile(db, staff.id),
+      sparkOpportunities(db, locale),
     ]);
     return json({
       phrase: dailyEncouragement(locale),
@@ -78,9 +81,12 @@ export async function companionApi(
         runs: status.runs,
       },
       ai: { enabled: status.activated, reason: status.reason },
+      discovery,
       trends: { enabled: false, reason: 'Dated topic references are not popularity evidence.' },
     });
   }
+  if (path === 'companion/ideas' && method === 'POST')
+    return json(await proposeSparkIdea(env, staff, await bodyJson(request), context));
   if (path === 'companion/another' && method === 'POST') {
     const daily = await selectSpark(env, staff, true);
     return json({ day: daily.day, idea: daily.idea ? sparkCopy(daily.idea, locale) : null });
