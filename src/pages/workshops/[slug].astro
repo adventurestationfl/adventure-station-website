@@ -6,17 +6,19 @@ const locale = localeOf(Astro.locals.locale);
 const href = (p: string) => localPath(p, locale);
 import Public from '../../layouts/Public.astro';
 import SessionList from '../../components/SessionList.astro';
+import Promotion from '../../components/Promotion.astro';
 import { env } from 'cloudflare:workers';
+import { mediaPosition, type MediaRecord } from '../../lib/media-public';
 
 const w = (await publicCatalog(env.DB, locale)).find((w) => w.slug === Astro.params.slug);
 if (!w) return Astro.redirect('/404');
 const sessions = await publicUpcoming(env.DB, locale, w.id);
 const gallery = (
   await env.DB.prepare(
-    'SELECT m.* FROM media m JOIN workshop_gallery g ON g.media_id=m.id WHERE g.workshop_id=? ORDER BY m.created_at',
+    "SELECT m.* FROM media m JOIN workshop_gallery g ON g.media_id=m.id WHERE g.workshop_id=? AND m.publication_allowed=1 AND m.rights_kind NOT IN ('pending','restricted') AND m.deleted_at IS NULL AND m.purged_at IS NULL ORDER BY m.created_at",
   )
     .bind(w.id)
-    .all<{ id: string; alt: string; width: number; height: number }>()
+    .all<MediaRecord>()
 ).results;
 ---
 
@@ -68,7 +70,11 @@ const gallery = (
       <div class="hero-art">
         <img
           src={w.media_id ? `/media/${w.media_id}?w=960` : '/brand/art-960.webp'}
-          alt={w.image_alt ?? t('Adventure Station rainbow and creative-tool artwork', locale)}
+          alt={
+            (locale === 'es-MX' ? w.image_alt_es || w.image_alt : w.image_alt) ??
+            t('Adventure Station rainbow and creative-tool artwork', locale)
+          }
+          style={`object-position: ${mediaPosition(w)}`}
           width="960"
           height="960"
         />
@@ -81,7 +87,8 @@ const gallery = (
           {gallery.map((m) => (
             <img
               src={`/media/${m.id}?w=480`}
-              alt={m.alt}
+              alt={locale === 'es-MX' ? m.alt_es || m.alt : m.alt}
+              style={`object-position: ${mediaPosition(m)}`}
               width={m.width}
               height={m.height}
               loading="lazy"
@@ -91,6 +98,7 @@ const gallery = (
       </section>
     )}
     <section id="dates" class="upcoming">
+      <Promotion placement="workshop" workshopId={w.id} />
       <h2>{t('Let’s make a date.', locale)}</h2>
       <SessionList sessions={sessions} />
     </section>

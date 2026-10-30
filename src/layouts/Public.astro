@@ -4,6 +4,7 @@ import { env } from 'cloudflare:workers';
 import { localizedSite } from '../lib/translations';
 import { localeOf, t, localPath } from '../lib/i18n';
 import { activityTopics } from '../lib/activity-topics';
+import Promotion from '../components/Promotion.astro';
 const locale = localeOf(Astro.locals.locale),
   site = await localizedSite(env.DB, locale);
 const path = Astro.locals.publicPath || Astro.url.pathname;
@@ -123,6 +124,9 @@ const organization = JSON.stringify({
       </nav>
     </header>
     <main id="main">
+      <div class="wrap">
+        <Promotion placement="announcement" />
+      </div>
       <slot />
     </main>
     <footer class="footer">

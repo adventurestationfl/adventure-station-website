@@ -7,3 +7,8 @@ declare namespace App {
     consentCallback?: string;
   }
 }
+declare namespace Cloudflare {
+  interface Env {
+    MARKETING_HASH_KEY?: string;
+  }
+}

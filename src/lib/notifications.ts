@@ -22,6 +22,10 @@ export function notificationText(n: Pick<Notice, 'kind' | 'message' | 'locale'>)
     tr = (value: string) => t(value, locale);
   const p = JSON.parse(n.message);
   const intro: Record<string, string> = {
+    operational_update:
+      'Please review this workshop update. The message does not change your booking by itself.',
+    reminder:
+      'A reminder about your confirmed workshop. Please review your booking and contact Adventure Station about any changes.',
     confirmation: 'Your payment and places have been verified. Your booking is confirmed.',
     cancellation:
       'This booking has been cancelled. Contact Adventure Station about a refund or an alternative. A cancellation notice does not mean a refund has completed. Any alternative requires your agreement.',

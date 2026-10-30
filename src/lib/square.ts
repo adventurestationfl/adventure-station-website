@@ -1,4 +1,69 @@
 import { HttpError } from './http';
+import { allocateCharge, type Pricing } from './coupons';
+export function checkoutOrderItems(r: {
+  total: number;
+  seats: number;
+  workshop_name: string;
+  pricing_snapshot?: string | null;
+}) {
+  const p: Pricing | null = r.pricing_snapshot ? JSON.parse(r.pricing_snapshot) : null;
+  const charges = allocateCharge(r.total, r.seats);
+  if (
+    p &&
+    (![p.unit_price, p.subtotal, p.discount, p.tax, p.fees, p.total].every(Number.isSafeInteger) ||
+      p.currency !== 'USD' ||
+      p.total !== r.total ||
+      p.subtotal !== p.unit_price * r.seats ||
+      p.total !== p.subtotal - p.discount ||
+      p.tax !== 0 ||
+      p.fees !== 0 ||
+      !Number.isSafeInteger(p.unit_price) ||
+      p.discount < 0 ||
+      (p.discount > 0 && !p.coupon))
+  )
+    throw new HttpError(409, 'Saved pricing needs review before checkout.');
+  if (!p?.discount) {
+    // Historical orders need no invented gross-price or tax facts. Preserve the
+    // exact total, including the unusual non-divisible historical case.
+    if (r.total % r.seats === 0)
+      return {
+        line_items: [
+          {
+            name: r.workshop_name,
+            quantity: String(r.seats),
+            base_price_money: { amount: r.total / r.seats, currency: 'USD' },
+          },
+        ],
+      };
+    return {
+      line_items: charges.map((amount, i) => ({
+        uid: 'place-' + i,
+        name: r.workshop_name,
+        quantity: '1',
+        base_price_money: { amount, currency: 'USD' },
+      })),
+    };
+  }
+  const discounts = charges
+    .map((amount, i) => ({
+      uid: 'offer-' + i,
+      name: p.coupon!.code,
+      type: 'FIXED_AMOUNT',
+      scope: 'LINE_ITEM',
+      amount_money: { amount: p.unit_price - amount, currency: 'USD' },
+    }))
+    .filter((d) => d.amount_money.amount > 0);
+  return {
+    line_items: charges.map((amount, i) => ({
+      uid: 'place-' + i,
+      name: r.workshop_name,
+      quantity: '1',
+      base_price_money: { amount: p.unit_price, currency: 'USD' },
+      ...(p.unit_price > amount ? { applied_discounts: [{ discount_uid: 'offer-' + i }] } : {}),
+    })),
+    discounts,
+  };
+}
 export type SquarePayment = {
   id: string;
   order_id?: string;
@@ -62,6 +127,7 @@ export async function createCheckout(
     seats: number;
     workshop_name: string;
     locale?: import('./i18n').Locale;
+    pricing_snapshot?: string | null;
   },
 ) {
   const data = await square<{ payment_link: { id: string; order_id: string; url: string } }>(
@@ -73,13 +139,7 @@ export async function createCheckout(
       order: {
         location_id: env.SQUARE_LOCATION_ID,
         reference_id: r.id,
-        line_items: [
-          {
-            name: r.workshop_name,
-            quantity: String(r.seats),
-            base_price_money: { amount: r.total / r.seats, currency: 'USD' },
-          },
-        ],
+        ...checkoutOrderItems(r),
       },
       checkout_options: {
         allow_tipping: false,

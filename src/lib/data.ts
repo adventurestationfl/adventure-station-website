@@ -7,13 +7,22 @@ export async function settings(db: D1Database): Promise<SiteSettings> {
   return JSON.parse(row.value);
 }
 export async function catalog(db: D1Database) {
-  return (
+  const rows = (
     await db
       .prepare(
-        "SELECT w.*,m.alt AS image_alt FROM workshops w LEFT JOIN media m ON m.id=w.media_id WHERE w.status='published' ORDER BY name",
+        "SELECT w.*,m.id AS public_media_id,m.alt AS image_alt,m.alt_es AS image_alt_es,m.focal_x,m.focal_y FROM workshops w LEFT JOIN media m ON m.id=w.media_id AND m.publication_allowed=1 AND m.rights_kind NOT IN ('pending','restricted') AND m.deleted_at IS NULL AND m.purged_at IS NULL WHERE w.status='published' ORDER BY name",
       )
-      .all<Workshop & { image_alt?: string }>()
+      .all<
+        Workshop & {
+          public_media_id: string | null;
+          image_alt?: string;
+          image_alt_es?: string;
+          focal_x?: number;
+          focal_y?: number;
+        }
+      >()
   ).results;
+  return rows.map(({ public_media_id, ...w }) => ({ ...w, media_id: public_media_id }));
 }
 export async function upcoming(db: D1Database, workshopId?: string) {
   return (

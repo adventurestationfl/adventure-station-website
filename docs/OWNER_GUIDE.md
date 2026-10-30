@@ -135,11 +135,29 @@ Owner and Godmin can inspect **Activity History** by person, category and Freepo
 
 ## AI Connections
 
-In **Settings → AI Connections**, an owner or Godmin can prepare the preferred ChatGPT or Claude connection. The current preview clearly shows connection testing disabled. Neither client is yet verified; a configured callback is not a connected account. Eligibility depends on the actual account/workspace.
+In **Settings → AI Connections**, an owner or Godmin can prepare the preferred ChatGPT or Claude connection. The isolated preview now supports a verified read-only ChatGPT connection through the existing private Adventure Station Studio plugin. Claude and draft-writing client tests remain pending. A configured callback alone does not connect an account. Eligibility depends on the actual account/workspace.
 
 When testing is enabled by the technical manager, copy the exact callback from the client's setup, register it and use the returned client ID. Sign in through Cloudflare and approve only the requested permissions. Read access covers workshop content, schedules, capacity, public business settings and aggregate statistics. Optional writing creates draft requests for your review in this panel. Inspect each request, apply it explicitly or reject it. Nothing is automatically published or scheduled. The client cannot access children's/guardians' records, move money, change roles or adopt policies. **Disconnect** stops subsequent access and prevents outstanding requests being applied. No chat password or API key belongs in this panel.
 
 [Guía en español mexicano](OWNER_GUIDE.es-MX.md)
+
+## Images you can reuse
+
+Open **Images → Add images**. Choose up to eight non-identifying JPEG, PNG or WebP files. Describe each in English and Spanish before public use. You can crop/rotate the uploaded copy; your original file stays on your device. Keep uncertain permissions pending and private. A rights label records your declaration; keep any license evidence separately.
+
+From a workshop or the homepage editor, **Choose an image** opens the same library without losing unsaved fields. Select existing images to reuse them; selecting does not create another copy. A workshop gallery accepts up to twelve images. Image details show references, descriptions, captions and the cover focal point.
+
+Unused images can move to **Trash** and be restored for 30 days before cleanup starts. Referenced or saved-version images cannot be trashed casually. The owner can **Withdraw and erase image** when necessary: future delivery stops, stored copies are erased and public covers fall back to brand artwork, while gallery and promotional images are omitted. Copies someone already downloaded cannot be recalled. Identifiable child photographs are still outside this workflow.
+
+## Calendar downloads
+
+A confirmed booking with active places can download **Add to calendar** from its private receipt, using the same browser and receipt cookie. The link contains no secret token, child name or guardian contact. Downloads use the saved class time/location, support English/Spanish descriptions and do not subscribe the family to automatic updates. Check the booking again after a change. Receipt access expires after seven days and ends when personal booking data is anonymized; the studio retains its authorized operational records separately.
+
+## Offers and messages
+
+These additions are a local development candidate until separately deployed. **Promotions** prepares bilingual announcements, homepage features or workshop messages. Choose the dates in Freeport local time, preview the copy, then deliberately publish when ready. Drafts stay private. Expired/paused campaigns or unavailable linked offers stop displaying. **Coupons & offers** sets one discount per booking; an entered code takes priority over automatic offers. Specify eligibility, limits and clear English/Spanish terms. Only you activate offers. Saved price facts remain intact after edits or refunds; discounts do not establish tax treatment or activate checkout.
+
+**Messages → Class updates & reminders** prepares weather, venue or attendance instructions in both languages. Save before queueing an update. A message does not change a booking or approve a venue; use the existing class and cancellation workflow for actual decisions. Reminders are off until you select 24 or 48 hours. Queued means waiting, not delivered. Customer delivery remains disabled until the provider is separately authorized. Marketing preferences never suppress essential booking messages.
 
 ## When a sign-in ends
 

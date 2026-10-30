@@ -1,8 +1,10 @@
 import { registrationSchema } from './validation';
+import { z } from 'zod';
 import { HttpError, sha256, now } from './http';
 import { audit } from './data';
 import { ownerSetup } from './setup';
 import { localizedSite, localizedBookingCopy } from './translations';
+import { couponPricing, allocateCharge, couponHold, guardianCouponHash } from './coupons';
 import {
   createCheckout,
   paymentConfigured,
@@ -25,6 +27,8 @@ export type Registration = {
   request_hash: string;
   receipt_hash: string;
   locale?: import('./i18n').Locale;
+  coupon_id?: string | null;
+  pricing_snapshot?: string | null;
 };
 export async function receiptToken(env: Cloudflare.Env, id: string) {
   const key = await crypto.subtle.importKey(
@@ -77,7 +81,13 @@ export async function register(env: Cloudflare.Env, input: unknown, intent: stri
       409,
       'The policy version changed. Reload and review the policies before registering.',
     );
-  const requestHash = await sha256(JSON.stringify(data));
+  // Preserve the pre-coupon hash format for existing no-code retries.
+  const { coupon_code, expected_total, ...bookingInput } = data;
+  const requestHash = await sha256(
+    JSON.stringify(
+      coupon_code ? { ...bookingInput, coupon_code: coupon_code.toUpperCase() } : bookingInput,
+    ),
+  );
   if (!(await ownerSetup(env)).registrationAllowed)
     throw new HttpError(
       503,
@@ -96,10 +106,16 @@ export async function register(env: Cloudflare.Env, input: unknown, intent: stri
       token = await receiptToken(env, sid),
       receiptHash = await sha256(token);
     const s = await env.DB.prepare(
-      'SELECT w.age_min,w.age_max FROM sessions s JOIN workshops w ON w.id=s.workshop_id WHERE s.id=?',
+      'SELECT s.id,s.workshop_id,s.price,w.age_min,w.age_max FROM sessions s JOIN workshops w ON w.id=s.workshop_id WHERE s.id=?',
     )
       .bind(data.session_id)
-      .first<{ age_min: number; age_max: number }>();
+      .first<{
+        id: string;
+        workshop_id: string;
+        price: number;
+        age_min: number;
+        age_max: number;
+      }>();
     if (!s) throw new HttpError(404, 'This class date is unavailable.');
     if (data.participants.some((p) => p.age < s.age_min || p.age > s.age_max))
       throw new HttpError(400, `This workshop is for ages ${s.age_min}–${s.age_max}.`);
@@ -111,12 +127,30 @@ export async function register(env: Cloudflare.Env, input: unknown, intent: stri
         503,
         'Spanish workshop instructions need review before registration. English registration remains separate.',
       );
+    const pricing = await couponPricing(
+        env,
+        s,
+        data.participants.length,
+        data.guardian_email,
+        coupon_code,
+      ),
+      charges = allocateCharge(pricing.total, data.participants.length),
+      holdUntil = now() + 900;
+    if (expected_total !== undefined && expected_total !== pricing.total)
+      throw new HttpError(409, 'The total changed. Review the updated offer before continuing.');
+    const reservation = couponHold(
+      env.DB,
+      sid,
+      pricing,
+      await guardianCouponHash(env, data.guardian_email),
+      holdUntil,
+    );
     try {
       await env.DB.batch([
         env.DB.prepare(
-          `INSERT INTO registrations(id,intent_key,request_hash,receipt_hash,session_id,seats,guardian_name,guardian_email,guardian_phone,marketing_consent,photo_consent,status,hold_until,total,workshop_name,starts_at,ends_at,timezone,venue_name,venue_address,policy_snapshot,age_min,age_max,instructions_snapshot,contact_snapshot,locale,policy_version)
-    SELECT ?,?,?,?,s.id,?,?,?,?,?,?,'pending',?,s.price*?,?,s.starts_at,s.ends_at,s.timezone,v.name,v.address,?,w.age_min,w.age_max,?,?,?,?
-    FROM sessions s JOIN workshops w ON w.id=s.workshop_id JOIN venues v ON v.id=s.venue_id WHERE s.id=? AND v.verified=1 AND v.archived=0 AND v.permission_confirmed=1 AND v.accessibility<>'' AND v.capacity>=s.capacity AND w.age_min=? AND w.age_max=?`,
+          `INSERT INTO registrations(id,intent_key,request_hash,receipt_hash,session_id,seats,guardian_name,guardian_email,guardian_phone,marketing_consent,photo_consent,status,hold_until,total,workshop_name,starts_at,ends_at,timezone,venue_name,venue_address,policy_snapshot,age_min,age_max,instructions_snapshot,contact_snapshot,locale,policy_version,coupon_id,pricing_snapshot)
+    SELECT ?,?,?,?,s.id,?,?,?,?,?,?,'pending',?,?,?,s.starts_at,s.ends_at,s.timezone,v.name,v.address,?,w.age_min,w.age_max,?,?,?,?,?,?
+    FROM sessions s JOIN workshops w ON w.id=s.workshop_id JOIN venues v ON v.id=s.venue_id WHERE s.id=? AND v.verified=1 AND v.archived=0 AND v.permission_confirmed=1 AND v.accessibility<>'' AND v.capacity>=s.capacity AND w.age_min=? AND w.age_max=? AND s.price=?`,
         ).bind(
           sid,
           intent,
@@ -128,8 +162,8 @@ export async function register(env: Cloudflare.Env, input: unknown, intent: stri
           data.guardian_phone,
           Number(data.marketing_consent),
           Number(data.photo_consent),
-          now() + 900,
-          data.participants.length,
+          holdUntil,
+          pricing.total,
           localized.name,
           JSON.stringify({
             refund: site.refundPolicy,
@@ -141,15 +175,19 @@ export async function register(env: Cloudflare.Env, input: unknown, intent: stri
           `${site.email}${site.phone ? ' · ' + site.phone : ''}`,
           data.locale,
           site.policyVersion,
+          pricing.coupon?.id ?? null,
+          JSON.stringify(pricing),
           data.session_id,
           s.age_min,
           s.age_max,
+          s.price,
         ),
-        ...data.participants.map((p) =>
+        ...data.participants.map((p, index) =>
           env.DB.prepare(
-            'INSERT INTO participants(id,registration_id,first_name,age) VALUES(?,?,?,?)',
-          ).bind(crypto.randomUUID(), sid, p.first_name, p.age),
+            'INSERT INTO participants(id,registration_id,first_name,age,charged_cents,price_position) VALUES(?,?,?,?,?,?)',
+          ).bind(crypto.randomUUID(), sid, p.first_name, p.age, charges[index]!, index),
         ),
+        ...(reservation ? [reservation] : []),
       ]);
     } catch (e) {
       r = await env.DB.prepare('SELECT * FROM registrations WHERE intent_key=?')
@@ -162,6 +200,8 @@ export async function register(env: Cloudflare.Env, input: unknown, intent: stri
       .first<Registration>();
   }
   if (!r) throw new HttpError(409, 'This session is no longer available.');
+  if (expected_total !== undefined && expected_total !== r.total)
+    throw new HttpError(409, 'The total changed. Review the updated offer before continuing.');
   if (r.status !== 'pending' || r.hold_until <= now())
     throw new HttpError(
       409,
@@ -183,6 +223,82 @@ export async function register(env: Cloudflare.Env, input: unknown, intent: stri
     hold_until: r.hold_until,
     token: await receiptToken(env, r.id),
   };
+}
+
+// Quotes never reserve capacity, redeem a coupon or call a payment provider.
+export async function quoteRegistration(env: Cloudflare.Env, input: unknown, intent = '') {
+  if (!paymentConfigured(env))
+    throw new HttpError(
+      503,
+      'Online registration is not open yet. Please contact Adventure Station.',
+    );
+  const data = registrationSchema
+    .pick({
+      session_id: true,
+      guardian_email: true,
+      locale: true,
+      policy_version: true,
+      coupon_code: true,
+    })
+    .extend({ seats: z.number().int().min(1).max(12) })
+    .parse(input);
+  const site = await localizedSite(env.DB, data.locale);
+  if (
+    !site.policiesApproved ||
+    !site.timezone ||
+    !site.locality ||
+    !(await ownerSetup(env)).registrationAllowed
+  )
+    throw new HttpError(
+      503,
+      'Registration setup is still being finalized. Please contact Adventure Station.',
+    );
+  if (
+    (data.locale === 'es-MX' && !data.policy_version) ||
+    (data.policy_version && data.policy_version !== site.policyVersion)
+  )
+    throw new HttpError(
+      409,
+      'The policy version changed. Reload and review the policies before registering.',
+    );
+  const copy = await localizedBookingCopy(env.DB, data.session_id, data.locale);
+  if (!copy || copy.translationIncomplete)
+    throw new HttpError(503, 'Workshop instructions need review before registration.');
+  const s = await env.DB.prepare(
+    "SELECT s.id,s.workshop_id,s.price FROM sessions s JOIN workshops w ON w.id=s.workshop_id JOIN venues v ON v.id=s.venue_id WHERE s.id=? AND s.status='published' AND w.status='published' AND s.starts_at>unixepoch() AND v.verified=1 AND v.permission_confirmed=1 AND v.archived=0",
+  )
+    .bind(data.session_id)
+    .first<{ id: string; workshop_id: string; price: number }>();
+  if (!s) throw new HttpError(404, 'This class date is unavailable.');
+  if (/^[a-f0-9-]{36}$/.test(intent)) {
+    const held = await env.DB.prepare(
+      "SELECT pricing_snapshot,guardian_email,seats,session_id FROM registrations WHERE intent_key=? AND status='pending' AND hold_until>? AND anonymized_at IS NULL",
+    )
+      .bind(intent, now())
+      .first<{
+        pricing_snapshot: string | null;
+        guardian_email: string;
+        seats: number;
+        session_id: string;
+      }>();
+    if (held?.pricing_snapshot) {
+      const pricing = JSON.parse(held.pricing_snapshot);
+      if (
+        held.guardian_email.trim().toLowerCase() !== data.guardian_email.trim().toLowerCase() ||
+        held.session_id !== data.session_id ||
+        held.seats !== data.seats ||
+        (pricing.selection === 'code'
+          ? pricing.coupon?.code !== data.coupon_code.toUpperCase()
+          : !!data.coupon_code)
+      )
+        throw new HttpError(
+          409,
+          'This registration attempt already has different details. Start a new registration.',
+        );
+      return pricing;
+    }
+  }
+  return couponPricing(env, s, data.seats, data.guardian_email, data.coupon_code);
 }
 
 // Canonical payment reads, rather than webhook payload status, make out-of-order events safe.
@@ -247,6 +363,7 @@ export async function applyPayment(env: Cloudflare.Env, p: SquarePayment, eventI
    WHEN status='payment_review' THEN 'payment_review'
    WHEN (SELECT COUNT(*) FROM payments WHERE registration_id=registrations.id)>1 THEN 'payment_review'
    WHEN status IN('cancelled','refunded') THEN 'payment_review'
+   WHEN coupon_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM coupon_redemptions u WHERE u.registration_id=registrations.id AND (u.state='redeemed' OR (u.state='held' AND u.held_until>unixepoch()))) THEN 'payment_review'
    WHEN EXISTS(SELECT 1 FROM sessions s JOIN workshops w ON w.id=s.workshop_id WHERE s.id=registrations.session_id AND s.status='published' AND w.status='published' AND s.starts_at>unixepoch()
     AND s.capacity >= registrations.seats-registrations.cancelled_seats+COALESCE((SELECT SUM(other.seats-other.cancelled_seats) FROM registrations other WHERE other.session_id=s.id AND other.id<>registrations.id AND(other.status='confirmed' OR(other.status='pending' AND other.hold_until>unixepoch()))),0)) THEN 'confirmed'
    ELSE 'payment_review' END WHERE id=?`,

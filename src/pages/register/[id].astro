@@ -154,12 +154,36 @@ const available = session ? Math.max(0, session.capacity - session.occupied) : 0
               </p>
               <p class="muted">
                 {t(
-                  '\r\n                Both optional choices are off by default. Card details are entered only on Square’s\r\n                secure checkout.\r\n              ',
+                  '\r\n                The optional workshop-update choice is off by default. Card details are entered only on Square’s\r\n                secure checkout.\r\n              ',
                   locale,
                 )}
               </p>
+              <fieldset>
+                <legend>{t('Offers and total', locale)}</legend>
+                <div class="field">
+                  <label for="coupon-code">{t('Coupon code (optional)', locale)}</label>
+                  <input
+                    id="coupon-code"
+                    name="coupon_code"
+                    maxlength="32"
+                    autocapitalize="characters"
+                    autocomplete="off"
+                  />
+                </div>
+                <button type="button" class="btn light" id="review-offer">
+                  {t('Review available offer', locale)}
+                </button>
+                <div id="registration-pricing" role="status" aria-live="polite" tabindex="-1">
+                  <p>
+                    {t(
+                      'Enter your email and number of places to review the total. Offers do not reserve a place until checkout starts.',
+                      locale,
+                    )}
+                  </p>
+                </div>
+              </fieldset>
               <button class="btn coral" type="submit">
-                {t('\r\n                Continue to secure checkout ↗\r\n              ', locale)}
+                {t('Review total', locale)}
               </button>
               <p>
                 <small>

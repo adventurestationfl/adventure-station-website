@@ -8,6 +8,8 @@ const staff = Astro.locals.staff!,
   section = Astro.params.section || (staff.role === 'instructor' ? 'sessions' : 'dashboard');
 const locale = localeOf(staff.locale),
   groups = staffNavigation(staff.role);
+if (staff.role === 'instructor' && ['coupons', 'promotions'].includes(section))
+  return new Response(t('Your role does not allow this action.', locale), { status: 403 });
 const sectionLabel =
   section === 'settings'
     ? 'Personal preferences'

@@ -1,5 +1,7 @@
 # Wonder · Create · Play and Creative Spark
 
+Historical milestone record. Its earlier MCP-disabled and client-deferred statements are superseded by [the verified ChatGPT read-only OAuth record](OAUTH_RECONCILIATION.md). The current preview remains MCP-enabled; Claude and actual-client draft/lifecycle acceptance remain pending. Local legal/media/operational changes are described separately in [the continuation report](LEGAL_MEDIA_OPERATIONS.md) and are not yet hosted. No new preview deployment or remote migration is authorized by the October 30 continuation.
+
 October 29, 2026. Continue `development/integrated-workshops`, draft PR #1; starting head `8cb723d2799e08d6cdad8c2c223bd4d5a8a07f4b`. Exact final commit, CI and hosted deployment identifiers are recorded on the PR and in the delivery report. This is software development and isolated preview verification, not business, policy or production approval.
 
 ## Positioning and assets

@@ -71,6 +71,46 @@ import Public from '../../layouts/Public.astro';
           p.textContent = line;
           panel.append(p);
         }
+        if (r.pricing) {
+          for (const [label, amount] of [
+            ['Original subtotal', r.pricing.subtotal],
+            ['Discount', -r.pricing.discount],
+            ['Total due', r.pricing.total],
+          ] as const) {
+            const p = document.createElement('p');
+            p.textContent =
+              t(label) +
+              ': ' +
+              new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format(
+                amount / 100,
+              );
+            panel.append(p);
+          }
+          if (r.pricing.offer) {
+            const p = document.createElement('p');
+            p.textContent =
+              r.pricing.offer.code +
+              ' · ' +
+              (locale === 'es-MX' ? r.pricing.offer.terms_es : r.pricing.offer.terms);
+            panel.append(p);
+          }
+        }
+        if (
+          status === 'confirmed' &&
+          r.seats - (r.cancelled_seats ?? 0) > 0 &&
+          !r.needs_attention
+        ) {
+          const calendar = document.createElement('a');
+          calendar.className = 'btn light';
+          calendar.href = `/api/receipts/${encodeURIComponent(panel.dataset.id!)}/calendar.ics`;
+          calendar.textContent = t('Add to calendar');
+          panel.append(calendar);
+          const hint = document.createElement('p');
+          hint.textContent = t(
+            'Calendar downloads do not receive automatic updates. Check your booking for changes.',
+          );
+          panel.append(hint);
+        }
         if (status === 'pending' && attempts++ < 12) setTimeout(check, 5000);
       } catch (e) {
         title.textContent = t('Let’s check your registration.');

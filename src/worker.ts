@@ -4,6 +4,8 @@ import { reconcileRefunds } from './lib/booking-operations';
 import { deliverNotifications } from './lib/notifications';
 import { audit } from './lib/data';
 import { maintainSpark } from './lib/spark';
+import { maintainMedia } from './lib/media';
+import { queueDueReminders } from './lib/communications';
 export default {
   fetch(...args: Parameters<typeof handle>) {
     return handle(...args);
@@ -22,6 +24,16 @@ export default {
     ctx.waitUntil(
       maintainSpark(env).catch(async () => {
         await audit(env.DB, 'scheduled', 'idea.maintenance.failed', 'creative_spark', {
+          source: 'scheduled',
+          outcome: 'failed',
+        }).run();
+      }),
+    );
+    // Bounded, recoverable trash cleanup follows critical operational work.
+    ctx.waitUntil(maintainMedia(env));
+    ctx.waitUntil(
+      queueDueReminders(env).catch(async () => {
+        await audit(env.DB, 'scheduled', 'session.reminders.failed', 'communications', {
           source: 'scheduled',
           outcome: 'failed',
         }).run();

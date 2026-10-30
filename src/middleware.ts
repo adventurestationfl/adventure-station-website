@@ -41,15 +41,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (context.url.protocol === 'https:')
     headers.set('Strict-Transport-Security', 'max-age=31536000');
   if (
+    (response.headers.get('Content-Type') ?? '').includes('text/html') ||
     context.url.pathname.startsWith('/api') ||
     context.url.pathname.startsWith('/admin') ||
-    context.url.pathname.startsWith('/registration')
+    context.url.pathname.startsWith('/registration') ||
+    /^(?:\/es)?\/unsubscribe\//.test(context.url.pathname)
   )
     headers.set('Cache-Control', 'no-store');
   if (
     env.ENVIRONMENT !== 'production' ||
     context.url.pathname.startsWith('/admin') ||
-    context.url.pathname.startsWith('/registration')
+    context.url.pathname.startsWith('/registration') ||
+    /^(?:\/es)?\/unsubscribe\//.test(context.url.pathname)
   )
     headers.set('X-Robots-Tag', 'noindex, nofollow');
   return new Response(response.body, {

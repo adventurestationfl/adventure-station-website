@@ -56,6 +56,34 @@ export function errorResponse(error: unknown) {
   if (error instanceof ZodError)
     return json({ error: error.issues.map((i) => i.message).join(' ') }, 400);
   const message = error instanceof Error ? error.message : '';
+  if (/COUPON_UNAVAILABLE/.test(message))
+    return json(
+      { error: 'This offer is no longer available. Review your total before trying again.' },
+      409,
+    );
+  if (/COUPON_LIMIT/.test(message))
+    return json(
+      { error: 'This change would exceed an offer limit or invalidate reserved uses.' },
+      409,
+    );
+  if (/COUPON_HISTORY|HISTORICAL_PRICE/.test(message))
+    return json({ error: 'Saved price and redemption facts cannot be changed.' }, 409);
+  if (/NOT NULL constraint failed: (coupons|promotions).name/.test(message))
+    return json({ error: 'This offer changed. Reload before saving.' }, 409);
+  if (/MEDIA_REFERENCED/.test(message))
+    return json(
+      {
+        error:
+          'This image is used by a workshop, page, or saved page version. Replace those references first.',
+      },
+      409,
+    );
+  if (/MEDIA_UNAVAILABLE/.test(message))
+    return json({ error: 'Choose an available image with confirmed publication permission.' }, 409);
+  if (/NOT NULL constraint failed: media.revision/.test(message))
+    return json({ error: 'This image changed. Reload before saving.' }, 409);
+  if (/NOT NULL constraint failed: session_communications.revision/.test(message))
+    return json({ error: 'This message changed. Reload before saving.' }, 409);
   if (/CAPACITY|SESSION_UNAVAILABLE/.test(message))
     return json(
       {

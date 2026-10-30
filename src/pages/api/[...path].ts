@@ -1,19 +1,12 @@
+import { receiptRecord, receiptFacts, receiptCalendar } from '../../lib/receipts';
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
-import {
-  bodyJson,
-  errorResponse,
-  HttpError,
-  json,
-  readBody,
-  requireOrigin,
-  sha256,
-} from '../../lib/http';
+import { bodyJson, errorResponse, HttpError, json, readBody, requireOrigin } from '../../lib/http';
 import { authenticate, type Staff } from '../../lib/auth';
 import { audit } from '../../lib/data';
 import { adminApi } from '../../lib/admin';
 import { mediaApi } from '../../lib/media';
-import { register, rateLimit, applyPayment } from '../../lib/registration';
+import { register, rateLimit, applyPayment, quoteRegistration } from '../../lib/registration';
 import { getPayment, square, verifySignature } from '../../lib/square';
 export const ALL: APIRoute = async ({ request, params }) => {
   let staff: Staff | undefined;
@@ -50,6 +43,17 @@ export const ALL: APIRoute = async ({ request, params }) => {
       }
       return json({ received: true });
     }
+    if (path === 'registration-quote' && request.method === 'POST') {
+      requireOrigin(request);
+      await rateLimit(request, env);
+      return json(
+        await quoteRegistration(
+          env,
+          await bodyJson(request),
+          request.headers.get('idempotency-key') ?? '',
+        ),
+      );
+    }
     if (path === 'registrations' && request.method === 'POST') {
       requireOrigin(request);
       await rateLimit(request, env);
@@ -66,28 +70,11 @@ export const ALL: APIRoute = async ({ request, params }) => {
       );
       return response;
     }
-    const receipt = /^receipts\/([\w-]+)$/.exec(path);
+    const receipt = /^receipts\/([\w-]+)(?:\/(calendar\.ics))?$/.exec(path);
     if (receipt && request.method === 'GET') {
       const key = receipt[1]!,
-        cookies = request.headers.get('cookie') ?? '',
-        token = cookies
-          .split(';')
-          .map((c) => c.trim())
-          .find((c) => c.startsWith(`receipt_${key}=`))
-          ?.split('=')[1];
-      if (!token)
-        throw new HttpError(
-          404,
-          'This confirmation is only available in the browser used to register. Contact Adventure Station with your payment reference.',
-        );
-      const r = await env.DB.prepare(
-        'SELECT status,hold_until,receipt_hash,workshop_name,seats,cancelled_seats,starts_at,timezone,total,needs_attention FROM registrations WHERE id=? AND receipt_hash=?',
-      )
-        .bind(key, await sha256(token))
-        .first<Record<string, unknown>>();
-      if (!r) throw new HttpError(404, 'Confirmation not found.');
-      const { receipt_hash, ...safe } = r;
-      return json(safe);
+        r = await receiptRecord(env.DB, request, key);
+      return receipt[2] ? await receiptCalendar(key, r) : json(receiptFacts(r));
     }
     if (path.startsWith('admin/')) {
       if (!['GET', 'HEAD'].includes(request.method)) requireOrigin(request);

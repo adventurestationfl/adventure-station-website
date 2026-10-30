@@ -1,7 +1,7 @@
 ---
 const path = Astro.params.path || '';
 if (
-  !/^(?:|about|faq|contact|policies|404|workshops(?:\/[a-z0-9-]+)?|register\/[\w-]+|registration\/[\w-]+)$/.test(
+  !/^(?:|about|faq|contact|policies|404|workshops(?:\/[a-z0-9-]+)?|register\/[\w-]+|registration\/[\w-]+|unsubscribe\/[a-f0-9]{64})$/.test(
     path,
   )
 )

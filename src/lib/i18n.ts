@@ -1,6 +1,15 @@
 import es from '../locales/es-MX.json';
 import sparkEs from '../locales/spark.es-MX.json';
-const spanish: Record<string, string> = { ...es, ...sparkEs };
+import mediaEs from '../locales/media.es-MX.json';
+import commercialEs from '../locales/commercial.es-MX.json';
+import communicationsEs from '../locales/communications.es-MX.json';
+const spanish: Record<string, string> = {
+  ...es,
+  ...sparkEs,
+  ...mediaEs,
+  ...commercialEs,
+  ...communicationsEs,
+};
 export type Locale = 'en-US' | 'es-MX';
 export const localeOf = (value?: string | null): Locale => (value === 'es-MX' ? 'es-MX' : 'en-US');
 export const normalize = (value: string) => value.replace(/\s+/g, ' ').trim();

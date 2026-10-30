@@ -3,6 +3,10 @@ import { settings, audit, type AuditContext } from './data';
 import { companionApi, technicalApi } from './companion';
 import { translationsApi } from './translations';
 import { connectionsApi } from './mcp';
+import { requirePublicMedia } from './media';
+import { couponsApi } from './coupons';
+import { promotionsApi } from './promotions';
+import { communicationsApi } from './communications';
 import { authorize, type Staff } from './auth';
 import { HttpError, bodyJson, json, now } from './http';
 import { reconcile } from './registration';
@@ -31,7 +35,10 @@ export async function adminApi(
     (await companionApi(request, env, staff, path, auditContext)) ??
     (await technicalApi(request, env, staff, path)) ??
     (await translationsApi(request, env, staff, path, auditContext)) ??
-    (await connectionsApi(request, env, staff, path));
+    (await connectionsApi(request, env, staff, path)) ??
+    (await couponsApi(request, env, staff, path, auditContext)) ??
+    (await promotionsApi(request, env, staff, path, auditContext)) ??
+    (await communicationsApi(request, env, staff, path, auditContext));
   if (extension) return extension;
   const event = (action: string, entity: string) =>
     audit(db, staff.id, action, entity, auditContext);
@@ -292,11 +299,7 @@ export async function adminApi(
         if (JSON.stringify(data[k]) !== JSON.stringify(old[k]))
           throw new HttpError(403, 'Only the owner can change business settings or policies.');
     }
-    if (
-      data.heroMediaId &&
-      !(await db.prepare('SELECT id FROM media WHERE id=?').bind(data.heroMediaId).first())
-    )
-      throw new HttpError(400, 'Choose an image from the media library.');
+    await requirePublicMedia(db, [data.heroMediaId]);
     const current = await db
       .prepare("SELECT * FROM settings WHERE key='site'")
       .first<{ revision: number; value: string }>();
@@ -349,6 +352,7 @@ export async function adminApi(
       vals = Object.values(fields);
     if (data.status === 'published' && (!data.summary || !data.description))
       throw new HttpError(400, 'Add a short and detailed description before publishing.');
+    if (data.status === 'published') await requirePublicMedia(db, [data.media_id, ...gallery_ids]);
     // A stale update violates the NOT NULL name constraint and rolls back the entire batch, including gallery edits.
     const query = workshop[1]
       ? db
@@ -600,12 +604,17 @@ export async function adminApi(
       const result = await db.batch([
         db
           .prepare(
+            "UPDATE coupon_redemptions SET state='redeemed',redeemed_at=COALESCE(redeemed_at,unixepoch()) WHERE registration_id=? AND state<>'redeemed' AND EXISTS(SELECT 1 FROM registrations r WHERE r.id=registration_id AND r.status='payment_review' AND NOT EXISTS(SELECT 1 FROM payment_issues WHERE registration_id=r.id AND resolved=0) AND (SELECT COALESCE(SUM(amount-refunded),0) FROM payments WHERE registration_id=r.id)>=r.total)",
+          )
+          .bind(key),
+        db
+          .prepare(
             "UPDATE registrations SET status='confirmed',needs_attention=0 WHERE id=? AND status='payment_review' AND NOT EXISTS(SELECT 1 FROM payment_issues WHERE registration_id=registrations.id AND resolved=0) AND (SELECT COALESCE(SUM(amount-refunded),0) FROM payments WHERE registration_id=registrations.id)>=total RETURNING id",
           )
           .bind(key),
         event('registration.review.confirmed', key),
       ]);
-      if (!result[0]?.results.length)
+      if (!result[1]?.results.length)
         throw new HttpError(409, 'The payment or registration changed. Refresh before confirming.');
     } else if (v.action === 'complete') {
       const result = await db.batch([
@@ -627,10 +636,17 @@ export async function adminApi(
   const detail = /^registrations\/([\w-]+)\/details$/.exec(path);
   if (detail && method === 'GET')
     return json({
+      pricing:
+        (
+          await db
+            .prepare('SELECT pricing_snapshot FROM registrations WHERE id=?')
+            .bind(detail[1])
+            .first<{ pricing_snapshot: string | null }>()
+        )?.pricing_snapshot ?? null,
       participants: (
         await db
           .prepare(
-            'SELECT id,first_name,age,cancelled_at,attended FROM participants WHERE registration_id=?',
+            'SELECT id,first_name,age,cancelled_at,attended,charged_cents,price_position FROM participants WHERE registration_id=? ORDER BY COALESCE(price_position,999),id',
           )
           .bind(detail[1])
           .all()

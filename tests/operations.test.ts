@@ -110,6 +110,9 @@ beforeEach(async () => {
     '0012_starter_copy_source_review.sql',
     '0013_wonder_create_play_and_spark.sql',
     '0014_wonder_positioning_starter_copy.sql',
+    '0015_media_library_and_promotions.sql',
+    '0016_coupon_accounting.sql',
+    '0017_operational_communications.sql',
   ]
     .map((f) => readFileSync(`migrations/${f}`, 'utf8'))
     .join('\n');

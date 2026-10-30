@@ -125,6 +125,8 @@ export const siteSchema = z
       });
   });
 export const registrationSchema = z.object({
+  coupon_code: z.string().trim().max(32).default(''),
+  expected_total: z.number().int().positive().optional(),
   locale: z.enum(['en-US', 'es-MX']).default('en-US'),
   policy_version: text(150).optional(),
   session_id: id,

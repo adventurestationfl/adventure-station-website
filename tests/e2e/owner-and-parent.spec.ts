@@ -169,19 +169,21 @@ test('owner can schedule multiple draft dates with defaults and independent over
 });
 test('owner can upload an optimized image and edit public text with history', async ({ page }) => {
   await page.goto('/admin/media');
-  await page.getByLabel('Choose image', { exact: true }).setInputFiles('public/brand/art-480.webp');
+  await page.getByRole('button', { name: 'Add images', exact: true }).click();
+  await page.locator('#media-files').setInputFiles('public/brand/art-480.webp');
   await page
-    .getByLabel('Describe the image', { exact: true })
+    .getByLabel('English image description', { exact: true })
     .fill('E2E original artwork test image');
   await page
-    .getByLabel(
-      'I have permission to publish this image, including any required photo permissions.',
-      { exact: true },
-    )
+    .getByLabel('Spanish image description', { exact: true })
+    .fill('Ilustración original para prueba E2E');
+  await page.locator('#upload-rights').selectOption('owner_created');
+  await page
+    .getByLabel('I confirm permission to use these images publicly.', { exact: true })
     .check();
-  await page.getByLabel('This image does not identify a child.', { exact: true }).check();
-  await page.getByRole('button', { name: 'Upload image ↗', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Image uploaded');
+  await page.getByLabel('These images do not identify a child.', { exact: true }).check();
+  await page.getByRole('button', { name: 'Upload images', exact: true }).click();
+  await expect(page.locator('#admin-message')).toContainText('Images uploaded');
   await page.goto('/admin/content');
   await expect(page.getByLabel('Florida city / locality', { exact: true })).toHaveValue(
     'Freeport, Florida',

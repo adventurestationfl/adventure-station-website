@@ -4,6 +4,7 @@ import { localeOf, t, localPath } from '../lib/i18n';
 const locale = localeOf(Astro.locals.locale),
   href = (p: string) => localPath(p, locale);
 import { money, dateLabel } from '../lib/data';
+import { mediaPosition } from '../lib/media-public';
 const { workshop: w, sessions = [] } = Astro.props;
 const next = sessions[0];
 ---
@@ -12,7 +13,11 @@ const next = sessions[0];
   <div class="card-image">
     <img
       src={w.media_id ? `/media/${w.media_id}?w=480` : '/brand/art-480.webp'}
-      alt={w.image_alt ?? t('Adventure Station rainbow and creative-tool artwork', locale)}
+      alt={
+        (locale === 'es-MX' ? w.image_alt_es || w.image_alt : w.image_alt) ??
+        t('Adventure Station rainbow and creative-tool artwork', locale)
+      }
+      style={`object-position: ${mediaPosition(w)}`}
       width="480"
       height="480"
       loading="lazy"

@@ -56,7 +56,7 @@ En **Inscripciones**, revisa referencias y estado verificado del pago. Volver de
 
 Propietaria y Godmin pueden consultar **Historial de actividad** por persona, categoría y fechas locales. Registra cambios importantes, solicitudes denegadas y acciones de IA, sin expedientes de menores, cuerpos de mensajes ni credenciales. Los registros de inicio de sesión están por separado en Cloudflare Access. No es analítica de todas las visitas.
 
-En **Preferencias → Conexiones de IA**, se puede preparar ChatGPT o Claude. Actualmente las pruebas de conexión están desactivadas: ninguno de los dos clientes está verificado. Guardar una dirección de retorno no conecta una cuenta. La elegibilidad depende de la cuenta y del espacio de trabajo reales.
+En **Preferencias → Conexiones de IA**, se puede preparar ChatGPT o Claude. La vista previa aislada ya tiene verificada la conexión de solo lectura de ChatGPT mediante el plugin privado Adventure Station Studio. Las pruebas de Claude y de escritura de borradores siguen pendientes. Guardar una dirección de retorno no conecta una cuenta por sí mismo. La elegibilidad depende de la cuenta y del espacio de trabajo reales.
 
 Cuando el equipo técnico habilite las pruebas, copia la dirección de retorno exacta desde el cliente, regístrala y usa el identificador devuelto. Inicia sesión en Cloudflare y autoriza solo los permisos necesarios. Las lecturas cubren contenido de talleres, calendario, disponibilidad y estadísticas agregadas. Escribir prepara solicitudes de borrador que debes revisar en el panel. Puedes aplicarlas explícitamente o rechazarlas. No hay publicación automática, acceso a expedientes de menores o tutores, movimiento de dinero, cambios de roles ni aprobación de políticas. **Desconectar** impide acceso posterior y aplicar solicitudes pendientes. No ingreses contraseñas de chat ni claves de API aquí.
 
@@ -64,8 +64,26 @@ Godmin conserva acceso técnico y operativo amplio, sin sustituir las aprobacion
 
 [English owner guide](OWNER_GUIDE.md)
 
+## Biblioteca de imágenes
+
+Abre **Imágenes → Agregar imágenes**. Elige hasta ocho archivos JPEG, PNG o WebP que no identifiquen a menores. Agrega descripciones en inglés y español antes del uso público. Puedes recortar o girar la copia que subirás; el archivo original permanece en tu dispositivo. Si los permisos no están confirmados, deja la imagen pendiente y privada. La etiqueta registra tu declaración; conserva aparte cualquier licencia.
+
+Desde el editor de un taller o de la página de inicio, **Elegir una imagen** abre la misma biblioteca sin perder los campos sin guardar. Reutilizar no crea otra copia. La galería de un taller admite hasta doce imágenes. En los detalles puedes ver dónde se usa la imagen, ajustar descripciones, pies de foto y punto focal.
+
+Las imágenes sin uso se pueden mover a la **Papelera** y restaurar durante 30 días, antes de que comience su eliminación. No se permite mover a la papelera una imagen referenciada o guardada en versiones anteriores. Cuando sea necesario, la propietaria puede **Retirar y borrar la imagen**: se bloquean nuevas entregas, se borran las copias almacenadas y los usos públicos muestran la ilustración de respaldo. No es posible recuperar copias que alguien ya haya descargado. Las fotografías que identifiquen a menores siguen fuera de este flujo.
+
+## Agregar una reserva al calendario
+
+Una reserva confirmada con lugares activos ofrece **Agregar al calendario** en su comprobante privado, desde el mismo navegador. El enlace no incluye un token secreto, nombres de menores ni datos de contacto. El archivo usa el horario y lugar guardados y descripciones en inglés o español; no recibe actualizaciones automáticas. Revisa la reserva después de cualquier cambio. El acceso al comprobante termina después de siete días o cuando se eliminan sus datos personales; los registros operativos autorizados del estudio se conservan por separado.
+
 ## Acceso del equipo en dos pasos
 
 Guardar a una persona solo cambia sus permisos en la aplicación. No se envía una invitación por correo ni se actualiza Cloudflare Access. Tu responsable técnico debe autorizar por separado el mismo correo exacto en Cloudflare. “Activo” describe el acceso a la aplicación; “En espera del inicio de sesión verificado” indica que todavía no se ha registrado esa identidad. La sincronización automática con Cloudflare sigue pendiente.
 
 Si al guardar tu sesión ya terminó, usa **Volver a iniciar sesión** para abrir otra pestaña, completa el acceso en Cloudflare y regresa al formulario original. Los campos sin guardar permanecen en esa página; la aplicación no reenvía la solicitud automáticamente. Si otro error de red deja dudas sobre el resultado, revisa el registro guardado antes de volver a enviarlo.
+
+## Ofertas y mensajes
+
+Estas funciones son un candidato de desarrollo local hasta que se autorice su despliegue. En **Promociones**, prepara los textos en inglés y español, elige el periodo con hora de Freeport y revisa antes de publicar. Los borradores son privados. Los avisos vencidos o pausados dejan de mostrarse. En **Cupones y ofertas**, define descuento, requisitos, límites y condiciones claras. Solo la propietaria activa ofertas. Un código ingresado tiene prioridad sobre las ofertas automáticas; no se acumulan descuentos. Los importes originales se conservan después de cambios y reembolsos. Un descuento no define una exención fiscal ni habilita pagos.
+
+En **Mensajes → Avisos y recordatorios de clases**, prepara instrucciones de clima, sede o asistencia en ambos idiomas. Guarda antes de poner el aviso en cola. Un mensaje no modifica reservas ni autoriza sedes. Los recordatorios están desactivados hasta que elijas 24 o 48 horas. En cola no significa entregado: el envío a familias sigue desactivado. Suspender mensajes promocionales no impide recibir avisos esenciales de una reserva.

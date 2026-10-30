@@ -1,4 +1,7 @@
+import { renderMediaLibrary, mediaPickerField, installMediaPickerFields } from './media-library';
 import { installRecordLayouts } from './admin-records';
+import { renderCommercial } from './commercial';
+import { renderCommunications } from './communications';
 import { activityTopics, parseTopics, topicLabel } from '../lib/activity-topics';
 import { createUI, localeOf, t as translate, errorMessage } from '../lib/i18n';
 import { renderExtra, companionSummary } from './admin-features';
@@ -157,7 +160,7 @@ function workshopEditor(original?: any, duplicate = false) {
       'Describe it once. Add as many class dates as you need.',
       button('Back to workshops', 'back'),
     ) +
-    ui`<div class="content-language"><span>Content language: English</span>${w.id ? ui`<button class="btn small light" type="button" data-action="translate-workshop" data-id="${h(w.id)}">Español</button>` : ui`<small>${t('Save the English source before adding Spanish content.')}</small>`}</div><form id="editor"><div class="form-columns"><div class="panel"><h2>The creative idea</h2>${field('Workshop name', 'name', w.name, 'text', '', 'required maxlength="120"')}${field('Page address', 'slug', w.slug, 'text', 'Use lowercase words separated by hyphens.', 'required pattern="[a-z0-9]+(-[a-z0-9]+)*"')}${field('Short description', 'summary', w.summary, 'textarea', 'A sentence or two for the workshop card.', 'maxlength="240"')}${field('Full description', 'description', w.description, 'textarea', '', 'maxlength="8000"')}${field('Category', 'category', w.category)}<fieldset><legend>Activity topics</legend><p>Choose any that fit. Wonder, Create and Play can overlap.</p><div class="topic-options">${activityTopics.map((topic) => check(topicLabel(topic.id, locale), 'activity_tags', parseTopics(w.activity_tags).includes(topic.id)).replace('name="activity_tags"', 'name="activity_tags" value="' + topic.id + '"')).join('')}</div></fieldset>${select('Workshop image', 'media_id', w.media_id, [{ id: '', name: t('Original Adventure Station artwork') }, ...media.map((m) => ({ id: m.id, name: m.alt }))])}${media.length ? ui`<fieldset><legend>Workshop gallery (up to 12 images)</legend>${media.map((m) => check(m.alt, 'gallery_ids', (w.gallery_ids ?? []).includes(m.id)).replace('name="gallery_ids"', ui`name="gallery_ids" value="${h(m.id)}"`)).join('')}</fieldset>` : ''}${field('Included materials', 'materials', w.materials, 'textarea')}${field('Instructions for families', 'instructions', w.instructions, 'textarea')}</div><div><div class="panel"><h2>Defaults for new dates</h2><p class="muted">Change these here to save time later. Existing class dates and registrations keep their details.</p><div class="form-grid">${field('Youngest age', 'age_min', w.age_min, 'number', '', 'required min="1" max="17"')}${field('Oldest age', 'age_max', w.age_max, 'number', '', 'required min="1" max="17"')}${field('Duration (minutes)', 'duration', w.duration, 'number', '', 'required min="15" max="480"')}${field('Places per class', 'capacity', w.capacity, 'number', '', 'required min="1" max="100"')}</div>${field('Price per child ($)', 'price', w.price == null ? '' : w.price / 100, 'number', '', 'required min="1" max="1000" step="0.01"')}${select('Usual venue', 'venue_id', w.venue_id, [{ id: '', name: t('Choose when scheduling') }, ...venues.map((v) => ({ id: v.id, name: v.name }))])}</div><div class="panel"><h2>Visibility</h2>${select(
+    ui`<div class="content-language"><span>Content language: English</span>${w.id ? ui`<button class="btn small light" type="button" data-action="translate-workshop" data-id="${h(w.id)}">Español</button>` : ui`<small>${t('Save the English source before adding Spanish content.')}</small>`}</div><form id="editor"><div class="form-columns"><div class="panel"><h2>The creative idea</h2>${field('Workshop name', 'name', w.name, 'text', '', 'required maxlength="120"')}${field('Page address', 'slug', w.slug, 'text', 'Use lowercase words separated by hyphens.', 'required pattern="[a-z0-9]+(-[a-z0-9]+)*"')}${field('Short description', 'summary', w.summary, 'textarea', 'A sentence or two for the workshop card.', 'maxlength="240"')}${field('Full description', 'description', w.description, 'textarea', '', 'maxlength="8000"')}${field('Category', 'category', w.category)}<fieldset><legend>Activity topics</legend><p>Choose any that fit. Wonder, Create and Play can overlap.</p><div class="topic-options">${activityTopics.map((topic) => check(topicLabel(topic.id, locale), 'activity_tags', parseTopics(w.activity_tags).includes(topic.id)).replace('name="activity_tags"', 'name="activity_tags" value="' + topic.id + '"')).join('')}</div></fieldset>${mediaPickerField('Workshop image', 'media_id', w.media_id ? [w.media_id] : [])}${mediaPickerField('Workshop gallery (up to 12 images)', 'gallery_ids', w.gallery_ids ?? [], true)}${field('Included materials', 'materials', w.materials, 'textarea')}${field('Instructions for families', 'instructions', w.instructions, 'textarea')}</div><div><div class="panel"><h2>Defaults for new dates</h2><p class="muted">Change these here to save time later. Existing class dates and registrations keep their details.</p><div class="form-grid">${field('Youngest age', 'age_min', w.age_min, 'number', '', 'required min="1" max="17"')}${field('Oldest age', 'age_max', w.age_max, 'number', '', 'required min="1" max="17"')}${field('Duration (minutes)', 'duration', w.duration, 'number', '', 'required min="15" max="480"')}${field('Places per class', 'capacity', w.capacity, 'number', '', 'required min="1" max="100"')}</div>${field('Price per child ($)', 'price', w.price == null ? '' : w.price / 100, 'number', '', 'required min="1" max="1000" step="0.01"')}${select('Usual venue', 'venue_id', w.venue_id, [{ id: '', name: t('Choose when scheduling') }, ...venues.map((v) => ({ id: v.id, name: v.name }))])}</div><div class="panel"><h2>Visibility</h2>${select(
       'Workshop status',
       'status',
       w.status,
@@ -167,6 +170,7 @@ function workshopEditor(original?: any, duplicate = false) {
       })),
     )}<p class="muted">Published workshops appear in the catalog. Dates are published separately.</p>${w.id ? ui`<a class="text-link" href="/workshops/${h(w.slug)}" target="_blank" rel="noopener">Preview published workshop ↗</a>` : ''}</div></div></div>${saveBar('Save workshop')}</form>`;
   const form = document.querySelector<HTMLFormElement>('#editor')!;
+  installMediaPickerFields(form, api, notify);
   onSave(form, async () => {
     const d: any = formValues(form);
     for (const k of ['age_min', 'age_max', 'duration', 'capacity']) d[k] = Number(d[k]);
@@ -259,6 +263,7 @@ function sessionEditor(original?: any, workshopId?: string, duplicate = false) {
       })),
     )}<p class="muted">Publishing needs an approved timezone, policies, workshop, and venue. Past dates cannot be booked. Cancelling needs follow-up with registered families; it does not automatically refund payments.</p></div></div></div>${saveBar('Save class date')}</form>`;
   const form = document.querySelector<HTMLFormElement>('#editor')!;
+  installMediaPickerFields(form, api, notify);
   form.querySelector('[name=workshop_id]')?.addEventListener('change', () => {
     if (s.id) return;
     const selected = workshops.find(
@@ -460,6 +465,13 @@ async function renderNotifications() {
           'No booking messages yet.',
           'Verified confirmations, cancellations and refund updates will appear here.',
         ));
+  workspace.insertAdjacentHTML('beforeend', '<div id="class-communications"></div>');
+  await renderCommunications(
+    workspace.querySelector('#class-communications')!,
+    api,
+    notify,
+    role === 'owner',
+  );
 }
 function retentionEditor(id: string) {
   workspace.innerHTML =
@@ -506,13 +518,17 @@ async function renderPrivacy() {
 }
 async function registrationDetails(id: string) {
   const d = await api(`registrations/${id}/details`);
+  const pricing = d.pricing ? JSON.parse(d.pricing) : null;
   workspace.innerHTML =
     heading(
       'Review a family booking',
       'Cancel selected places and handle refunds as separate, recorded actions.',
       button('Back to registrations', 'back'),
     ) +
-    ui`<div class="panel"><p>Reference: ${h(id)}</p><p>Cancelling places releases only those places. It does not issue a refund. The original order and payment history stay intact.</p><form id="cancel-places"><fieldset><legend>Places on this booking</legend>${d.participants.map((p: any) => check(ui`${p.first_name ?? 'Personal details removed'}${p.cancelled_at ? ' — cancelled' : ''}`, 'participantIds', false, !!p.cancelled_at).replace('name="participantIds"', ui`name="participantIds" value="${h(p.id)}"`)).join('')}</fieldset><button class="btn small" type="submit">Cancel selected places</button></form></div>${
+    (pricing
+      ? ui`<section class="panel"><h2>Original price breakdown</h2><p>${t('Original subtotal')}: ${cash(pricing.subtotal)} · ${t('Discount')}: ${cash(pricing.discount)} · ${t('Original order')}: ${cash(pricing.total)}</p>${pricing.coupon ? ui`<p>${h(pricing.coupon.code)} · ${h(locale === 'es-MX' ? pricing.coupon.terms_es : pricing.coupon.terms)}</p>` : ''}<p>Each place shows its original allocated charge. Review prior refunds and the adopted policy before choosing any refund amount.</p></section>`
+      : '') +
+    ui`<div class="panel"><p>Reference: ${h(id)}</p><p>Cancelling places releases only those places. It does not issue a refund. The original order and payment history stay intact.</p><form id="cancel-places"><fieldset><legend>Places on this booking</legend>${d.participants.map((p: any) => check(ui`${p.first_name ?? 'Personal details removed'}${p.cancelled_at ? ' — cancelled' : ''}${p.charged_cents != null ? ' · ' + t('Original charge') + ': ' + cash(p.charged_cents) : ''}`, 'participantIds', false, !!p.cancelled_at).replace('name="participantIds"', ui`name="participantIds" value="${h(p.id)}"`)).join('')}</fieldset><button class="btn small" type="submit">Cancel selected places</button></form></div>${
       role === 'owner'
         ? ui`<form id="refund-form" class="panel"><h2>Request a sandbox refund</h2><p>Review the adopted policy and agreed adjustment first. This does not cancel places or prove that a refund is complete.</p>${select(
             'Verified payment',
@@ -613,7 +629,7 @@ async function renderContent() {
       'Edit the words and images. The design takes care of itself.',
       ui`<a class="btn small light" href="/" target="_blank" rel="noopener">View website ↗</a>`,
     ) +
-    ui`<div class="content-language"><span>Content language: English</span><button class="btn small light" type="button" data-action="translate-site">Español</button></div><form id="editor"><div class="form-columns"><div><div class="panel"><h2>Your homepage</h2>${field('Main headline', 'headline', content.headline, 'textarea', '', 'required maxlength="140"')}${field('Welcome text', 'intro', content.intro, 'textarea')}${field('Promotional heading', 'promotion', content.promotion)}${select('Homepage image', 'heroMediaId', content.heroMediaId, [{ id: '', name: t('Original Adventure Station artwork') }, ...media.map((m) => ({ id: m.id, name: m.alt }))])}${select(
+    ui`<div class="content-language"><span>Content language: English</span><button class="btn small light" type="button" data-action="translate-site">Español</button></div><form id="editor"><div class="form-columns"><div><div class="panel"><h2>Your homepage</h2>${field('Main headline', 'headline', content.headline, 'textarea', '', 'required maxlength="140"')}${field('Welcome text', 'intro', content.intro, 'textarea')}${field('Promotional heading', 'promotion', content.promotion)}${mediaPickerField('Homepage image', 'heroMediaId', content.heroMediaId ? [content.heroMediaId] : [])}${select(
       'Accent color',
       'accent',
       content.accent,
@@ -663,13 +679,14 @@ async function renderContent() {
     }
   });
   const form = document.querySelector<HTMLFormElement>('#editor')!;
+  installMediaPickerFields(form, api, notify);
   onSave(form, async () => {
     captureFaqs();
     const v: any = {
       ...content,
       ...formValues(form),
       faqs,
-      heroMediaId: (form.elements.namedItem('heroMediaId') as HTMLSelectElement).value || null,
+      heroMediaId: (form.elements.namedItem('heroMediaId') as HTMLInputElement).value || null,
     };
     if (owner) {
       v.policiesApproved = (
@@ -731,6 +748,7 @@ function venueEditor(
     ) +
     ui`${v.id ? ui`<div class="content-language"><span>Content language: English</span><button class="btn small light" type="button" data-action="translate-venue" data-id="${h(v.id)}">Español</button></div>` : ''}<form id="editor" class="panel">${field('Venue name', 'name', v.name, 'text', '', 'required')}${field('Full address', 'address', v.address, 'textarea')}${field('Arrival instructions', 'instructions', v.instructions, 'textarea')}${field('Venue capacity', 'capacity', v.capacity ?? '', 'number', 'Maximum children permitted for these activities.', 'min="1" max="100"')}${field('Accessibility information', 'accessibility', v.accessibility ?? '', 'textarea')}${check('Permission to hold workshops here is confirmed.', 'permission_confirmed', !!v.permission_confirmed)}${check('I have verified this address and the venue details.', 'verified', !!v.verified)}${check('Archive this venue (keep it in history).', 'archived', !!v.archived)}${saveBar('Save venue')}</form>`;
   const form = document.querySelector<HTMLFormElement>('#editor')!;
+  installMediaPickerFields(form, api, notify);
   onSave(form, async () => {
     const d: any = formValues(form);
     d.capacity = d.capacity ? Number(d.capacity) : null;
@@ -765,48 +783,8 @@ async function renderRegistrations() {
       ].some((row) => !row.hidden);
     });
 }
-async function optimized(file: File, width: number) {
-  const image = await createImageBitmap(file);
-  try {
-    const scale = Math.min(1, width / image.width, 4096 / image.height);
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.round(image.width * scale);
-    canvas.height = Math.round(image.height * scale);
-    const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-    return await new Promise<Blob>((resolve, reject) =>
-      canvas.toBlob(
-        (b) => (b ? resolve(b) : reject(new Error('Could not prepare this image.'))),
-        'image/jpeg',
-        0.84,
-      ),
-    );
-  } finally {
-    image.close();
-  }
-}
 async function renderMedia() {
-  media = await api('media');
-  workspace.innerHTML =
-    heading('Your creative library.', 'Images here can be used on the website and in workshops.') +
-    ui`<form id="upload" class="panel"><h2>Add an image</h2><p class="muted">Upload a JPEG, PNG or WebP. Images are optimized and metadata is removed before publication. Use only images you have permission to publish; this is a public website image library.</p>${field('Choose image', 'image', '', 'file', '', 'accept="image/jpeg,image/png,image/webp" required')}${field('Describe the image', 'alt', '', 'text', 'Used for accessibility and to help you find it later.', 'required maxlength="300"')}${check('I have permission to publish this image, including any required photo permissions.', 'rights', false)}${check('This image does not identify a child.', 'non_identifying', false)}<p>Use brand artwork, craft projects, materials, venues or non-identifying photos. Identifiable child photos are deferred.</p><button class="btn" type="submit">Upload image ↗</button></form><div class="media-grid">${media.map((m) => ui`<article class="media-item"><img src="/media/${h(m.id)}?w=480" width="480" height="480" alt="${h(m.alt)}"/><p>${h(m.alt)}</p><small>${m.width} × ${m.height} · ${Math.ceil(m.bytes / 1024)} KB (all sizes)</small><div class="inline-actions">${button('Edit description', 'alt-media', m.id)}${button('Remove unused image', 'delete-media', m.id)}</div></article>`).join('')}</div>`;
-  const form = document.querySelector<HTMLFormElement>('#upload')!;
-  onSave(form, async () => {
-    const data = new FormData(form),
-      file = data.get('image') as File;
-    if (!file || file.size > 20000000) throw new Error('Choose an image up to 20 MB.');
-    const payload = new FormData();
-    payload.set('alt', String(data.get('alt')));
-    payload.set('non_identifying', String(data.get('non_identifying') === 'on'));
-    payload.set('rights', String(data.get('rights') === 'on'));
-    for (const w of [1600, 960, 480])
-      payload.set(String(w), await optimized(file, w), ui`${w}.jpg`);
-    await api('media', 'POST', payload);
-    notify('Image uploaded. Choose it from a workshop or the website content page.');
-    await renderMedia();
-  });
+  await renderMediaLibrary(workspace, api, notify, role);
 }
 async function renderTeam() {
   const team = await api('team');
@@ -852,6 +830,7 @@ function teamEditor(s: any = { name: '', email: '', role: 'instructor', active: 
     }
   });
   const form = document.querySelector<HTMLFormElement>('#editor')!;
+  installMediaPickerFields(form, api, notify);
   onSave(form, async () => {
     const d = formValues(form);
     await api('team', 'POST', {
@@ -870,6 +849,10 @@ async function render() {
     return;
   }
   switch (section) {
+    case 'promotions':
+    case 'coupons':
+      await renderCommercial(workspace, api, notify, role, section);
+      break;
     case 'setup':
       await renderSetup();
       break;

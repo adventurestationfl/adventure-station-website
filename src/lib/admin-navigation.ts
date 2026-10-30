@@ -30,12 +30,14 @@ export function staffNavigation(role: Staff['role']): NavigationGroup[] {
         item('creative', 'Creative Spark'),
         item('content', 'Website content'),
         item('media', 'Images'),
+        item('promotions', 'Promotions'),
       ],
     },
     {
       name: 'Business',
       items: [
         item('venues', 'Venues'),
+        item('coupons', 'Coupons & offers'),
         ...(role === 'owner' ? [item('setup', 'Setup'), item('privacy', 'Privacy review')] : []),
         ...(['owner', 'godmin'].includes(role)
           ? [item('activity', 'Activity History'), item('team', 'Team access')]
@@ -71,4 +73,6 @@ export const navigationIcons: Record<string, string> = {
   activity: 'M4 3h16v18H4z M8 7h8 M8 12h8 M8 17h5',
   settings: 'M4 6h16 M4 12h16 M4 18h16 M8 3v6 M16 9v6 M10 15v6',
   connections: 'M8 8H6a4 4 0 0 0 0 8h3 M16 8h2a4 4 0 0 1 0 8h-3 M8 12h8',
+  promotions: 'M3 10h5l11-6v16l-11-6H3z M8 14l2 7h4l-2-5',
+  coupons: 'M3 5h18v5a2 2 0 0 0 0 4v5H3v-5a2 2 0 0 0 0-4z M12 7v2 M12 11v2 M12 15v2',
 };

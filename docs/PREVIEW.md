@@ -1,5 +1,7 @@
 # Hosted preview — October 29, 2026
 
+Current runtime rechecked October 30: version `8d104764-8ca6-420d-b1a3-3573336f497a`, deployment `01ec3057-1f6d-4db7-b773-21a0fb876fde`, 100%. Preview MCP is deliberately enabled and actual ChatGPT read-only tools are verified. DEV_AUTH remains false, email disabled, Square sandbox and model inference unauthorized. The older version/rollback and disabled-MCP statements below are historical checkpoints; [OAUTH_RECONCILIATION.md](OAUTH_RECONCILIATION.md) supersedes them. Hosted schema remains through 0014. New 0015–0017 work is local and requires a fresh private backup plus explicit remote migration/deployment authorization. No new hosted changes occurred in this continuation.
+
 Public preview: https://adventure-station-preview.adventurestationfl.workers.dev
 
 Staff setup: https://adventure-station-preview.adventurestationfl.workers.dev/admin/setup

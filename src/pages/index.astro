@@ -6,18 +6,24 @@ const href = (p: string) => localPath(p, locale);
 import Public from '../layouts/Public.astro';
 import WorkshopCard from '../components/WorkshopCard.astro';
 import SessionList from '../components/SessionList.astro';
+import Promotion from '../components/Promotion.astro';
 import { env } from 'cloudflare:workers';
+import { mediaPosition, mediaIsPublic, type MediaRecord } from '../lib/media-public';
 
 const site = await localizedSite(env.DB, locale),
   workshops = await publicCatalog(env.DB, locale),
   sessions = await publicUpcoming(env.DB, locale);
-const heroAlt = site.heroMediaId
-  ? (
-      await env.DB.prepare('SELECT alt FROM media WHERE id=?')
-        .bind(site.heroMediaId)
-        .first<{ alt: string }>()
-    )?.alt
-  : 'Adventure Station’s rainbow and friendly creative-tool characters';
+const selectedHero = site.heroMediaId
+  ? await env.DB.prepare('SELECT * FROM media WHERE id=?')
+      .bind(site.heroMediaId)
+      .first<MediaRecord>()
+  : null;
+const hero = selectedHero && mediaIsPublic(selectedHero) ? selectedHero : null;
+const heroAlt = hero
+  ? locale === 'es-MX'
+    ? hero.alt_es || hero.alt
+    : hero.alt
+  : t('Adventure Station rainbow and creative-tool artwork', locale);
 ---
 
 <Public>
@@ -48,21 +54,23 @@ const heroAlt = site.heroMediaId
       </div>
       <div class="hero-art">
         <img
-          src={site.heroMediaId ? `/media/${site.heroMediaId}?w=960` : '/brand/art-960.webp'}
+          src={hero ? `/media/${hero.id}?w=960` : '/brand/art-960.webp'}
           srcset={
-            site.heroMediaId
-              ? `/media/${site.heroMediaId}?w=480 480w, /media/${site.heroMediaId}?w=960 960w`
+            hero
+              ? `/media/${hero.id}?w=480 480w, /media/${hero.id}?w=960 960w`
               : '/brand/art-480.webp 480w, /brand/art-960.webp 960w'
           }
           sizes="(max-width:720px) 85vw, 45vw"
           width="960"
           height="960"
           alt={heroAlt}
+          style={`object-position: ${mediaPosition(hero ?? undefined)}`}
           fetchpriority="high"
         />
         <span class="art-label">{t('Big discoveries start with little adventures.', locale)}</span>
       </div>
     </section>
+    <Promotion placement="home_feature" />
     <div class="ribbon" aria-label={t('Workshop themes', locale)}>
       <span>
         <b aria-hidden="true">✦</b>
