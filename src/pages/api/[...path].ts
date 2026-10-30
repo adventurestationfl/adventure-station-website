@@ -1,0 +1,113 @@
+import { receiptRecord, receiptFacts, receiptCalendar } from '../../lib/receipts';
+import type { APIRoute } from 'astro';
+import { env } from 'cloudflare:workers';
+import { bodyJson, errorResponse, HttpError, json, readBody, requireOrigin } from '../../lib/http';
+import { authenticate, type Staff } from '../../lib/auth';
+import { audit } from '../../lib/data';
+import { adminApi } from '../../lib/admin';
+import { mediaApi } from '../../lib/media';
+import { register, rateLimit, applyPayment, quoteRegistration } from '../../lib/registration';
+import { getPayment, square, verifySignature } from '../../lib/square';
+export const ALL: APIRoute = async ({ request, params }) => {
+  let staff: Staff | undefined;
+  try {
+    const path = params.path ?? '';
+    if (path === 'square/webhook' && request.method === 'POST') {
+      const raw = await readBody(request, 262144);
+      if (
+        !(await verifySignature(
+          raw,
+          request.headers.get('x-square-hmacsha256-signature'),
+          env.SQUARE_WEBHOOK_SIGNATURE_KEY,
+          env.SQUARE_WEBHOOK_URL,
+        ))
+      )
+        throw new HttpError(401, 'Invalid webhook signature.');
+      const event = JSON.parse(raw);
+      if (typeof event.event_id !== 'string' || event.event_id.length > 100)
+        throw new HttpError(400, 'Invalid event.');
+      if (
+        ['payment.created', 'payment.updated'].includes(event.type) &&
+        typeof event.data?.id === 'string'
+      )
+        await applyPayment(env, await getPayment(env, event.data.id), event.event_id);
+      if (
+        ['refund.created', 'refund.updated'].includes(event.type) &&
+        typeof event.data?.id === 'string'
+      ) {
+        const data = await square<{ refund: { payment_id: string } }>(
+          env,
+          `/refunds/${encodeURIComponent(event.data.id)}`,
+        );
+        await applyPayment(env, await getPayment(env, data.refund.payment_id), event.event_id);
+      }
+      return json({ received: true });
+    }
+    if (path === 'registration-quote' && request.method === 'POST') {
+      requireOrigin(request);
+      await rateLimit(request, env);
+      return json(
+        await quoteRegistration(
+          env,
+          await bodyJson(request),
+          request.headers.get('idempotency-key') ?? '',
+        ),
+      );
+    }
+    if (path === 'registrations' && request.method === 'POST') {
+      requireOrigin(request);
+      await rateLimit(request, env);
+      const result = await register(
+        env,
+        await bodyJson(request),
+        request.headers.get('idempotency-key') ?? '',
+      );
+      const { token, ...safe } = result;
+      const response = json(safe, 201);
+      response.headers.set(
+        'Set-Cookie',
+        `receipt_${result.id}=${token}; HttpOnly; SameSite=Lax; Path=/api/receipts/${result.id}; Max-Age=604800${new URL(request.url).protocol === 'https:' ? '; Secure' : ''}`,
+      );
+      return response;
+    }
+    const receipt = /^receipts\/([\w-]+)(?:\/(calendar\.ics))?$/.exec(path);
+    if (receipt && request.method === 'GET') {
+      const key = receipt[1]!,
+        r = await receiptRecord(env.DB, request, key);
+      return receipt[2] ? await receiptCalendar(key, r) : json(receiptFacts(r));
+    }
+    if (path.startsWith('admin/')) {
+      if (!['GET', 'HEAD'].includes(request.method)) requireOrigin(request);
+      staff = await authenticate(request, env);
+      const action = path.slice(6);
+      if (action.startsWith('media')) return await mediaApi(request, env, staff, action);
+      return await adminApi(request, env, staff, action);
+    }
+    throw new HttpError(404, 'This request was not found.');
+  } catch (error) {
+    if (staff && error instanceof HttpError && error.status === 403) {
+      const category = (params.path ?? '').split('/')[1] ?? '';
+      await audit(
+        env.DB,
+        staff.id,
+        'request.denied',
+        [
+          'team',
+          'setup',
+          'workshops',
+          'sessions',
+          'registrations',
+          'media',
+          'content',
+          'privacy',
+          'connections',
+          'activity',
+        ].includes(category)
+          ? category
+          : 'admin',
+        { outcome: 'denied', correlationId: crypto.randomUUID() },
+      ).run();
+    }
+    return errorResponse(error);
+  }
+};

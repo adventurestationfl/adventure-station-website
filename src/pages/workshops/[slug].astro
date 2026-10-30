@@ -1,0 +1,106 @@
+---
+import { parseTopics, topicLabel } from '../../lib/activity-topics';
+import { localeOf, t, localPath } from '../../lib/i18n';
+import { publicCatalog, publicUpcoming } from '../../lib/translations';
+const locale = localeOf(Astro.locals.locale);
+const href = (p: string) => localPath(p, locale);
+import Public from '../../layouts/Public.astro';
+import SessionList from '../../components/SessionList.astro';
+import Promotion from '../../components/Promotion.astro';
+import { env } from 'cloudflare:workers';
+import { mediaPosition, type MediaRecord } from '../../lib/media-public';
+
+const w = (await publicCatalog(env.DB, locale)).find((w) => w.slug === Astro.params.slug);
+if (!w) return Astro.redirect('/404');
+const sessions = await publicUpcoming(env.DB, locale, w.id);
+const gallery = (
+  await env.DB.prepare(
+    "SELECT m.* FROM media m JOIN workshop_gallery g ON g.media_id=m.id WHERE g.workshop_id=? AND m.publication_allowed=1 AND m.rights_kind NOT IN ('pending','restricted') AND m.deleted_at IS NULL AND m.purged_at IS NULL ORDER BY m.created_at",
+  )
+    .bind(w.id)
+    .all<MediaRecord>()
+).results;
+---
+
+<Public title={w.name} description={w.summary}>
+  <div class="wrap">
+    <div class="breadcrumb">
+      <a href={href('/workshops')}>{t('All workshops', locale)}</a> / {w.name}
+    </div>
+    <section class="section split">
+      <div>
+        <div class="eyebrow">{w.category}</div>
+        <div class="topic-chips">
+          {parseTopics(w.activity_tags).map((id) => (
+            <span class="tag">{topicLabel(id, locale)}</span>
+          ))}
+        </div>
+        <h1>{w.name}</h1>
+        {locale === 'es-MX' && w.translationIncomplete && (
+          <p class="notice">
+            {t(
+              'This workshop copy is awaiting Spanish review. English source content is shown.',
+              locale,
+            )}
+          </p>
+        )}
+        <p>{w.summary}</p>
+        <span class="tag">
+          {t('\r\n          Ages ', locale)}
+          {w.age_min}–{w.age_max} · {w.duration}
+          {t(' minutes\r\n        ', locale)}
+        </span>
+        <p class="prose">{w.description}</p>
+        {w.materials && (
+          <>
+            <h3>{t('Materials', locale)}</h3>
+            <p>{w.materials}</p>
+          </>
+        )}
+        {w.instructions && (
+          <>
+            <h3>{t('Before you come', locale)}</h3>
+            <p>{w.instructions}</p>
+          </>
+        )}
+        <a class="btn coral" href="#dates">
+          {t('\r\n          Find a date ↗\r\n        ', locale)}
+        </a>
+      </div>
+      <div class="hero-art">
+        <img
+          src={w.media_id ? `/media/${w.media_id}?w=960` : '/brand/art-960.webp'}
+          alt={
+            (locale === 'es-MX' ? w.image_alt_es || w.image_alt : w.image_alt) ??
+            t('Adventure Station rainbow and creative-tool artwork', locale)
+          }
+          style={`object-position: ${mediaPosition(w)}`}
+          width="960"
+          height="960"
+        />
+      </div>
+    </section>
+    {gallery.length > 0 && (
+      <section class="section">
+        <h2>{t('A closer look.', locale)}</h2>
+        <div class="grid">
+          {gallery.map((m) => (
+            <img
+              src={`/media/${m.id}?w=480`}
+              alt={locale === 'es-MX' ? m.alt_es || m.alt : m.alt}
+              style={`object-position: ${mediaPosition(m)}`}
+              width={m.width}
+              height={m.height}
+              loading="lazy"
+            />
+          ))}
+        </div>
+      </section>
+    )}
+    <section id="dates" class="upcoming">
+      <Promotion placement="workshop" workshopId={w.id} />
+      <h2>{t('Let’s make a date.', locale)}</h2>
+      <SessionList sessions={sessions} />
+    </section>
+  </div>
+</Public>

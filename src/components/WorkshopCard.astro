@@ -1,0 +1,71 @@
+---
+import { parseTopics, topicLabel } from '../lib/activity-topics';
+import { localeOf, t, localPath } from '../lib/i18n';
+const locale = localeOf(Astro.locals.locale),
+  href = (p: string) => localPath(p, locale);
+import { money, dateLabel } from '../lib/data';
+import { mediaPosition } from '../lib/media-public';
+const { workshop: w, sessions = [] } = Astro.props;
+const next = sessions[0];
+---
+
+<a class="workshop-card" href={href(`/workshops/${w.slug}`)}>
+  <div class="card-image">
+    <img
+      src={w.media_id ? `/media/${w.media_id}?w=480` : '/brand/art-480.webp'}
+      alt={
+        (locale === 'es-MX' ? w.image_alt_es || w.image_alt : w.image_alt) ??
+        t('Adventure Station rainbow and creative-tool artwork', locale)
+      }
+      style={`object-position: ${mediaPosition(w)}`}
+      width="480"
+      height="480"
+      loading="lazy"
+    />
+  </div>
+  <div class="card-body">
+    <span class="tag">{w.category}</span>
+    <div class="topic-chips">
+      {parseTopics(w.activity_tags).map((id) => (
+        <span class="tag">{topicLabel(id, locale)}</span>
+      ))}
+    </div>
+    <h3>{w.name}</h3>
+    <p>{w.summary}</p>
+    {locale === 'es-MX' && w.translationIncomplete && (
+      <small>
+        {t(
+          'This workshop copy is awaiting Spanish review. English source content is shown.',
+          locale,
+        )}
+      </small>
+    )}
+    <div class="card-facts">
+      <p>
+        {t('\r\n        Ages ', locale)}
+        {w.age_min}–{w.age_max}. {w.duration}
+        {t(' minutes.\r\n      ', locale)}
+      </p>
+      {next ? (
+        <>
+          <p>{dateLabel(next.starts_at, next.timezone, locale)}</p>
+          <p>{next.venue_name}</p>
+          <p>
+            <strong>
+              {money(next.price, locale)}
+              {t(' per child', locale)}
+            </strong>{' '}
+            · {Math.max(0, next.capacity - next.occupied)}
+            {t(' places available\r\n          ', locale)}
+          </p>
+        </>
+      ) : (
+        <p>{t('New dates will appear here when ready.', locale)}</p>
+      )}
+    </div>
+    <div class="card-foot">
+      <span>{t('View workshop', locale)}</span>
+      <span aria-hidden="true">↗</span>
+    </div>
+  </div>
+</a>

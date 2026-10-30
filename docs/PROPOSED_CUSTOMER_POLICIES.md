@@ -1,0 +1,66 @@
+# Adventure Station — proposed customer policies
+
+**DRAFT 2026-10-29-draft-3 — not adopted or published.**
+
+Prepared for Freeport, Florida. The owner must confirm operating arrangements and complete each [OWNER: ...] item. The 48-hour period is a proposed commercial choice. These drafts are not a legal-compliance certification.
+
+## Registration, cancellations and refunds
+
+Booking and confirmation
+A parent or legal guardian must register each child. Check the activity, age range, date, location and total price before paying. All class times are Freeport, Florida local time: Central Time, with daylight-saving changes where applicable. A checkout attempt or payment screenshot does not confirm a place. Your place is confirmed when Adventure Station verifies payment and confirms availability.
+
+Changes requested by a family
+Email adventurestationfl@gmail.com with your registration reference. Requests received at least 48 hours before the published start time qualify for a full refund of the amount paid for the cancelled places. Within 48 hours, cancellations and missed classes are normally non-refundable because places and materials have been reserved. If the cancelled places are filled by another paid booking, we will refund those places in full. Please contact us about illness or an emergency so we can consider a reasonable exception. Do not include medical records. These time limits use actual elapsed hours before the class start.
+
+Changes or cancellation by Adventure Station
+If we cancel a class, cannot provide a paid place, or need to make a material change to its date, time or venue that you do not accept, you may choose a full refund. An alternative date is optional and must be agreed with you; you do not have to accept credit instead of a refund. If a payment arrives after its reservation expires and no place is available, we will contact you to arrange a full refund or an alternative you expressly accept. Do not pay again while a payment is being investigated.
+
+Refunds and transfers
+Approved refunds are returned to the original payment method through the payment processor. We do not deduct an undisclosed administration fee. Bank and processor processing times can vary. Places cannot be transferred or rescheduled automatically; contact us before making other arrangements. Any replacement participant must meet the workshop requirements and be confirmed by Adventure Station. This policy does not limit rights or remedies that cannot lawfully be excluded.
+
+## Guardian supervision and participation
+
+Parent-present workshops
+A parent or responsible adult authorized by the registering guardian must stay with each child in the workshop area for the entire session. The accompanying adult remains responsible for the child's personal care, toileting, belongings and safe arrival and departure. Instructors lead the activity and give instructions for the materials and tools. This parent-present policy does not remove Adventure Station's responsibility to exercise reasonable care. Unattended drop-off and care before or after a class are not offered under this policy.
+
+Participation and materials
+Follow the published age range and activity instructions. Keep children with their accompanying adult and within the designated activity area. Use tools and materials only as instructed. Do not bring an unregistered child into an activity or use another child's place without staff confirmation. Paint, glue, small parts and age-appropriate tools may present risks, and clothing can become marked. Read the specific workshop description and ask about materials before booking. We do not promise an allergen-free environment or a risk-free activity.
+
+Help, health and accessibility
+Contact us before booking if your child may need an adjustment or if materials could affect their participation. Share only the information needed to discuss participation, using a communication method agreed with us; do not place diagnoses or medical records in the registration form. Stay home if illness would make participation unsafe for your child or others, and contact us about the booking. Tell an instructor promptly about an incident or safety concern. For an emergency, contact emergency services immediately.
+
+Respectful participation
+Children and adults must treat other participants, staff and property respectfully. If participation becomes unsafe, staff may pause the activity and ask the accompanying adult to help or leave with the child. Any booking adjustment will be considered fairly in the circumstances. Agreement to these instructions is not a blanket release of liability or a waiver of rights that cannot lawfully be waived.
+
+## Arrival, accompaniment and departure
+
+Arrival and departure
+Plan to arrive about five minutes before the published start time and check in with the instructor. Show your registration reference if asked. The accompanying adult must remain in the workshop area throughout the class and leave with the child at the end. Arriving early does not include childcare before the scheduled activity, and arriving late does not extend the end time.
+
+No unattended drop-off
+Do not leave a child with staff, outside a venue or with another family unless a responsible adult authorized by the guardian is present and accompanying that child. Tell staff before changing the accompanying adult. An unfamiliar adult must not remove a child without the guardian's confirmation. Staff may ask for identification or contact the registering guardian if there is uncertainty.
+
+If arrangements change
+Contact Adventure Station immediately if an accompanying adult cannot remain or if there is a problem with departure. Do not assume transport, waiting care or a late-pickup service is available. Any future drop-off program would need separate, expressly confirmed arrangements and operating requirements; this policy does not authorize one.
+
+## Registration privacy and optional permissions
+
+Who we are and who should register
+Adventure Station — Wonder · Create · Play offers hands-on creative discovery activities for children in Freeport, Florida. A parent or legal guardian must complete registration; no child accounts are offered. Contact adventurestationfl@gmail.com about privacy, corrections, optional preferences or removal. [OWNER: confirm the legal business name, mailing contact and phone before approval.]
+
+Information and purposes
+Registration requests guardian name, email and contact phone; each child's first name and age; and a class date. Do not submit birth dates, home addresses, medical records, government identifiers or card details in this form. We use these details for age suitability, capacity, attendance, booking communications, cancellations, disputes, privacy requests and necessary records. We retain booking facts, policy acceptance, payment/refund references and administrative activity. Instructors see only necessary assigned-roster information, not full guardian contact or financial records. We do not sell or rent children's registration information or use it for behavioral advertising. Contact us if a child submits information directly so we can assess and address it.
+
+Providers and essential website functions
+Cloudflare supplies website, database, image storage and staff sign-in services for this application. When checkout is enabled, Square hosts payment entry and processes card data; Adventure Station retains references and verification states, not card numbers or security codes. Resend is selected for transactional messages but customer delivery remains disabled pending separate verification. Providers may process information outside Florida and retain necessary security or service records under their own practices. Essential cookies support staff sign-in and receipt access; the receipt cookie lasts up to seven days. Temporary salted identifiers limit abuse. The application adds no advertising pixels, social widgets or remote-font requests. [OWNER: confirm and disclose any hosting-injected performance measurement in the final deployment before adopting this notice.]
+
+Optional preferences and images
+The optional workshop-update choice starts off, is not required to attend and is separate from essential booking communications. Contact us to withdraw it. Recording a preference does not itself send marketing messages. Identifiable child photographs are not accepted for website publication in this release. The library supports brand artwork, projects, materials and other non-identifying images with appropriate permission. No photo-permission checkbox is offered. A future photography program requires a separate permission, use and withdrawal process before activation.
+
+Creative tools and connected assistants
+Staff creative tools and connected assistant tools use non-identifying studio content. They do not provide individual child or guardian records, payment credentials or card data. Automatic model generation remains disabled until separately authorized. Staff must not enter family information into external chats.
+
+Retention and requests
+The application flags operational personal details for review after the configured interval, initially 180 days after a class. Review is not automatic deletion. Remove details no longer needed; document any necessary longer retention, such as an unresolved dispute or legal obligation. Financial facts can remain without child identifiers where possible. [OWNER: confirm the review interval and financial, provider and backup retention schedules, including removal after restoration.] A guardian may request access, correction or removal using the contact above. Verify the request proportionately using existing booking information, without unnecessary identity documents. We will explain information that must be retained and any effect on an active booking. Optional permissions can be withdrawn independently. Reasonable security controls reduce risk but cannot guarantee absolute security. Material changes affecting existing bookings or permissions will be communicated, with new permission where required. A registration checkbox is not represented as satisfying every parental-consent requirement.
+
+See [policy review notes and official sources](POLICY_DRAFTS.md) for assumptions and adoption decisions. The corresponding Mexican Spanish draft is maintained in src/content/policy-drafts.es-MX.json; neither version is adopted by editing this file.

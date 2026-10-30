@@ -1,0 +1,78 @@
+---
+import { env } from 'cloudflare:workers';
+import { activePromotion } from '../lib/promotions';
+import { localeOf, localPath } from '../lib/i18n';
+import { mediaPosition } from '../lib/media-public';
+const { placement, workshopId } = Astro.props;
+const locale = localeOf(Astro.locals.locale),
+  promotion = await activePromotion(env.DB, placement, locale, workshopId);
+---
+
+{promotion && (
+  <aside
+    class:list={[
+      'studio-promotion',
+      placement === 'announcement' ? 'promotion-announcement' : 'promotion-feature',
+    ]}
+    aria-label={promotion.title}
+  >
+    {promotion.public_media_id && placement !== 'announcement' && (
+      <img
+        src={`/media/${promotion.public_media_id}?w=960`}
+        width="960"
+        height="640"
+        alt={promotion.alt}
+        style={`object-position:${mediaPosition(promotion)}`}
+        loading="lazy"
+      />
+    )}
+    <div>
+      <h2>{promotion.title}</h2>
+      <p>{promotion.description}</p>
+      {promotion.material_terms && <p class="promotion-terms">{promotion.material_terms}</p>}
+      {promotion.destination && promotion.cta && (
+        <a class="btn light" href={localPath(promotion.destination, locale)}>
+          {promotion.cta}
+        </a>
+      )}
+    </div>
+  </aside>
+)}
+<style>
+  .studio-promotion {
+    border-block: 1px solid var(--line);
+    padding: 1.5rem 0;
+    display: grid;
+    gap: 1.25rem;
+  }
+  .studio-promotion img {
+    width: 100%;
+    height: auto;
+    max-height: 24rem;
+    object-fit: cover;
+    border-radius: 1rem;
+  }
+  .studio-promotion h2 {
+    font-size: clamp(1.35rem, 3vw, 2rem);
+    margin: 0 0 0.6rem;
+  }
+  .studio-promotion p {
+    white-space: pre-line;
+    max-width: 65ch;
+  }
+  .promotion-terms {
+    font-size: 0.9rem;
+  }
+  .promotion-announcement {
+    padding: 1rem 0;
+  }
+  .promotion-announcement img {
+    display: none;
+  }
+  @media (min-width: 720px) {
+    .promotion-feature:has(img) {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+      align-items: center;
+    }
+  }
+</style>

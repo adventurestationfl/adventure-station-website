@@ -1,0 +1,58 @@
+---
+import { localeOf, t, localPath } from '../lib/i18n';
+const locale = localeOf(Astro.locals.locale),
+  href = (p: string) => localPath(p, locale);
+import { money, dateLabel } from '../lib/data';
+const { sessions } = Astro.props;
+---
+
+{sessions.length ? (
+  sessions.map((s: Record<string, any>) => (
+    <article class="session-row">
+      <div>
+        <h3>{s.workshop_name}</h3>
+        <p class="session-date">
+          <time datetime={new Date(s.starts_at * 1000).toISOString()}>
+            {dateLabel(s.starts_at, s.timezone, locale)}{' '}
+            {
+              new Intl.DateTimeFormat(locale, { timeZone: s.timezone, timeZoneName: 'short' })
+                .formatToParts(s.starts_at * 1000)
+                .find((p) => p.type === 'timeZoneName')?.value
+            }
+          </time>
+        </p>
+        <p>
+          {s.venue_name}
+          {t(' · Ages ', locale)}
+          {s.age_min}–{s.age_max}
+        </p>
+      </div>
+      <div class="session-info">
+        <p>
+          {money(s.price, locale)}
+          {t(' per child · ', locale)}
+          {Math.max(0, s.capacity - s.occupied)}
+          {t(' places available\r\n        ', locale)}
+        </p>
+        <a class="btn small" href={href(`/register/${s.id}`)}>
+          {t(s.occupied >= s.capacity ? 'View full class' : 'Choose this date', locale)}{' '}
+          <span aria-hidden="true">↗</span>
+        </a>
+      </div>
+    </article>
+  ))
+) : (
+  <div>
+    <h3>{t('Our next adventure is on its way.', locale)}</h3>
+    <p>
+      {t(
+        '\r\n      New workshop dates will appear here as soon as they’re ready. Get in touch to ask about what’s\r\n      coming up.\r\n    ',
+        locale,
+      )}
+    </p>
+    <a class="text-link" href={href('/contact')}>
+      {t('\r\n      Say hello ', locale)}
+      <span aria-hidden="true">↗</span>
+    </a>
+  </div>
+)}

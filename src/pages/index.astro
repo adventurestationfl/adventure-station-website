@@ -1,0 +1,238 @@
+---
+import { localeOf, t, localPath } from '../lib/i18n';
+import { localizedSite, publicCatalog, publicUpcoming } from '../lib/translations';
+const locale = localeOf(Astro.locals.locale);
+const href = (p: string) => localPath(p, locale);
+import Public from '../layouts/Public.astro';
+import WorkshopCard from '../components/WorkshopCard.astro';
+import SessionList from '../components/SessionList.astro';
+import Promotion from '../components/Promotion.astro';
+import { env } from 'cloudflare:workers';
+import { mediaPosition, mediaIsPublic, type MediaRecord } from '../lib/media-public';
+
+const site = await localizedSite(env.DB, locale),
+  workshops = await publicCatalog(env.DB, locale),
+  sessions = await publicUpcoming(env.DB, locale);
+const selectedHero = site.heroMediaId
+  ? await env.DB.prepare('SELECT * FROM media WHERE id=?')
+      .bind(site.heroMediaId)
+      .first<MediaRecord>()
+  : null;
+const hero = selectedHero && mediaIsPublic(selectedHero) ? selectedHero : null;
+const heroAlt = hero
+  ? locale === 'es-MX'
+    ? hero.alt_es || hero.alt
+    : hero.alt
+  : t('Adventure Station rainbow and creative-tool artwork', locale);
+---
+
+<Public>
+  <div class="wrap">
+    <section class="hero">
+      <div>
+        <div class="maker-strip" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <p class="eyebrow">Wonder · Create · Play</p>
+        <h1>{site.headline}</h1>
+        <p>{site.intro}</p>
+        <div class="hero-actions">
+          <a class="btn coral" href={href('/workshops')}>
+            {t('\r\n            Explore workshops ', locale)}
+            <span aria-hidden="true">↗</span>
+          </a>
+          <a class="text-link" href={href('/about')}>
+            {t('\r\n            Meet Adventure Station\r\n          ', locale)}
+          </a>
+        </div>
+        <div class="hero-note">
+          {t('Hands-on adventures in ', locale)}
+          {site.locality || 'Florida'}
+        </div>
+      </div>
+      <div class="hero-art">
+        <img
+          src={hero ? `/media/${hero.id}?w=960` : '/brand/art-960.webp'}
+          srcset={
+            hero
+              ? `/media/${hero.id}?w=480 480w, /media/${hero.id}?w=960 960w`
+              : '/brand/art-480.webp 480w, /brand/art-960.webp 960w'
+          }
+          sizes="(max-width:720px) 85vw, 45vw"
+          width="960"
+          height="960"
+          alt={heroAlt}
+          style={`object-position: ${mediaPosition(hero ?? undefined)}`}
+          fetchpriority="high"
+        />
+        <span class="art-label">{t('Big discoveries start with little adventures.', locale)}</span>
+      </div>
+    </section>
+    <Promotion placement="home_feature" />
+    <div class="ribbon" aria-label={t('Workshop themes', locale)}>
+      <span>
+        <b aria-hidden="true">✦</b>
+        {t(' Hands-on making\r\n      ', locale)}
+      </span>
+      <span>
+        <b aria-hidden="true">✦</b>
+        {t(' Room to explore\r\n      ', locale)}
+      </span>
+      <span>
+        <b aria-hidden="true">✦</b>
+        {t(' Seasonal inspiration\r\n      ', locale)}
+      </span>
+      <span>
+        <b aria-hidden="true">✦</b>
+        {t(' Made with imagination\r\n      ', locale)}
+      </span>
+    </div>
+    <section class="section" aria-labelledby="adventure-pillars">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Wonder · Create · Play</p>
+          <h2 id="adventure-pillars">{t('Three ways into an adventure', locale)}</h2>
+        </div>
+        <p>{t('Mix them together. Every experience can make room for all three.', locale)}</p>
+      </div>
+      <div class="steps">
+        {[
+          [
+            'Wonder',
+            'Notice a pattern, explore a texture, or test a simple idea. Curiosity leads the way.',
+          ],
+          ['Create', 'Draw, paint, build, shape and make something with imagination.'],
+          ['Play', 'Invent a game, try a friendly challenge, or build a story together.'],
+        ].map(([name, description]) => (
+          <article>
+            <h3>{name}</h3>
+            <p>{t(description!, locale)}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">{t('Pick a little adventure', locale)}</div>
+          <h2>
+            {t('\r\n            What will they\r\n            ', locale)}
+            <br />
+            {t('\r\n            discover next?\r\n          ', locale)}
+          </h2>
+        </div>
+        <p>
+          {t(
+            '\r\n          A surprising material. An imagined world. A playful challenge. Explore our hands-on\r\n          workshops.\r\n        ',
+            locale,
+          )}
+        </p>
+      </div>
+      {workshops.length ? (
+        <div class="grid">
+          {workshops.slice(0, 3).map((w) => (
+            <WorkshopCard workshop={w} sessions={sessions.filter((s) => s.workshop_id === w.id)} />
+          ))}
+        </div>
+      ) : (
+        <div class="empty">
+          <h3>{t('Something creative is taking shape.', locale)}</h3>
+          <p>
+            {t(
+              'We’re preparing our next workshops. Check back soon or get in touch to learn more.',
+              locale,
+            )}
+          </p>
+          <a class="text-link" href={href('/contact')}>
+            {t('\r\n            Contact Adventure Station ↗\r\n          ', locale)}
+          </a>
+        </div>
+      )}
+      <div class="upcoming" id="dates">
+        <div class="eyebrow">{t('Coming up', locale)}</div>
+        <SessionList sessions={sessions.slice(0, 4)} />
+      </div>
+    </section>
+    <section class="section split">
+      <div class="story-panel">
+        {t('\r\n        Every adventure\r\n        ', locale)}
+        <br />
+        {t('\r\n        starts with a question.\r\n        ', locale)}
+        <br />
+        <em>
+          {t('\r\n          Where will curiosity\r\n          ', locale)}
+          <br />
+          {t('\r\n          take them?\r\n        ', locale)}
+        </em>
+        <div class="mini">{t('A LITTLE WONDER GOES A LONG WAY.', locale)}</div>
+      </div>
+      <div>
+        <div class="eyebrow">{t('More than a finished project', locale)}</div>
+        <h2>
+          {t('\r\n          Make room for\r\n          ', locale)}
+          <br />
+          {t('\r\n          discovery.\r\n        ', locale)}
+        </h2>
+        <p>{site.about}</p>
+        <p>
+          {t(
+            '\r\n          There’s joy in testing an idea, inventing a game, exploring a texture, and making\r\n          something you can hold.\r\n        ',
+            locale,
+          )}
+        </p>
+        <a class="text-link" href={href('/about')}>
+          {t('\r\n          A little about us ↗\r\n        ', locale)}
+        </a>
+      </div>
+    </section>
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">{t('Simple from the start', locale)}</div>
+          <h2>{t('From “what if?” to “let’s try!”', locale)}</h2>
+        </div>
+      </div>
+      <div class="steps">
+        <article>
+          <span class="step-number">01.</span>
+          <h3>{t('Find their next adventure', locale)}</h3>
+          <p>
+            {t(
+              '\r\n            Explore the workshops. Check the age range, project details, and available class dates.\r\n          ',
+              locale,
+            )}
+          </p>
+        </article>
+        <article>
+          <span class="step-number">02.</span>
+          <h3>{t('Choose a date together', locale)}</h3>
+          <p>
+            {t(
+              '\r\n            A parent or guardian registers the children and pays through secure hosted checkout.\r\n          ',
+              locale,
+            )}
+          </p>
+        </article>
+        <article>
+          <span class="step-number">03.</span>
+          <h3>{t('Make, discover and play', locale)}</h3>
+          <p>
+            {t(
+              '\r\n            Check your confirmed registration and class instructions. Then get ready to make\r\n            something special.\r\n          ',
+              locale,
+            )}
+          </p>
+        </article>
+      </div>
+    </section>
+    <section class="cta-band">
+      <h2>{site.promotion}</h2>
+      <a class="btn" href={href('/workshops')}>
+        {t('\r\n        Find a workshop ', locale)}
+        <span aria-hidden="true">↗</span>
+      </a>
+    </section>
+  </div>
+</Public>

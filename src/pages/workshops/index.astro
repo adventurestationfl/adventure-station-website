@@ -1,0 +1,74 @@
+---
+import { localeOf, t, localPath } from '../../lib/i18n';
+import { publicCatalog, publicUpcoming } from '../../lib/translations';
+const locale = localeOf(Astro.locals.locale);
+const href = (p: string) => localPath(p, locale);
+import Public from '../../layouts/Public.astro';
+import WorkshopCard from '../../components/WorkshopCard.astro';
+import SessionList from '../../components/SessionList.astro';
+import { activityTopics, parseTopics, topicLabel } from '../../lib/activity-topics';
+import { env } from 'cloudflare:workers';
+
+const topic = Astro.url.searchParams.get('topic') ?? '';
+const workshops = (await publicCatalog(env.DB, locale)).filter(
+    (w) =>
+      !activityTopics.some((t) => t.id === topic) ||
+      parseTopics(w.activity_tags).includes(topic as any),
+  ),
+  sessions = await publicUpcoming(env.DB, locale);
+---
+
+<Public title={t('Hands-on adventures', locale)}>
+  <div class="wrap">
+    <div class="page-heading">
+      <div class="eyebrow">{t('Wonder · Create · Play', locale)}</div>
+      <h1>
+        {t('\r\n        A little adventure.\r\n        ', locale)}
+        <br />
+        {t('\r\n        All their own.\r\n      ', locale)}
+      </h1>
+      <p>
+        {t(
+          'Explore creative projects, sensory discoveries, science-inspired experiments and playful challenges. A workshop can mix several kinds of adventure.',
+          locale,
+        )}
+      </p>
+    </div>
+    <form class="topic-filter" method="get">
+      <label for="activity-topic">{t('Activity topic', locale)}</label>
+      <select id="activity-topic" name="topic">
+        <option value="">{t('All topics', locale)}</option>
+        {activityTopics.map((v) => (
+          <option value={v.id} selected={topic === v.id}>
+            {topicLabel(v.id, locale)}
+          </option>
+        ))}
+      </select>
+      <button class="btn light" type="submit">
+        {t('Explore', locale)}
+      </button>
+    </form>
+    <section class="section">
+      {workshops.length ? (
+        <div class="grid">
+          {workshops.map((w) => (
+            <WorkshopCard workshop={w} sessions={sessions.filter((s) => s.workshop_id === w.id)} />
+          ))}
+        </div>
+      ) : (
+        <div class="empty">
+          <h2>{t('New ideas are on the way.', locale)}</h2>
+          <p>
+            {t('\r\n            Our workshop catalog will be here soon. ', locale)}
+            <a href={href('/contact')}>{t('Contact us', locale)}</a>
+            {t(' for more\r\n            information.\r\n          ', locale)}
+          </p>
+        </div>
+      )}
+    </section>
+    <section class="upcoming" id="dates">
+      <h2>{t('Find your next date.', locale)}</h2>
+      <SessionList sessions={sessions} />
+    </section>
+  </div>
+</Public>

@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.astro/
+.wrangler/
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
+test-results/
+playwright-report/
+local-artifacts/
+*.sqlite*
+backups/
+local-*.txt
+public/brand/original-*.jpg
+docs/baseline/live-*.html

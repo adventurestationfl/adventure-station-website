@@ -1,0 +1,123 @@
+---
+import { localeOf, t, localPath } from '../../lib/i18n';
+const locale = localeOf(Astro.locals.locale),
+  href = (p: string) => localPath(p, locale);
+import Public from '../../layouts/Public.astro';
+---
+
+<Public title={t('Your registration', locale)}>
+  <div class="wrap section">
+    <div class="eyebrow">{t('Your workshop registration', locale)}</div>
+    <h1 id="receipt-title">{t('Checking your payment.', locale)}</h1>
+    <div id="receipt" class="form-panel prose" data-id={Astro.params.id}>
+      <p role="status">
+        {t(
+          '\n        Please wait while we check your registration. Returning from checkout alone does not confirm\n        a place.\n      ',
+          locale,
+        )}
+      </p>
+    </div>
+    <p>
+      <a href={href('/contact')}>{t('Need a hand? Contact Adventure Station.', locale)}</a>
+    </p>
+  </div>
+  <script>
+    import { localeOf, t as translate } from '../../lib/i18n';
+    const locale = localeOf(document.documentElement.lang),
+      t = (v: string) => translate(v, locale);
+    const panel = document.querySelector<HTMLElement>('#receipt')!,
+      title = document.querySelector('#receipt-title')!;
+    let attempts = 0;
+    async function check() {
+      try {
+        const response = await fetch(`/api/receipts/${encodeURIComponent(panel.dataset.id!)}`);
+        const r = await response.json();
+        if (!response.ok) throw new Error(r.error);
+        panel.replaceChildren();
+        const messages: Record<string, [string, string]> = {
+          confirmed: ['You’re on the list!', 'Payment is verified and your places are confirmed.'],
+          pending: [
+            'Payment is being checked.',
+            'Your places are not confirmed yet. If you have paid, allow a moment for verification.',
+          ],
+          payment_review: [
+            'Your payment needs our attention.',
+            'Please contact Adventure Station. Your payment has been received, but your places are not confirmed.',
+          ],
+          expired: [
+            'Your reservation has expired.',
+            'If you completed payment, please contact us before paying again.',
+          ],
+          cancelled: [
+            'This registration has been cancelled.',
+            'Please contact Adventure Station about your payment or an alternative date.',
+          ],
+          refunded: ['Your payment has been refunded.', 'Your places are no longer reserved.'],
+        };
+        const status =
+          r.status === 'pending' && r.hold_until < Date.now() / 1000 ? 'expired' : r.status;
+        const text = messages[status] ?? [
+          'Please contact us.',
+          'Your registration needs a manual check.',
+        ];
+        title.textContent = t(text[0]);
+        for (const line of [
+          t(text[1]),
+          r.workshop_name,
+          `${r.seats - (r.cancelled_seats ?? 0)} ${t('active place(s)')} · ${r.seats} ${t('originally booked')} · ${t('Original order')} ${new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format(r.total / 100)}`,
+          `${t('Reference:')} ${panel.dataset.id}`,
+        ]) {
+          const p = document.createElement('p');
+          p.textContent = line;
+          panel.append(p);
+        }
+        if (r.pricing) {
+          for (const [label, amount] of [
+            ['Original subtotal', r.pricing.subtotal],
+            ['Discount', -r.pricing.discount],
+            ['Total due', r.pricing.total],
+          ] as const) {
+            const p = document.createElement('p');
+            p.textContent =
+              t(label) +
+              ': ' +
+              new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format(
+                amount / 100,
+              );
+            panel.append(p);
+          }
+          if (r.pricing.offer) {
+            const p = document.createElement('p');
+            p.textContent =
+              r.pricing.offer.code +
+              ' · ' +
+              (locale === 'es-MX' ? r.pricing.offer.terms_es : r.pricing.offer.terms);
+            panel.append(p);
+          }
+        }
+        if (
+          status === 'confirmed' &&
+          r.seats - (r.cancelled_seats ?? 0) > 0 &&
+          !r.needs_attention
+        ) {
+          const calendar = document.createElement('a');
+          calendar.className = 'btn light';
+          calendar.href = `/api/receipts/${encodeURIComponent(panel.dataset.id!)}/calendar.ics`;
+          calendar.textContent = t('Add to calendar');
+          panel.append(calendar);
+          const hint = document.createElement('p');
+          hint.textContent = t(
+            'Calendar downloads do not receive automatic updates. Check your booking for changes.',
+          );
+          panel.append(hint);
+        }
+        if (status === 'pending' && attempts++ < 12) setTimeout(check, 5000);
+      } catch (e) {
+        title.textContent = t('Let’s check your registration.');
+        panel.textContent =
+          e instanceof Error ? t(e.message) : t('Please contact us with your payment reference.');
+      }
+    }
+    check();
+  </script>
+</Public>
