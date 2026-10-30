@@ -7,6 +7,28 @@ export function consentReferrerPolicy(path: string, method: string, status: numb
     ? 'strict-origin'
     : 'no-referrer';
 }
+// Browsers can enforce form-action against the redirect after a successful
+// consent POST. Only the callback already validated for this consent may join
+// 'self' on its GET document. This never authorizes a server-side redirect.
+export function consentFormAction(path: string, method: string, status: number, callback?: string) {
+  if (consentReferrerPolicy(path, method, status) !== 'strict-origin' || !callback) return "'self'";
+  try {
+    const url = new URL(callback);
+    if (
+      url.protocol !== 'https:' ||
+      url.username ||
+      url.password ||
+      url.port ||
+      url.hash ||
+      !['chatgpt.com', 'claude.ai', 'claude.com'].includes(url.hostname) ||
+      !/^\/[A-Za-z0-9/._~%+-]*$/.test(url.pathname)
+    )
+      return "'self'";
+    return `'self' ${url.origin}${url.pathname}`;
+  } catch {
+    return "'self'";
+  }
+}
 type ConsentEnvironment = Pick<Cloudflare.Env, 'PUBLIC_ORIGIN' | 'ENVIRONMENT'>;
 function canonical(request: Request, env: ConsentEnvironment) {
   let url: URL;

@@ -4,5 +4,6 @@ declare namespace App {
     staff?: import('./lib/auth').Staff;
     locale?: import('./lib/i18n').Locale;
     publicPath?: string;
+    consentCallback?: string;
   }
 }

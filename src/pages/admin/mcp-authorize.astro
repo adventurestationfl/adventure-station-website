@@ -20,6 +20,8 @@ try {
   return errorResponse(error);
 }
 Astro.response.headers.set('Cache-Control', 'no-store');
+// Set only after exact active-client/resource/redirect validation succeeds.
+Astro.locals.consentCallback = consent.data.redirect_uri;
 Astro.response.headers.set(
   'Set-Cookie',
   `mcp_consent=${consent.nonce}; HttpOnly; Secure; SameSite=Lax; Path=/admin/mcp-authorize; Max-Age=300`,

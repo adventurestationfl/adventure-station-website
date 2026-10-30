@@ -40,8 +40,29 @@ The 24 new consent integration tests passed. Source/type checks report zero erro
 
 The user has been asked to start a fresh connection from the existing plugin and run a read-only workshop listing. Successful actual ChatGPT authorization, token exchange and tool execution are **still pending**, regardless of the hosted HTTP results.
 
+## Callback-policy correction after the first hosted retry
+
+The user reported `Consent request expired` after the first repair. Read-only database inspection found four successful `studio:read` consent approvals for the existing ChatGPT client, zero exchanged codes and zero tokens. A full native-browser reproduction then found a second, separate cause: the document's `form-action 'self'` policy blocks the external callback redirect after the server consumes consent. Reusing that form correctly fails its single-use check. Expiry, cookie and nonce protections were not relaxed.
+
+Only the successful, validated consent GET now adds the registered callback's HTTPS origin/path to `form-action`. The value comes from the active client's exact validated authorization request through server locals, not a raw header or query interpolation. A second serialization guard accepts only the existing ChatGPT/Claude host set, no credentials, custom port, fragment, whitespace or policy delimiters. All other documents, errors and POST responses retain `form-action 'self'`. CSP is a browser defense; exact callback and query matching remain authoritative on the server, independent of browser redirect/path handling.
+
+Ten fast policy tests reject unsafe callbacks and confirm that unrelated routes do not gain an exception. Four desktop/mobile native browser tests reproduce the original null-Origin and callback-policy blocks and verify their corrections. The callback-policy test uses a separate loopback receiver; it does not connect to a real client. A separate full local Astro probe captured the native consent POST before any external callback, verified a 303 with matching state/issuer, exchanged its S256 code (200) and executed a scoped `list_workshops` read (200). This combines a real local browser POST and backend exchange with a synthetic callback, **not actual ChatGPT interoperability**. Full local WebKit OAuth was limited by its treatment of Secure cookies on HTTP loopback; Secure was retained. Earlier WebKit native-header reproduction remains separate evidence.
+
+The first repair's full local operational run passed **122 tests**. Both exact-head CI runs at `52fcc11acd3046919bf7738b2ee09338e70c25ac` passed: [push](https://github.com/adventurestationfl/adventure-station-website/actions/runs/40978903102), [pull request](https://github.com/adventurestationfl/adventure-station-website/actions/runs/40978908043). These precede this additional callback correction; its ten unit and four browser cases passed separately.
+
+Callback correction deployed **2026-10-30 00:37:48 UTC**: version `8d104764-8ca6-420d-b1a3-3573336f497a`, deployment `01ec3057-1f6d-4db7-b773-21a0fb876fde`, 100%. Compressed bundle 476,266 bytes, 13 allowlisted assets, fetch/scheduled handlers retained. **32/32 hosted HTTP checks pass again.** Immediate rollback is `83dbf760-7499-404e-8d5b-eb63628c3447`; retain `e62d6c9f-2350-4cc7-9dba-2d8226648234` as the pre-repair rollback. No migrations, plugin edits, Access policies, production settings or sending/payment gates changed. A fresh real ChatGPT connection was requested again; it remains pending until separately observed.
+
 ## References
 
 - [Fetch request Origin algorithm](https://fetch.spec.whatwg.org/#append-a-request-origin-header).
 - [OWASP CSRF prevention](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html).
 - [OpenAI plugin authentication](https://developers.openai.com/plugins/build/auth).
+- [W3C CSP form-action](https://www.w3.org/TR/CSP/#directive-form-action) and [MDN browser redirect behavior](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/form-action).
+
+## Actual ChatGPT authentication acceptance
+
+After the callback repair, the user confirmed **Connected and listed workshops**. Read-only hosted inspection independently confirms a new authorization at Unix time `1793320711` for the existing ChatGPT client, effective actor **Godmin**, `studio:read` only, one consumed authorization code and one minted token. No credentials, token hashes, codes, cookie values or personal registration records were retrieved.
+
+Actual connected tools then became available through the existing Adventure Station Studio plugin. `list_workshops` in English returned seven synthetic workshop records, including drafts and published preview examples. `business_configuration` in Mexican Spanish returned only the public business name, Freeport locality, America/Chicago timezone, USD and false policy-approval state. Hosted `mcp.tool.read` audit events at Unix times `1793320906` and `1793320907` independently confirm those calls, effective **Godmin**, source **mcp**, outcome **success**, exact registered client and respective tool names. Additional earlier user-session reads of workshops, sessions and public configuration are also recorded at `1793320886`. Observed tool discovery exposes read tools only, with no draft-writing tools under this grant.
+
+**Actual ChatGPT read-only authorization, PKCE exchange, tool discovery, permitted calls and attribution are verified**, beyond local mocks or user report alone. This does not establish all client lifecycle behavior. Claude, draft operations, reconnect after expiry and client-side revocation remain unverified. The normal quarter-hour job continued recording `scheduled.completed` during the repair.

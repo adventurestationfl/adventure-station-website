@@ -3,7 +3,7 @@ import { env } from 'cloudflare:workers';
 import { authenticate } from './lib/auth';
 import { errorResponse, HttpError } from './lib/http';
 import { localeOf } from './lib/i18n';
-import { consentReferrerPolicy } from './lib/consent-origin';
+import { consentReferrerPolicy, consentFormAction } from './lib/consent-origin';
 export const onRequest = defineMiddleware(async (context, next) => {
   context.locals.publicPath ??= context.url.pathname;
   context.locals.locale ??=
@@ -36,7 +36,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   headers.set('Permissions-Policy', 'camera=(),microphone=(),geolocation=()');
   headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'",
+    `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action ${consentFormAction(context.url.pathname, context.request.method, response.status, context.locals.consentCallback)}; object-src 'none'`,
   );
   if (context.url.protocol === 'https:')
     headers.set('Strict-Transport-Security', 'max-age=31536000');
